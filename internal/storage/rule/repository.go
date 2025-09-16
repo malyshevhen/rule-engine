@@ -5,6 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
+	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
 
 // Repository handles database operations for rules
@@ -32,6 +34,58 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 		return nil, err
 	}
 	return &rule, nil
+}
+
+// GetTriggersByRuleID retrieves all triggers associated with a rule
+func (r *Repository) GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*triggerStorage.Trigger, error) {
+	query := `
+		SELECT t.id, t.rule_id, t.type, t.condition_script, t.enabled, t.created_at, t.updated_at
+		FROM triggers t
+		JOIN rule_triggers rt ON t.id = rt.trigger_id
+		WHERE rt.rule_id = $1
+	`
+	rows, err := r.db.Query(ctx, query, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var triggers []*triggerStorage.Trigger
+	for rows.Next() {
+		var t triggerStorage.Trigger
+		err := rows.Scan(&t.ID, &t.RuleID, &t.Type, &t.ConditionScript, &t.Enabled, &t.CreatedAt, &t.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		triggers = append(triggers, &t)
+	}
+	return triggers, nil
+}
+
+// GetActionsByRuleID retrieves all actions associated with a rule
+func (r *Repository) GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*actionStorage.Action, error) {
+	query := `
+		SELECT a.id, a.lua_script, a.enabled, a.created_at, a.updated_at
+		FROM actions a
+		JOIN rule_actions ra ON a.id = ra.action_id
+		WHERE ra.rule_id = $1
+	`
+	rows, err := r.db.Query(ctx, query, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var actions []*actionStorage.Action
+	for rows.Next() {
+		var a actionStorage.Action
+		err := rows.Scan(&a.ID, &a.LuaScript, &a.Enabled, &a.CreatedAt, &a.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		actions = append(actions, &a)
+	}
+	return actions, nil
 }
 
 // TODO: add rule repository

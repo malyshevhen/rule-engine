@@ -39,12 +39,19 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 
 	defer L.Close()
 
-	// Open only safe libraries
-	L.OpenLibs() // This opens all, but we can selectively open
+	// Open only essential safe libraries
+	L.OpenBase()   // _G, basic functions
+	L.OpenTable()  // table library
+	L.OpenString() // string library
+	L.OpenMath()   // math library
+	// Explicitly do NOT open: io, os, debug, package, coroutine (if not needed)
 
-	// Remove unsafe libraries
+	// Remove any potentially unsafe globals that might be set
 	L.SetGlobal("io", lua.LNil)
 	L.SetGlobal("os", lua.LNil)
+	L.SetGlobal("debug", lua.LNil)
+	L.SetGlobal("package", lua.LNil)
+	L.SetGlobal("coroutine", lua.LNil)
 	// TODO: Remove networking libraries if any
 
 	// Set execution context in Lua
@@ -64,13 +71,43 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 		}
 	}
 
-	// Get the result (assume script returns a value)
-	result := L.Get(-1)
-	output := result.String()
+	// Get all return values
+	top := L.GetTop()
+	results := make([]interface{}, 0, top)
+	for i := 1; i <= top; i++ {
+		result := L.Get(i)
+		results = append(results, luaValueToGo(result))
+	}
 
 	return &ExecuteResult{
 		Success:  true,
-		Output:   output,
+		Output:   results,
 		Duration: duration,
+	}
+}
+
+// luaValueToGo converts a Lua value to a Go interface{}
+func luaValueToGo(v lua.LValue) interface{} {
+	switch v.Type() {
+	case lua.LTNil:
+		return nil
+	case lua.LTBool:
+		return lua.LVAsBool(v)
+	case lua.LTNumber:
+		return float64(v.(lua.LNumber))
+	case lua.LTString:
+		return string(v.(lua.LString))
+	case lua.LTTable:
+		// Convert table to map
+		table := v.(*lua.LTable)
+		result := make(map[string]interface{})
+		table.ForEach(func(key, value lua.LValue) {
+			if key.Type() == lua.LTString {
+				result[string(key.(lua.LString))] = luaValueToGo(value)
+			}
+		})
+		return result
+	default:
+		return v.String()
 	}
 }

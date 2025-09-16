@@ -35,8 +35,41 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 		return nil, err
 	}
 
-	// TODO: Load triggers and actions associated with the rule
-	// For now, return rule without them
+	// Load triggers and actions associated with the rule
+	triggersStorage, err := s.ruleRepo.GetTriggersByRuleID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	actionsStorage, err := s.ruleRepo.GetActionsByRuleID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert storage models to domain models
+	triggers := make([]trigger.Trigger, len(triggersStorage))
+	for i, t := range triggersStorage {
+		triggers[i] = trigger.Trigger{
+			ID:              t.ID,
+			Type:            trigger.TriggerType(t.Type),
+			ConditionScript: t.ConditionScript,
+			Enabled:         t.Enabled,
+			CreatedAt:       t.CreatedAt,
+			UpdatedAt:       t.UpdatedAt,
+		}
+	}
+
+	actions := make([]action.Action, len(actionsStorage))
+	for i, a := range actionsStorage {
+		actions[i] = action.Action{
+			ID:        a.ID,
+			LuaScript: a.LuaScript,
+			Enabled:   a.Enabled,
+			CreatedAt: a.CreatedAt,
+			UpdatedAt: a.UpdatedAt,
+		}
+	}
+
 	rule := &Rule{
 		ID:        ruleStorage.ID,
 		Name:      ruleStorage.Name,
@@ -44,8 +77,8 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 		Enabled:   ruleStorage.Enabled,
 		CreatedAt: ruleStorage.CreatedAt,
 		UpdatedAt: ruleStorage.UpdatedAt,
-		Triggers:  []trigger.Trigger{}, // TODO
-		Actions:   []action.Action{},   // TODO
+		Triggers:  triggers,
+		Actions:   actions,
 	}
 
 	return rule, nil
