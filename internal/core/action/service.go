@@ -27,8 +27,9 @@ func NewService(repo ActionRepository) *Service {
 // Create creates a new action
 func (s *Service) Create(ctx context.Context, action *Action) error {
 	storageAction := &actionStorage.Action{
-		LuaScript: action.LuaScript,
-		Enabled:   action.Enabled,
+		Type:    "lua_script",
+		Params:  action.LuaScript,
+		Enabled: action.Enabled,
 	}
 	err := s.repo.Create(ctx, storageAction)
 	if err != nil {
@@ -50,10 +51,15 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
 
 	action := &Action{
 		ID:        storageAction.ID,
-		LuaScript: storageAction.LuaScript,
+		Type:      storageAction.Type,
+		Params:    storageAction.Params,
 		Enabled:   storageAction.Enabled,
 		CreatedAt: storageAction.CreatedAt,
 		UpdatedAt: storageAction.UpdatedAt,
+	}
+	// For backward compatibility
+	if storageAction.Type == "lua_script" {
+		action.LuaScript = storageAction.Params
 	}
 
 	return action, nil
@@ -68,13 +74,19 @@ func (s *Service) List(ctx context.Context) ([]*Action, error) {
 
 	actions := make([]*Action, len(storageActions))
 	for i, storageAction := range storageActions {
-		actions[i] = &Action{
+		action := &Action{
 			ID:        storageAction.ID,
-			LuaScript: storageAction.LuaScript,
+			Type:      storageAction.Type,
+			Params:    storageAction.Params,
 			Enabled:   storageAction.Enabled,
 			CreatedAt: storageAction.CreatedAt,
 			UpdatedAt: storageAction.UpdatedAt,
 		}
+		// For backward compatibility
+		if storageAction.Type == "lua_script" {
+			action.LuaScript = storageAction.Params
+		}
+		actions[i] = action
 	}
 
 	return actions, nil

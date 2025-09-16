@@ -9,7 +9,8 @@ import (
 // Action represents an action in the storage layer
 type Action struct {
 	ID        uuid.UUID `json:"id" db:"id"`
-	LuaScript string    `json:"lua_script" db:"lua_script"`
+	Type      string    `json:"type" db:"type"`
+	Params    string    `json:"params" db:"params"` // JSON string for parameters
 	Enabled   bool      `json:"enabled" db:"enabled"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`

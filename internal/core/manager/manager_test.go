@@ -43,8 +43,9 @@ func TestManager_executeRule(t *testing.T) {
 	mockExec := &mockExecutor{}
 
 	mgr := &Manager{
-		ruleSvc:  mockRuleSvc,
-		executor: mockExec,
+		ruleSvc:        mockRuleSvc,
+		executor:       mockExec,
+		executingRules: make(map[uuid.UUID]bool),
 	}
 
 	ruleID := uuid.New()
@@ -56,6 +57,8 @@ func TestManager_executeRule(t *testing.T) {
 		Actions: []action.Action{
 			{
 				ID:        uuid.New(),
+				Type:      "lua_script",
+				Params:    "print('action')",
 				LuaScript: "print('action')",
 				Enabled:   true,
 			},
@@ -93,8 +96,9 @@ func TestManager_executeRule_FailedCondition(t *testing.T) {
 	mockExec := &mockExecutor{}
 
 	mgr := &Manager{
-		ruleSvc:  mockRuleSvc,
-		executor: mockExec,
+		ruleSvc:        mockRuleSvc,
+		executor:       mockExec,
+		executingRules: make(map[uuid.UUID]bool),
 	}
 
 	ruleID := uuid.New()
@@ -131,8 +135,9 @@ func TestManager_executeRule_RuleNotFound(t *testing.T) {
 	mockExec := &mockExecutor{}
 
 	mgr := &Manager{
-		ruleSvc:  mockRuleSvc,
-		executor: mockExec,
+		ruleSvc:        mockRuleSvc,
+		executor:       mockExec,
+		executingRules: make(map[uuid.UUID]bool),
 	}
 
 	ruleID := uuid.New()
@@ -150,8 +155,9 @@ func TestManager_executeRule_ExecutionError(t *testing.T) {
 	mockExec := &mockExecutor{}
 
 	mgr := &Manager{
-		ruleSvc:  mockRuleSvc,
-		executor: mockExec,
+		ruleSvc:        mockRuleSvc,
+		executor:       mockExec,
+		executingRules: make(map[uuid.UUID]bool),
 	}
 
 	ruleID := uuid.New()
@@ -187,8 +193,9 @@ func TestManager_executeRule_MultipleActions(t *testing.T) {
 	mockExec := &mockExecutor{}
 
 	mgr := &Manager{
-		ruleSvc:  mockRuleSvc,
-		executor: mockExec,
+		ruleSvc:        mockRuleSvc,
+		executor:       mockExec,
+		executingRules: make(map[uuid.UUID]bool),
 	}
 
 	ruleID := uuid.New()
@@ -200,11 +207,15 @@ func TestManager_executeRule_MultipleActions(t *testing.T) {
 		Actions: []action.Action{
 			{
 				ID:        uuid.New(),
+				Type:      "lua_script",
+				Params:    "print('action1')",
 				LuaScript: "print('action1')",
 				Enabled:   true,
 			},
 			{
 				ID:        uuid.New(),
+				Type:      "lua_script",
+				Params:    "print('action2')",
 				LuaScript: "print('action2')",
 				Enabled:   true,
 			},

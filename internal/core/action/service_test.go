@@ -40,7 +40,7 @@ func TestService_Create(t *testing.T) {
 	}
 
 	mockRepo.On("Create", mock.Anything, mock.MatchedBy(func(a *actionStorage.Action) bool {
-		return a.LuaScript == action.LuaScript && a.Enabled == action.Enabled
+		return a.Type == "lua_script" && a.Params == action.LuaScript && a.Enabled == action.Enabled
 	})).Return(nil)
 
 	err := service.Create(context.Background(), action)
@@ -72,9 +72,10 @@ func TestService_GetByID(t *testing.T) {
 
 	actionID := uuid.New()
 	expectedAction := &actionStorage.Action{
-		ID:        actionID,
-		LuaScript: "print('action executed')",
-		Enabled:   true,
+		ID:      actionID,
+		Type:    "lua_script",
+		Params:  "print('action executed')",
+		Enabled: true,
 	}
 
 	mockRepo.On("GetByID", mock.Anything, actionID).Return(expectedAction, nil)

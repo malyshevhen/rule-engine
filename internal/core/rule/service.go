@@ -83,10 +83,15 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 	for i, a := range actionsStorage {
 		actions[i] = action.Action{
 			ID:        a.ID,
-			LuaScript: a.LuaScript,
+			Type:      a.Type,
+			Params:    a.Params,
 			Enabled:   a.Enabled,
 			CreatedAt: a.CreatedAt,
 			UpdatedAt: a.UpdatedAt,
+		}
+		// For backward compatibility
+		if a.Type == "lua_script" {
+			actions[i].LuaScript = a.Params
 		}
 	}
 

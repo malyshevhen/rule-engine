@@ -78,7 +78,7 @@ func (r *Repository) GetByIDWithAssociations(ctx context.Context, id uuid.UUID) 
 
 	// Get actions using JOIN
 	actionsQuery := `
-		SELECT a.id, a.lua_script, a.enabled, a.created_at, a.updated_at
+		SELECT a.id, a.type, a.params, a.enabled, a.created_at, a.updated_at
 		FROM actions a
 		INNER JOIN rule_actions ra ON a.id = ra.action_id
 		WHERE ra.rule_id = $1
@@ -93,7 +93,7 @@ func (r *Repository) GetByIDWithAssociations(ctx context.Context, id uuid.UUID) 
 	var actions []*actionStorage.Action
 	for actionsRows.Next() {
 		var a actionStorage.Action
-		err := actionsRows.Scan(&a.ID, &a.LuaScript, &a.Enabled, &a.CreatedAt, &a.UpdatedAt)
+		err := actionsRows.Scan(&a.ID, &a.Type, &a.Params, &a.Enabled, &a.CreatedAt, &a.UpdatedAt)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -132,7 +132,7 @@ func (r *Repository) GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) 
 // GetActionsByRuleID retrieves all actions associated with a rule
 func (r *Repository) GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*actionStorage.Action, error) {
 	query := `
-		SELECT a.id, a.lua_script, a.enabled, a.created_at, a.updated_at
+		SELECT a.id, a.type, a.params, a.enabled, a.created_at, a.updated_at
 		FROM actions a
 		JOIN rule_actions ra ON a.id = ra.action_id
 		WHERE ra.rule_id = $1
@@ -146,7 +146,7 @@ func (r *Repository) GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) (
 	var actions []*actionStorage.Action
 	for rows.Next() {
 		var a actionStorage.Action
-		err := rows.Scan(&a.ID, &a.LuaScript, &a.Enabled, &a.CreatedAt, &a.UpdatedAt)
+		err := rows.Scan(&a.ID, &a.Type, &a.Params, &a.Enabled, &a.CreatedAt, &a.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

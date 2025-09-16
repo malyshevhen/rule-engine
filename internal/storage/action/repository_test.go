@@ -20,16 +20,17 @@ func TestRepository_Create(t *testing.T) {
 	repo := NewRepository(pool)
 
 	action := &Action{
-		LuaScript: "send_command('device', 'on')",
-		Enabled:   true,
+		Type:    "lua_script",
+		Params:  "send_command('device', 'on')",
+		Enabled: true,
 	}
 
 	expectedID := uuid.New()
 	expectedCreatedAt := time.Now()
 	expectedUpdatedAt := time.Now()
 
-	pool.ExpectQuery(`INSERT INTO actions \(lua_script, enabled\) VALUES \(\$1, \$2\) RETURNING id, created_at, updated_at`).
-		WithArgs(action.LuaScript, action.Enabled).
+	pool.ExpectQuery(`INSERT INTO actions \(type, params, enabled\) VALUES \(\$1, \$2, \$3\) RETURNING id, created_at, updated_at`).
+		WithArgs(action.Type, action.Params, action.Enabled).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "created_at", "updated_at"}).
 			AddRow(expectedID, expectedCreatedAt, expectedUpdatedAt))
 
@@ -52,16 +53,17 @@ func TestRepository_GetByID(t *testing.T) {
 
 	expectedAction := &Action{
 		ID:        uuid.New(),
-		LuaScript: "send_command('device', 'on')",
+		Type:      "lua_script",
+		Params:    "send_command('device', 'on')",
 		Enabled:   true,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	pool.ExpectQuery(`SELECT id, lua_script, enabled, created_at, updated_at FROM actions WHERE id = \$1`).
+	pool.ExpectQuery(`SELECT id, type, params, enabled, created_at, updated_at FROM actions WHERE id = \$1`).
 		WithArgs(expectedAction.ID).
-		WillReturnRows(pgxmock.NewRows([]string{"id", "lua_script", "enabled", "created_at", "updated_at"}).
-			AddRow(expectedAction.ID, expectedAction.LuaScript, expectedAction.Enabled, expectedAction.CreatedAt, expectedAction.UpdatedAt))
+		WillReturnRows(pgxmock.NewRows([]string{"id", "type", "params", "enabled", "created_at", "updated_at"}).
+			AddRow(expectedAction.ID, expectedAction.Type, expectedAction.Params, expectedAction.Enabled, expectedAction.CreatedAt, expectedAction.UpdatedAt))
 
 	action, err := repo.GetByID(context.Background(), expectedAction.ID)
 
@@ -81,26 +83,28 @@ func TestRepository_List(t *testing.T) {
 	expectedActions := []*Action{
 		{
 			ID:        uuid.New(),
-			LuaScript: "send_command('device1', 'on')",
+			Type:      "lua_script",
+			Params:    "send_command('device1', 'on')",
 			Enabled:   true,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
 		{
 			ID:        uuid.New(),
-			LuaScript: "send_command('device2', 'off')",
+			Type:      "lua_script",
+			Params:    "send_command('device2', 'off')",
 			Enabled:   false,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
 	}
 
-	rows := pgxmock.NewRows([]string{"id", "lua_script", "enabled", "created_at", "updated_at"})
+	rows := pgxmock.NewRows([]string{"id", "type", "params", "enabled", "created_at", "updated_at"})
 	for _, action := range expectedActions {
-		rows.AddRow(action.ID, action.LuaScript, action.Enabled, action.CreatedAt, action.UpdatedAt)
+		rows.AddRow(action.ID, action.Type, action.Params, action.Enabled, action.CreatedAt, action.UpdatedAt)
 	}
 
-	pool.ExpectQuery(`SELECT id, lua_script, enabled, created_at, updated_at FROM actions ORDER BY created_at DESC`).
+	pool.ExpectQuery(`SELECT id, type, params, enabled, created_at, updated_at FROM actions ORDER BY created_at DESC`).
 		WillReturnRows(rows)
 
 	actions, err := repo.List(context.Background())
@@ -120,7 +124,7 @@ func TestRepository_List_Error(t *testing.T) {
 
 	repo := NewRepository(pool)
 
-	pool.ExpectQuery(`SELECT id, lua_script, enabled, created_at, updated_at FROM actions ORDER BY created_at DESC`).
+	pool.ExpectQuery(`SELECT id, type, params, enabled, created_at, updated_at FROM actions ORDER BY created_at DESC`).
 		WillReturnError(assert.AnError)
 
 	actions, err := repo.List(context.Background())
@@ -140,7 +144,7 @@ func TestRepository_GetByID_NotFound(t *testing.T) {
 
 	id := uuid.New()
 
-	pool.ExpectQuery(`SELECT id, lua_script, enabled, created_at, updated_at FROM actions WHERE id = \$1`).
+	pool.ExpectQuery(`SELECT id, type, params, enabled, created_at, updated_at FROM actions WHERE id = \$1`).
 		WithArgs(id).
 		WillReturnError(pgx.ErrNoRows)
 
@@ -160,12 +164,13 @@ func TestRepository_Create_Error(t *testing.T) {
 	repo := NewRepository(pool)
 
 	action := &Action{
-		LuaScript: "send_command('device', 'on')",
-		Enabled:   true,
+		Type:    "lua_script",
+		Params:  "send_command('device', 'on')",
+		Enabled: true,
 	}
 
-	pool.ExpectQuery(`INSERT INTO actions \(lua_script, enabled\) VALUES \(\$1, \$2\) RETURNING id, created_at, updated_at`).
-		WithArgs(action.LuaScript, action.Enabled).
+	pool.ExpectQuery(`INSERT INTO actions \(type, params, enabled\) VALUES \(\$1, \$2, \$3\) RETURNING id, created_at, updated_at`).
+		WithArgs(action.Type, action.Params, action.Enabled).
 		WillReturnError(assert.AnError)
 
 	err = repo.Create(context.Background(), action)

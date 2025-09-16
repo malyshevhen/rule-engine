@@ -25,15 +25,15 @@ func NewRepository(db Pool) *Repository {
 
 // Create inserts a new action into the database
 func (r *Repository) Create(ctx context.Context, action *Action) error {
-	query := `INSERT INTO actions (lua_script, enabled) VALUES ($1, $2) RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(ctx, query, action.LuaScript, action.Enabled).Scan(&action.ID, &action.CreatedAt, &action.UpdatedAt)
+	query := `INSERT INTO actions (type, params, enabled) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(ctx, query, action.Type, action.Params, action.Enabled).Scan(&action.ID, &action.CreatedAt, &action.UpdatedAt)
 }
 
 // GetByID retrieves an action by its ID
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
-	query := `SELECT id, lua_script, enabled, created_at, updated_at FROM actions WHERE id = $1`
+	query := `SELECT id, type, params, enabled, created_at, updated_at FROM actions WHERE id = $1`
 	var action Action
-	err := r.db.QueryRow(ctx, query, id).Scan(&action.ID, &action.LuaScript, &action.Enabled, &action.CreatedAt, &action.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&action.ID, &action.Type, &action.Params, &action.Enabled, &action.CreatedAt, &action.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Action, error)
 
 // List retrieves all actions
 func (r *Repository) List(ctx context.Context) ([]*Action, error) {
-	query := `SELECT id, lua_script, enabled, created_at, updated_at FROM actions ORDER BY created_at DESC`
+	query := `SELECT id, type, params, enabled, created_at, updated_at FROM actions ORDER BY created_at DESC`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (r *Repository) List(ctx context.Context) ([]*Action, error) {
 	var actions []*Action
 	for rows.Next() {
 		var action Action
-		err := rows.Scan(&action.ID, &action.LuaScript, &action.Enabled, &action.CreatedAt, &action.UpdatedAt)
+		err := rows.Scan(&action.ID, &action.Type, &action.Params, &action.Enabled, &action.CreatedAt, &action.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

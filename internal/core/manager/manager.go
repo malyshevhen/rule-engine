@@ -30,19 +30,21 @@ type Executor interface {
 
 // Manager handles trigger execution
 type Manager struct {
-	nc       *nats.Conn
-	cron     *cron.Cron
-	ruleSvc  RuleService
-	executor Executor
+	nc             *nats.Conn
+	cron           *cron.Cron
+	ruleSvc        RuleService
+	executor       Executor
+	executingRules map[uuid.UUID]bool // To detect cycles in rule chaining
 }
 
 // NewManager creates a new trigger manager
 func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, executor Executor) *Manager {
 	return &Manager{
-		nc:       nc,
-		cron:     cron,
-		ruleSvc:  ruleSvc,
-		executor: executor,
+		nc:             nc,
+		cron:           cron,
+		ruleSvc:        ruleSvc,
+		executor:       executor,
+		executingRules: make(map[uuid.UUID]bool),
 	}
 }
 
@@ -120,6 +122,14 @@ func (m *Manager) executeRule(ctx context.Context, ruleID uuid.UUID) {
 		attribute.String("rule.id", ruleID.String()),
 	)
 
+	// Check for cycles in rule chaining
+	if m.executingRules[ruleID] {
+		slog.Warn("Cycle detected in rule execution, skipping", "rule_id", ruleID)
+		return
+	}
+	m.executingRules[ruleID] = true
+	defer func() { delete(m.executingRules, ruleID) }()
+
 	rule, err := m.ruleSvc.GetByID(ctx, ruleID)
 	if err != nil {
 		span.RecordError(err)
@@ -166,19 +176,47 @@ func (m *Manager) executeRule(ctx context.Context, ruleID uuid.UUID) {
 
 	// Execute actions
 	for _, action := range rule.Actions {
-		actionCtx, actionSpan := tracing.StartSpan(ctx, "action.script_execution")
+		actionCtx, actionSpan := tracing.StartSpan(ctx, "action.execution")
 		actionSpan.SetAttributes(
 			attribute.String("action.id", action.ID.String()),
+			attribute.String("action.type", action.Type),
 		)
 
-		actionResult := m.executor.ExecuteScript(actionCtx, action.LuaScript, execCtx)
-		actionSpan.End()
-
-		if actionResult.Error != "" {
-			actionSpan.RecordError(fmt.Errorf("action execution failed: %s", actionResult.Error))
-			slog.Error("Action execution failed", "action_id", action.ID, "error", actionResult.Error)
-		} else {
-			slog.Info("Action executed", "action_id", action.ID)
+		switch action.Type {
+		case "lua_script":
+			actionResult := m.executor.ExecuteScript(actionCtx, action.LuaScript, execCtx)
+			if actionResult.Error != "" {
+				actionSpan.RecordError(fmt.Errorf("lua action execution failed: %s", actionResult.Error))
+				slog.Error("Lua action execution failed", "action_id", action.ID, "error", actionResult.Error)
+			} else {
+				slog.Info("Lua action executed", "action_id", action.ID)
+			}
+		case "execute_rule":
+			var params map[string]interface{}
+			if err := json.Unmarshal([]byte(action.Params), &params); err != nil {
+				actionSpan.RecordError(fmt.Errorf("failed to parse execute_rule params: %w", err))
+				slog.Error("Failed to parse execute_rule params", "action_id", action.ID, "error", err)
+				continue
+			}
+			ruleIDStr, ok := params["rule_id"].(string)
+			if !ok {
+				actionSpan.RecordError(fmt.Errorf("invalid rule_id in execute_rule params"))
+				slog.Error("Invalid rule_id in execute_rule params", "action_id", action.ID)
+				continue
+			}
+			targetRuleID, err := uuid.Parse(ruleIDStr)
+			if err != nil {
+				actionSpan.RecordError(fmt.Errorf("invalid rule_id format: %w", err))
+				slog.Error("Invalid rule_id format", "action_id", action.ID, "rule_id_str", ruleIDStr, "error", err)
+				continue
+			}
+			slog.Info("Executing chained rule", "action_id", action.ID, "target_rule_id", targetRuleID)
+			m.executeRule(actionCtx, targetRuleID)
+		default:
+			actionSpan.RecordError(fmt.Errorf("unknown action type: %s", action.Type))
+			slog.Error("Unknown action type", "action_id", action.ID, "type", action.Type)
 		}
+
+		actionSpan.End()
 	}
 }
