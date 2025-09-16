@@ -29,7 +29,7 @@ The service follows a clean architecture with clear separation of concerns:
 
 - Go 1.24+
 - PostgreSQL 13+
-- Docker & Docker Compose (for local development)
+- Podman & Podman Compose (for local development)
 
 ### Local Development Setup
 
@@ -43,7 +43,7 @@ The service follows a clean architecture with clear separation of concerns:
     ```bash
     make dev-up
     ```
-    This starts all services using Docker Compose:
+    This starts all services using Podman Compose:
     - **PostgreSQL** database (port 5433)
     - **Redis** cache (port 6379)
     - **NATS** message bus (port 4222)
@@ -73,6 +73,18 @@ make run-local      # Run app locally (requires DB to be running)
 
 # Or use legacy workflow
 make dev           # Manual DB + migrations + app
+```
+
+**Manual Podman Commands:**
+```bash
+# Start PostgreSQL manually
+podman run -d \
+  --name rule-engine-db \
+  -e POSTGRES_DB=rule_engine \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=password \
+  -p 5433:5432 \
+  postgres:15-alpine
 ```
 
 The service will be available at `http://localhost:8080`
@@ -450,9 +462,9 @@ make test                  # Run all unit tests
 make test-integration      # Run integration tests
 make quality               # Run all code quality checks
 
-# 🐳 Docker
-make docker-build          # Build production container
-make docker-run            # Run production container
+# 🐳 Container
+make docker-build    # Build production container
+make docker-run      # Run production container
 
 # 🔍 Utilities
 make health                # Check application health
@@ -511,10 +523,10 @@ The production container includes:
 
 ```bash
 # Build production image
-docker build -f containers/Containerfile -t rule-engine:latest .
+podman build -f containers/Containerfile -t rule-engine:latest .
 
 # Run in production
-docker run -d \
+podman run -d \
   --name rule-engine \
   -p 8080:8080 \
   -e DATABASE_URL="..." \

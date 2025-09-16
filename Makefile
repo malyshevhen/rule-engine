@@ -100,39 +100,39 @@ docs: ## Generate OpenAPI/Swagger documentation
 
 quality: format vet tidy sql-lint ## Run all code quality checks
 
-# Docker commands
-docker-build: ## Build Docker container
-	docker build -f containers/Containerfile -t rule-engine .
+# Container commands
+docker-build: ## Build container
+	podman build -f containers/Containerfile -t rule-engine .
 
-docker-run: ## Run Docker container
-	docker run -d --name rule-engine -p 8080:8080 \
+docker-run: ## Run container
+	podman run -d --name rule-engine -p 8080:8080 \
 		-e DATABASE_URL="postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable" \
 		-e API_KEY="your-api-key-here" \
 		-e JWT_SECRET="your-jwt-secret-here" \
 		rule-engine
 
-docker-compose-up: ## Start services with Docker Compose
-	docker-compose -f containers/compose.yaml up
+docker-compose-up: ## Start services with Podman Compose
+	podman-compose -f containers/compose.yaml up
 
-docker-compose-down: ## Stop services with Docker Compose
-	docker-compose -f containers/compose.yaml down
+docker-compose-down: ## Stop services with Podman Compose
+	podman-compose -f containers/compose.yaml down
 
 # Local development stack
-dev-up: ## Start local development stack with docker-compose
-	docker-compose -f docker-compose.dev.yml up -d
+dev-up: ## Start local development stack with podman-compose
+	podman-compose -f docker-compose.dev.yml up -d
 
 dev-down: ## Stop local development stack
-	docker-compose -f docker-compose.dev.yml down
+	podman-compose -f docker-compose.dev.yml down
 
 dev-logs: ## Show logs from development stack
-	docker-compose -f docker-compose.dev.yml logs -f
+	podman-compose -f docker-compose.dev.yml logs -f
 
 dev-restart: ## Restart development stack
-	docker-compose -f docker-compose.dev.yml restart
+	podman-compose -f docker-compose.dev.yml restart
 
 # Legacy database commands (for manual setup)
 db-up: ## Start local PostgreSQL database (legacy)
-	docker run -d --name rule-engine-db \
+	podman run -d --name rule-engine-db \
 		-e POSTGRES_DB=rule_engine \
 		-e POSTGRES_USER=postgres \
 		-e POSTGRES_PASSWORD=password \
@@ -141,15 +141,15 @@ db-up: ## Start local PostgreSQL database (legacy)
 
 db-wait: ## Wait for database to be ready (legacy)
 	@echo "Waiting for database to be ready..."
-	@until docker exec rule-engine-db pg_isready -U postgres -d rule_engine >/dev/null 2>&1; do \
+	@until podman exec rule-engine-db pg_isready -U postgres -d rule_engine >/dev/null 2>&1; do \
 		echo "Database not ready, waiting..."; \
 		sleep 2; \
 	done
 	@echo "Database is ready!"
 
 db-down: ## Stop local PostgreSQL database (legacy)
-	docker stop rule-engine-db
-	docker rm rule-engine-db
+	podman stop rule-engine-db
+	podman rm rule-engine-db
 
 # Development workflow (legacy - use dev-up instead)
 dev: db-up db-wait migrate run-local ## Start development environment (legacy - use dev-up instead)
@@ -164,7 +164,7 @@ setup: ## Initial project setup
 
 # Utility commands
 logs: ## Show application logs (if running in container)
-	docker logs -f rule-engine
+	podman logs -f rule-engine
 
 health: ## Check application health
 	curl -f http://localhost:8080/health || echo "Health check failed"
