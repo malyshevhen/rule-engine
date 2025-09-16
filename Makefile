@@ -104,12 +104,20 @@ db-up: ## Start local PostgreSQL database
 		-p 5433:5432 \
 		postgres:15-alpine
 
+db-wait: ## Wait for database to be ready
+	@echo "Waiting for database to be ready..."
+	@until docker exec rule-engine-db pg_isready -U postgres -d rule_engine >/dev/null 2>&1; do \
+		echo "Database not ready, waiting..."; \
+		sleep 2; \
+	done
+	@echo "Database is ready!"
+
 db-down: ## Stop local PostgreSQL database
 	docker stop rule-engine-db
 	docker rm rule-engine-db
 
 # Development workflow
-dev: db-up migrate run-local ## Start development environment (DB + migrations + app)
+dev: db-up db-wait migrate run-local ## Start development environment (DB + migrations + app)
 
 # CI/CD simulation
 ci: quality test test-integration lint ## Run CI pipeline locally
