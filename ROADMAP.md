@@ -166,7 +166,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 - [x] Implement rule chaining and dependencies (via execute_rule action type)
 - [x] Add rule execution ordering (priority-based)
-- [ ] Support complex trigger conditions
+- [x] Support complex trigger conditions
 
 ### 8.2 Performance Optimizations
 

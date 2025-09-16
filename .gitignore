@@ -12,6 +12,7 @@ go.work
 
 # Go binary
 rule-engine
+main
 
 # IDE files
 .idea
