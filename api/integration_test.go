@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/malyshevhen/rule-engine/internal/analytics"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
@@ -68,10 +69,11 @@ func setupIntegrationTest(t *testing.T) (*Server, func()) {
 	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo, nil)
 	triggerSvc := trigger.NewService(triggerRepo, nil)
 	actionSvc := action.NewService(actionRepo)
+	analyticsSvc := analytics.NewService()
 
 	// Create server
 	config := &ServerConfig{Port: "8080"}
-	server := NewServer(config, ruleSvc, triggerSvc, actionSvc)
+	server := NewServer(config, ruleSvc, triggerSvc, actionSvc, analyticsSvc)
 
 	// Return cleanup function
 	cleanup := func() {
@@ -992,4 +994,49 @@ func TestIntegration_TriggerEvaluation(t *testing.T) {
 	results4 := evaluator.EvaluateTriggers(context.Background(), []*trigger.Trigger{complexTrigger}, eventData4)
 	assert.Len(t, results4, 1)
 	assert.True(t, results4[0].Matched)
+}
+
+func TestIntegration_GetDashboardData(t *testing.T) {
+	server, cleanup := setupIntegrationTest(t)
+	defer cleanup()
+
+	// Test with default time range
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/dashboard", nil)
+	req.Header.Set("Authorization", "ApiKey test-api-key-integration")
+	w := httptest.NewRecorder()
+
+	server.Router().ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var data analytics.DashboardData
+	err := json.Unmarshal(w.Body.Bytes(), &data)
+	require.NoError(t, err)
+
+	assert.NotNil(t, data.OverallStats)
+	assert.NotNil(t, data.RuleStats)
+	assert.NotNil(t, data.ExecutionTrend)
+	assert.NotNil(t, data.SuccessRateTrend)
+	assert.NotNil(t, data.LatencyTrend)
+	assert.Equal(t, "24h", data.TimeRange)
+
+	// Test with custom time range
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/dashboard?timeRange=1h", nil)
+	req2.Header.Set("Authorization", "ApiKey test-api-key-integration")
+	w2 := httptest.NewRecorder()
+
+	server.Router().ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusOK, w2.Code)
+
+	var data2 analytics.DashboardData
+	err = json.Unmarshal(w2.Body.Bytes(), &data2)
+	require.NoError(t, err)
+	assert.Equal(t, "1h", data2.TimeRange)
+
+	// Test with invalid time range
+	req3 := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/dashboard?timeRange=invalid", nil)
+	req3.Header.Set("Authorization", "ApiKey test-api-key-integration")
+	w3 := httptest.NewRecorder()
+
+	server.Router().ServeHTTP(w3, req3)
+	assert.Equal(t, http.StatusBadRequest, w3.Code)
 }

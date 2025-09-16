@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/malyshevhen/rule-engine/internal/analytics"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
@@ -42,18 +43,24 @@ type ServerConfig struct {
 	Port string
 }
 
+// AnalyticsService interface
+type AnalyticsService interface {
+	GetDashboardData(ctx context.Context, timeRange string) (*analytics.DashboardData, error)
+}
+
 // Server represents the HTTP server
 type Server struct {
-	config     *ServerConfig
-	router     *mux.Router
-	server     *http.Server
-	ruleSvc    RuleService
-	triggerSvc TriggerService
-	actionSvc  ActionService
+	config       *ServerConfig
+	router       *mux.Router
+	server       *http.Server
+	ruleSvc      RuleService
+	triggerSvc   TriggerService
+	actionSvc    ActionService
+	analyticsSvc AnalyticsService
 }
 
 // NewServer creates a new HTTP server
-func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service) *Server {
+func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service, analyticsSvc AnalyticsService) *Server {
 	router := mux.NewRouter()
 
 	// Add middleware
@@ -65,11 +72,12 @@ func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.
 	// TODO: Setup CORS
 
 	s := &Server{
-		config:     config,
-		router:     router,
-		ruleSvc:    ruleSvc,
-		triggerSvc: triggerSvc,
-		actionSvc:  actionSvc,
+		config:       config,
+		router:       router,
+		ruleSvc:      ruleSvc,
+		triggerSvc:   triggerSvc,
+		actionSvc:    actionSvc,
+		analyticsSvc: analyticsSvc,
 	}
 
 	s.setupRoutes()
@@ -84,7 +92,7 @@ func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.
 }
 
 // NewServerWithoutRateLimit creates a new HTTP server without rate limiting (for performance testing)
-func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service) *Server {
+func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service, analyticsSvc AnalyticsService) *Server {
 	router := mux.NewRouter()
 
 	// Add middleware (excluding rate limiting)
@@ -94,11 +102,12 @@ func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc *rule.Service, trig
 	// TODO: Setup CORS
 
 	s := &Server{
-		config:     config,
-		router:     router,
-		ruleSvc:    ruleSvc,
-		triggerSvc: triggerSvc,
-		actionSvc:  actionSvc,
+		config:       config,
+		router:       router,
+		ruleSvc:      ruleSvc,
+		triggerSvc:   triggerSvc,
+		actionSvc:    actionSvc,
+		analyticsSvc: analyticsSvc,
 	}
 
 	s.setupRoutes()
@@ -138,6 +147,12 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/actions", s.CreateAction).Methods("POST")
 	api.HandleFunc("/actions", s.ListActions).Methods("GET")
 	api.HandleFunc("/actions/{id}", s.GetAction).Methods("GET")
+
+	// Analytics routes
+	api.HandleFunc("/analytics/dashboard", s.GetDashboardData).Methods("GET")
+
+	// Dashboard route (serves static HTML)
+	s.router.HandleFunc("/dashboard", s.ServeDashboard).Methods("GET")
 }
 
 // Start starts the HTTP server
@@ -153,6 +168,157 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // Router returns the router for testing purposes
 func (s *Server) Router() *mux.Router {
 	return s.router
+}
+
+// GetDashboardData godoc
+//
+//	@Summary		Get analytics dashboard data
+//	@Description	Get aggregated analytics data for the dashboard
+//	@Tags			analytics
+//	@Accept			json
+//	@Produce		json
+//	@Param			timeRange	query		string	false	"Time range (1h, 24h, 7d, 30d)"	Enums(1h,24h,7d,30d)
+//	@Success		200			{object}	analytics.DashboardData
+//	@Failure		500			{object}	APIErrorResponse
+//	@Router			/analytics/dashboard [get]
+func (s *Server) GetDashboardData(w http.ResponseWriter, r *http.Request) {
+	timeRange := r.URL.Query().Get("timeRange")
+	if timeRange == "" {
+		timeRange = "24h" // default
+	}
+
+	// Validate time range
+	validRanges := map[string]bool{
+		"1h": true, "24h": true, "7d": true, "30d": true,
+	}
+	if !validRanges[timeRange] {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid time range. Valid values: 1h, 24h, 7d, 30d")
+		return
+	}
+
+	data, err := s.analyticsSvc.GetDashboardData(r.Context(), timeRange)
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to get dashboard data")
+		return
+	}
+
+	SuccessResponse(w, data)
+}
+
+// ServeDashboard serves the analytics dashboard HTML page
+func (s *Server) ServeDashboard(w http.ResponseWriter, r *http.Request) {
+	// For now, serve a simple HTML response
+	// In a production system, you might want to embed the HTML file or serve it from a static directory
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule Engine Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .stat-value { font-size: 2em; font-weight: bold; color: #007bff; }
+        .stat-label { color: #666; margin-top: 5px; }
+        .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .loading { text-align: center; padding: 50px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Rule Engine Analytics Dashboard</h1>
+            <p>Real-time monitoring and insights</p>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="total-executions">Loading...</div>
+                <div class="stat-label">Total Executions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="success-rate">Loading...</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avg-latency">Loading...</div>
+                <div class="stat-label">Avg Latency</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>📈 Execution Trend (Last 24 Hours)</h3>
+            <canvas id="executionChart" width="400" height="200"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h3>✅ Success Rate Trend</h3>
+            <canvas id="successRateChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let executionChart, successRateChart;
+
+        function initCharts() {
+            executionChart = new Chart(document.getElementById('executionChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Executions', data: [], borderColor: '#007bff', tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            successRateChart = new Chart(document.getElementById('successRateChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Success Rate %', data: [], borderColor: '#28a745', tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/v1/analytics/dashboard?timeRange=24h');
+                const data = await response.json();
+
+                // Update stats
+                document.getElementById('total-executions').textContent = data.overall_stats.total_executions;
+                document.getElementById('success-rate').textContent = data.overall_stats.success_rate.toFixed(1) + '%';
+                document.getElementById('avg-latency').textContent = data.overall_stats.average_latency.toFixed(1) + 'ms';
+
+                // Update charts
+                const execLabels = data.execution_trend.data.map(p => new Date(p.timestamp).toLocaleTimeString());
+                const execData = data.execution_trend.data.map(p => p.value);
+                executionChart.data.labels = execLabels;
+                executionChart.data.datasets[0].data = execData;
+                executionChart.update();
+
+                const successLabels = data.success_rate_trend.data.map(p => new Date(p.timestamp).toLocaleTimeString());
+                const successData = data.success_rate_trend.data.map(p => p.value);
+                successRateChart.data.labels = successLabels;
+                successRateChart.data.datasets[0].data = successData;
+                successRateChart.update();
+
+            } catch (error) {
+                console.error('Failed to load dashboard data:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            loadDashboard();
+            // Refresh every 30 seconds
+            setInterval(loadDashboard, 30000);
+        });
+    </script>
+</body>
+</html>`
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(html))
 }
 
 // HealthCheck godoc

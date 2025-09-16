@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/malyshevhen/rule-engine/api"
 	"github.com/malyshevhen/rule-engine/internal/alerting"
+	"github.com/malyshevhen/rule-engine/internal/analytics"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/manager"
 	"github.com/malyshevhen/rule-engine/internal/core/queue"
@@ -205,6 +206,9 @@ func New() *App {
 	}
 	alertingSvc := alerting.NewService(alertingConfig)
 
+	// Initialize analytics service
+	analyticsSvc := analytics.NewService()
+
 	// Initialize NATS connection
 	nc, err := nats.Connect(config.NATSURL)
 	if err != nil {
@@ -223,7 +227,7 @@ func New() *App {
 
 	// Initialize HTTP server
 	serverConfig := &api.ServerConfig{Port: config.Port}
-	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc)
+	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc, analyticsSvc)
 
 	return &App{
 		config:      config,
