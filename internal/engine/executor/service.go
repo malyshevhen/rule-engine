@@ -20,10 +20,15 @@ func NewService(contextService *execCtx.Service) *Service {
 	}
 }
 
+// GetContextService returns the context service
+func (s *Service) GetContextService() *execCtx.Service {
+	return s.contextService
+}
+
 // ExecuteResult represents the result of script execution
 type ExecuteResult struct {
 	Success  bool          `json:"success"`
-	Output   interface{}   `json:"output"`
+	Output   []interface{} `json:"output"`
 	Error    string        `json:"error,omitempty"`
 	Duration time.Duration `json:"duration"`
 }
@@ -40,10 +45,10 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 	defer L.Close()
 
 	// Open only essential safe libraries
-	L.OpenBase()   // _G, basic functions
-	L.OpenTable()  // table library
-	L.OpenString() // string library
-	L.OpenMath()   // math library
+	lua.OpenBase(L)   // _G, basic functions
+	lua.OpenTable(L)  // table library
+	lua.OpenString(L) // string library
+	lua.OpenMath(L)   // math library
 	// Explicitly do NOT open: io, os, debug, package, coroutine (if not needed)
 
 	// Remove any potentially unsafe globals that might be set

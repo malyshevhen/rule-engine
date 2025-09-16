@@ -12,12 +12,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/malyshevhen/rule-engine/api"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
+	"github.com/nats-io/nats.go"
+	"github.com/robfig/cron/v3"
 )
 
 // Config holds application configuration
 type Config struct {
-	Port  string
-	DBURL string
+	Port    string
+	DBURL   string
+	NATSURL string
 }
 
 // App represents the rule engine application
@@ -25,6 +28,8 @@ type App struct {
 	config Config
 	db     *pgxpool.Pool
 	server *api.Server
+	nc     *nats.Conn
+	cron   *cron.Cron
 }
 
 // loadConfig loads configuration from environment variables
@@ -37,9 +42,14 @@ func loadConfig() Config {
 	if dbURL == "" {
 		dbURL = "postgres://user:password@localhost:5432/rule_engine?sslmode=disable"
 	}
+	natsURL := os.Getenv("NATS_URL")
+	if natsURL == "" {
+		natsURL = "nats://localhost:4222"
+	}
 	return Config{
-		Port:  port,
-		DBURL: dbURL,
+		Port:    port,
+		DBURL:   dbURL,
+		NATSURL: natsURL,
 	}
 }
 
@@ -70,16 +80,32 @@ func New() *App {
 	serverConfig := &api.ServerConfig{Port: config.Port}
 	server := api.NewServer(serverConfig)
 
+	// Initialize NATS connection
+	nc, err := nats.Connect(config.NATSURL)
+	if err != nil {
+		slog.Error("Failed to connect to NATS", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("Connected to NATS")
+
+	// Initialize cron scheduler
+	c := cron.New()
+
 	return &App{
 		config: config,
 		db:     pool,
 		server: server,
+		nc:     nc,
+		cron:   c,
 	}
 }
 
 // Run starts the application
 func (a *App) Run() error {
 	slog.Info("Starting rule engine app", "port", a.config.Port)
+
+	// Start cron scheduler
+	a.cron.Start()
 
 	// Start server in a goroutine
 	go func() {
@@ -104,6 +130,8 @@ func (a *App) Run() error {
 		slog.Error("Server shutdown failed", "error", err)
 	}
 
+	a.cron.Stop()
+	a.nc.Close()
 	a.db.Close()
 	return nil
 }
