@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -227,9 +228,15 @@ func (s *Service) invalidateRuleCaches(ctx context.Context, ruleID uuid.UUID) {
 		return
 	}
 
-	// Delete specific rule cache and list caches
+	// Delete specific rule cache
 	ruleKey := fmt.Sprintf("rule:%s", ruleID.String())
-	rulesListKey := "rules:list"
+	s.redis.Del(ctx, ruleKey)
 
-	s.redis.Del(ctx, ruleKey, rulesListKey)
+	// Invalidate list caches by incrementing the version
+	// This will make all existing list cache keys stale
+	_, err := s.redis.Incr(ctx, "rules_list_version")
+	if err != nil {
+		// Log error but don't fail the operation
+		slog.Warn("Failed to increment cache version", "error", err)
+	}
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -542,7 +544,7 @@ func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.ruleSvc.Delete(r.Context(), id); err != nil {
-		if err.Error() == "rule not found" {
+		if errors.Is(err, ruleStorage.ErrNotFound) {
 			ErrorResponse(w, http.StatusNotFound, "Rule not found")
 			return
 		}

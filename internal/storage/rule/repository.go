@@ -2,13 +2,16 @@ package rule
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
+
+// ErrNotFound is returned when a rule is not found
+var ErrNotFound = errors.New("rule not found")
 
 // Pool interface for database operations
 type Pool interface {
@@ -197,7 +200,7 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	err := row.Scan(&deletedID)
 	if err != nil {
 		if err.Error() == "no rows in result set" {
-			return fmt.Errorf("rule not found")
+			return ErrNotFound
 		}
 		return err
 	}

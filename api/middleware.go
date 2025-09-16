@@ -12,15 +12,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/malyshevhen/rule-engine/pkg/tracing"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/time/rate"
 )
 
 var (
-	// Simple rate limiter: 100 requests per minute per IP
-	// Using sync.Map for better concurrency
-	requestCounts sync.Map // map[string]int
-	lastResets    sync.Map // map[string]time.Time
-	maxRequests   = 100
-	window        = time.Minute
+	// Rate limiter: 100 requests per minute per IP using token bucket algorithm
+	limiters   = make(map[string]*rate.Limiter)
+	limitersMu sync.RWMutex
+	rateLimit  = rate.Limit(100.0 / 60.0) // 100 requests per minute
+	burstLimit = 20                       // Allow bursts of up to 20 requests
 	// Allow disabling rate limiting for performance tests
 	rateLimitingEnabled = true
 )
@@ -135,7 +135,7 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// RateLimitMiddleware limits requests per IP (100 per minute)
+// RateLimitMiddleware limits requests per IP (100 per minute) using token bucket algorithm
 func RateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !rateLimitingEnabled {
@@ -146,38 +146,31 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 		ip := r.RemoteAddr
 		// Simple IP extraction, in production use proper IP extraction
 
-		now := time.Now()
+		// Get or create rate limiter for this IP
+		limiter := getLimiter(ip)
 
-		// Get or initialize rate limit data for this IP
-		lastResetVal, _ := lastResets.Load(ip)
-		var lastReset time.Time
-		if lastResetVal != nil {
-			lastReset = lastResetVal.(time.Time)
-		}
-
-		countVal, _ := requestCounts.Load(ip)
-		var count int
-		if countVal != nil {
-			count = countVal.(int)
-		}
-
-		// Reset counter if window has passed
-		if lastReset.IsZero() || now.Sub(lastReset) >= window {
-			count = 0
-			lastResets.Store(ip, now)
-		}
-
-		// Check rate limit
-		if count >= maxRequests {
+		// Check if request is allowed
+		if !limiter.Allow() {
 			ErrorResponse(w, http.StatusTooManyRequests, "Rate limit exceeded")
 			return
 		}
 
-		// Increment counter
-		requestCounts.Store(ip, count+1)
-
 		next.ServeHTTP(w, r)
 	})
+}
+
+// getLimiter returns the rate limiter for the given IP, creating one if it doesn't exist
+func getLimiter(ip string) *rate.Limiter {
+	limitersMu.Lock()
+	defer limitersMu.Unlock()
+
+	limiter, exists := limiters[ip]
+	if !exists {
+		limiter = rate.NewLimiter(rateLimit, burstLimit)
+		limiters[ip] = limiter
+	}
+
+	return limiter
 }
 
 // DisableRateLimiting disables rate limiting (for performance testing)

@@ -57,6 +57,11 @@ func (c *Client) Del(ctx context.Context, keys ...string) error {
 	return c.client.Del(ctx, keys...).Err()
 }
 
+// Incr increments the number stored at key by one
+func (c *Client) Incr(ctx context.Context, key string) (int64, error) {
+	return c.client.Incr(ctx, key).Result()
+}
+
 // Exists checks if keys exist in Redis
 func (c *Client) Exists(ctx context.Context, keys ...string) (int64, error) {
 	return c.client.Exists(ctx, keys...).Result()

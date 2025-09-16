@@ -1,6 +1,6 @@
 module github.com/malyshevhen/rule-engine
 
-go 1.24.0
+go 1.24.6
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -99,6 +99,7 @@ require (
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/time v0.13.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/grpc v1.75.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
