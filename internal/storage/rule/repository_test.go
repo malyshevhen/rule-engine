@@ -124,19 +124,20 @@ func TestRepository_GetActionsByRuleID(t *testing.T) {
 	expectedActions := []*actionStorage.Action{
 		{
 			ID:        uuid.New(),
-			LuaScript: "send_command('device', 'on')",
+			Type:      "lua_script",
+			Params:    "send_command('device', 'on')",
 			Enabled:   true,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
 	}
 
-	rows := pgxmock.NewRows([]string{"id", "lua_script", "enabled", "created_at", "updated_at"})
+	rows := pgxmock.NewRows([]string{"id", "type", "params", "enabled", "created_at", "updated_at"})
 	for _, action := range expectedActions {
-		rows.AddRow(action.ID, action.LuaScript, action.Enabled, action.CreatedAt, action.UpdatedAt)
+		rows.AddRow(action.ID, action.Type, action.Params, action.Enabled, action.CreatedAt, action.UpdatedAt)
 	}
 
-	pool.ExpectQuery(`SELECT a\.id, a\.lua_script, a\.enabled, a\.created_at, a\.updated_at FROM actions a JOIN rule_actions ra ON a\.id = ra\.action_id WHERE ra\.rule_id = \$1`).
+	pool.ExpectQuery(`SELECT a\.id, a\.type, a\.params, a\.enabled, a\.created_at, a\.updated_at FROM actions a JOIN rule_actions ra ON a\.id = ra\.action_id WHERE ra\.rule_id = \$1`).
 		WithArgs(ruleID).
 		WillReturnRows(rows)
 
