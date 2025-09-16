@@ -3,16 +3,23 @@ package action
 import (
 	"context"
 
+	"github.com/google/uuid"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 )
 
+// ActionRepository interface for action storage operations
+type ActionRepository interface {
+	Create(ctx context.Context, action *actionStorage.Action) error
+	GetByID(ctx context.Context, id uuid.UUID) (*actionStorage.Action, error)
+}
+
 // Service handles business logic for actions
 type Service struct {
-	repo *actionStorage.Repository
+	repo ActionRepository
 }
 
 // NewService creates a new action service
-func NewService(repo *actionStorage.Repository) *Service {
+func NewService(repo ActionRepository) *Service {
 	return &Service{repo: repo}
 }
 

@@ -8,21 +8,33 @@ import (
 	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
+	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 	"github.com/malyshevhen/rule-engine/internal/metrics"
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 )
 
+// RuleService interface
+type RuleService interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule, error)
+}
+
+// Executor interface
+type Executor interface {
+	GetContextService() *execCtx.Service
+	ExecuteScript(ctx context.Context, script string, execCtx *execCtx.ExecutionContext) *executor.ExecuteResult
+}
+
 // Manager handles trigger execution
 type Manager struct {
 	nc       *nats.Conn
 	cron     *cron.Cron
-	ruleSvc  *rule.Service
-	executor *executor.Service
+	ruleSvc  RuleService
+	executor Executor
 }
 
 // NewManager creates a new trigger manager
-func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc *rule.Service, executor *executor.Service) *Manager {
+func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, executor Executor) *Manager {
 	return &Manager{
 		nc:       nc,
 		cron:     cron,

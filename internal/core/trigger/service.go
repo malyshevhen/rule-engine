@@ -3,16 +3,23 @@ package trigger
 import (
 	"context"
 
+	"github.com/google/uuid"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
 
+// TriggerRepository interface for trigger storage operations
+type TriggerRepository interface {
+	Create(ctx context.Context, trigger *triggerStorage.Trigger) error
+	GetByID(ctx context.Context, id uuid.UUID) (*triggerStorage.Trigger, error)
+}
+
 // Service handles business logic for triggers
 type Service struct {
-	repo *triggerStorage.Repository
+	repo TriggerRepository
 }
 
 // NewService creates a new trigger service
-func NewService(repo *triggerStorage.Repository) *Service {
+func NewService(repo TriggerRepository) *Service {
 	return &Service{repo: repo}
 }
 

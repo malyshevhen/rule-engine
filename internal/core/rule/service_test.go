@@ -54,3 +54,51 @@ func TestService_Create(t *testing.T) {
 	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 }
+
+func TestService_GetByID(t *testing.T) {
+	mockRepo := &mockRuleRepository{}
+	svc := NewService(mockRepo, nil, nil)
+
+	ruleID := uuid.New()
+	expectedRule := &ruleStorage.Rule{
+		ID:        ruleID,
+		Name:      "Test Rule",
+		LuaScript: "return true",
+		Enabled:   true,
+	}
+
+	expectedTriggers := []*triggerStorage.Trigger{}
+	expectedActions := []*actionStorage.Action{}
+
+	mockRepo.On("GetByID", mock.Anything, ruleID).Return(expectedRule, nil)
+	mockRepo.On("GetTriggersByRuleID", mock.Anything, ruleID).Return(expectedTriggers, nil)
+	mockRepo.On("GetActionsByRuleID", mock.Anything, ruleID).Return(expectedActions, nil)
+
+	rule, err := svc.GetByID(context.Background(), ruleID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, rule)
+	assert.Equal(t, ruleID, rule.ID)
+	assert.Equal(t, "Test Rule", rule.Name)
+	assert.Equal(t, "return true", rule.LuaScript)
+	assert.True(t, rule.Enabled)
+	assert.Empty(t, rule.Triggers)
+	assert.Empty(t, rule.Actions)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestService_GetByID_Error(t *testing.T) {
+	mockRepo := &mockRuleRepository{}
+	svc := NewService(mockRepo, nil, nil)
+
+	ruleID := uuid.New()
+
+	mockRepo.On("GetByID", mock.Anything, ruleID).Return((*ruleStorage.Rule)(nil), assert.AnError)
+
+	rule, err := svc.GetByID(context.Background(), ruleID)
+
+	assert.Error(t, err)
+	assert.Nil(t, rule)
+	mockRepo.AssertExpectations(t)
+}
