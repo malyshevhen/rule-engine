@@ -213,9 +213,15 @@ func (s *Server) CreateRule(w http.ResponseWriter, r *http.Request) {
 		enabled = *req.Enabled
 	}
 
+	priority := 0
+	if req.Priority != nil {
+		priority = *req.Priority
+	}
+
 	rule := &rule.Rule{
 		Name:      req.Name,
 		LuaScript: req.LuaScript,
+		Priority:  priority,
 		Enabled:   enabled,
 	}
 
@@ -342,6 +348,10 @@ func (s *Server) UpdateRule(w http.ResponseWriter, r *http.Request) {
 
 	if req.Enabled != nil {
 		existingRule.Enabled = *req.Enabled
+	}
+
+	if req.Priority != nil {
+		existingRule.Priority = *req.Priority
 	}
 
 	if err := s.ruleSvc.Update(r.Context(), existingRule); err != nil {

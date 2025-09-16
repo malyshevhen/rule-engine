@@ -231,6 +231,7 @@ func TestPerformance_RulesAPI_LoadTest(t *testing.T) {
 			req := CreateRuleRequest{
 				Name:      fmt.Sprintf("Load Test Rule %d", reqID),
 				LuaScript: "return event.temperature > 25",
+				Priority:  &[]int{0}[0],
 				Enabled:   &[]bool{true}[0],
 			}
 			body, _ := json.Marshal(req)
@@ -291,6 +292,7 @@ func TestPerformance_TriggersAPI_LoadTest(t *testing.T) {
 	ruleReq := CreateRuleRequest{
 		Name:      "Performance Test Rule",
 		LuaScript: "return event.temperature > 25",
+		Priority:  &[]int{0}[0],
 		Enabled:   &[]bool{true}[0],
 	}
 	ruleBody, _ := json.Marshal(ruleReq)

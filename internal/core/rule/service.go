@@ -45,6 +45,7 @@ func (s *Service) Create(ctx context.Context, rule *Rule) error {
 	storageRule := &ruleStorage.Rule{
 		Name:      rule.Name,
 		LuaScript: rule.LuaScript,
+		Priority:  rule.Priority,
 		Enabled:   rule.Enabled,
 	}
 	err := s.ruleRepo.Create(ctx, storageRule)
@@ -99,6 +100,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 		ID:        ruleStorage.ID,
 		Name:      ruleStorage.Name,
 		LuaScript: ruleStorage.LuaScript,
+		Priority:  ruleStorage.Priority,
 		Enabled:   ruleStorage.Enabled,
 		CreatedAt: ruleStorage.CreatedAt,
 		UpdatedAt: ruleStorage.UpdatedAt,
@@ -123,6 +125,7 @@ func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, err
 			ID:        rule.ID,
 			Name:      rule.Name,
 			LuaScript: rule.LuaScript,
+			Priority:  rule.Priority,
 			Enabled:   rule.Enabled,
 			CreatedAt: rule.CreatedAt,
 			UpdatedAt: rule.UpdatedAt,
@@ -143,6 +146,7 @@ func (s *Service) Update(ctx context.Context, rule *Rule) error {
 		ID:        rule.ID,
 		Name:      rule.Name,
 		LuaScript: rule.LuaScript,
+		Priority:  rule.Priority,
 		Enabled:   rule.Enabled,
 	}
 	return s.ruleRepo.Update(ctx, storageRule)

@@ -11,6 +11,7 @@ type RuleDTO struct {
 	ID        uuid.UUID    `json:"id"`
 	Name      string       `json:"name"`
 	LuaScript string       `json:"lua_script"`
+	Priority  int          `json:"priority"`
 	Enabled   bool         `json:"enabled"`
 	Triggers  []TriggerDTO `json:"triggers"`
 	Actions   []ActionDTO  `json:"actions"`
@@ -41,6 +42,7 @@ type ActionDTO struct {
 type CreateRuleRequest struct {
 	Name      string `json:"name" validate:"required" example:"Temperature Alert Rule"`
 	LuaScript string `json:"lua_script" validate:"required" example:"if event.temperature > 25 then return true end"`
+	Priority  *int   `json:"priority,omitempty" example:"0"`
 	Enabled   *bool  `json:"enabled,omitempty" example:"true"`
 }
 
@@ -48,6 +50,7 @@ type CreateRuleRequest struct {
 type UpdateRuleRequest struct {
 	Name      *string `json:"name,omitempty" example:"Updated Rule Name"`
 	LuaScript *string `json:"lua_script,omitempty" example:"if event.temperature > 30 then return true end"`
+	Priority  *int    `json:"priority,omitempty" example:"5"`
 	Enabled   *bool   `json:"enabled,omitempty" example:"false"`
 }
 

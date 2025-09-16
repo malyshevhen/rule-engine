@@ -165,7 +165,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 ### 8.1 Rule Dependencies and Orchestration
 
 - [x] Implement rule chaining and dependencies (via execute_rule action type)
-- [ ] Add rule execution ordering
+- [x] Add rule execution ordering (priority-based)
 - [ ] Support complex trigger conditions
 
 ### 8.2 Performance Optimizations

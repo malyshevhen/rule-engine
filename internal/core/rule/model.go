@@ -13,6 +13,7 @@ type Rule struct {
 	ID        uuid.UUID         `json:"id"`
 	Name      string            `json:"name"`
 	LuaScript string            `json:"lua_script"`
+	Priority  int               `json:"priority"`
 	Enabled   bool              `json:"enabled"`
 	Triggers  []trigger.Trigger `json:"triggers"`
 	Actions   []action.Action   `json:"actions"`

@@ -27,15 +27,15 @@ func NewRepository(db Pool) *Repository {
 
 // Create inserts a new rule into the database
 func (r *Repository) Create(ctx context.Context, rule *Rule) error {
-	query := `INSERT INTO rules (name, lua_script, enabled) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(ctx, query, rule.Name, rule.LuaScript, rule.Enabled).Scan(&rule.ID, &rule.CreatedAt, &rule.UpdatedAt)
+	query := `INSERT INTO rules (name, lua_script, priority, enabled) VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(ctx, query, rule.Name, rule.LuaScript, rule.Priority, rule.Enabled).Scan(&rule.ID, &rule.CreatedAt, &rule.UpdatedAt)
 }
 
 // GetByID retrieves a rule by its ID
 func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
-	query := `SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules WHERE id = $1`
+	query := `SELECT id, name, lua_script, priority, enabled, created_at, updated_at FROM rules WHERE id = $1`
 	var rule Rule
-	err := r.db.QueryRow(ctx, query, id).Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, id).Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Priority, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -45,9 +45,9 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 // GetByIDWithAssociations retrieves a rule with its triggers and actions using JOINs
 func (r *Repository) GetByIDWithAssociations(ctx context.Context, id uuid.UUID) (*Rule, []*triggerStorage.Trigger, []*actionStorage.Action, error) {
 	// Get the rule
-	ruleQuery := `SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules WHERE id = $1`
+	ruleQuery := `SELECT id, name, lua_script, priority, enabled, created_at, updated_at FROM rules WHERE id = $1`
 	var rule Rule
-	err := r.db.QueryRow(ctx, ruleQuery, id).Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
+	err := r.db.QueryRow(ctx, ruleQuery, id).Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Priority, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -157,7 +157,7 @@ func (r *Repository) GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) (
 
 // List retrieves all rules with pagination
 func (r *Repository) List(ctx context.Context, limit int, offset int) ([]*Rule, error) {
-	query := `SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	query := `SELECT id, name, lua_script, priority, enabled, created_at, updated_at FROM rules ORDER BY priority DESC, created_at DESC LIMIT $1 OFFSET $2`
 	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func (r *Repository) List(ctx context.Context, limit int, offset int) ([]*Rule, 
 	var rules []*Rule
 	for rows.Next() {
 		var rule Rule
-		err := rows.Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
+		err := rows.Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Priority, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -183,8 +183,8 @@ func (r *Repository) ListAll(ctx context.Context) ([]*Rule, error) {
 
 // Update updates an existing rule
 func (r *Repository) Update(ctx context.Context, rule *Rule) error {
-	query := `UPDATE rules SET name = $1, lua_script = $2, enabled = $3, updated_at = NOW() WHERE id = $4`
-	_, err := r.db.Query(ctx, query, rule.Name, rule.LuaScript, rule.Enabled, rule.ID)
+	query := `UPDATE rules SET name = $1, lua_script = $2, priority = $3, enabled = $4, updated_at = NOW() WHERE id = $5`
+	_, err := r.db.Query(ctx, query, rule.Name, rule.LuaScript, rule.Priority, rule.Enabled, rule.ID)
 	return err
 }
 

@@ -95,6 +95,7 @@ func TestIntegration_CreateAndGetRule(t *testing.T) {
 	createReq := CreateRuleRequest{
 		Name:      "Integration Test Rule",
 		LuaScript: "return event.temperature > 25",
+		Priority:  &[]int{5}[0],
 		Enabled:   &[]bool{true}[0],
 	}
 
@@ -141,9 +142,9 @@ func TestIntegration_ListRules(t *testing.T) {
 
 	// Create multiple rules
 	rules := []CreateRuleRequest{
-		{Name: "Rule 1", LuaScript: "return true", Enabled: &[]bool{true}[0]},
-		{Name: "Rule 2", LuaScript: "return false", Enabled: &[]bool{false}[0]},
-		{Name: "Rule 3", LuaScript: "return event.value > 10", Enabled: &[]bool{true}[0]},
+		{Name: "Rule 1", LuaScript: "return true", Priority: &[]int{0}[0], Enabled: &[]bool{true}[0]},
+		{Name: "Rule 2", LuaScript: "return false", Priority: &[]int{5}[0], Enabled: &[]bool{false}[0]},
+		{Name: "Rule 3", LuaScript: "return event.value > 10", Priority: &[]int{10}[0], Enabled: &[]bool{true}[0]},
 	}
 
 	var createdRules []rule.Rule
@@ -208,6 +209,7 @@ func TestIntegration_UpdateRule(t *testing.T) {
 	createReq := CreateRuleRequest{
 		Name:      "Original Rule",
 		LuaScript: "return true",
+		Priority:  &[]int{0}[0],
 		Enabled:   &[]bool{true}[0],
 	}
 
@@ -229,11 +231,13 @@ func TestIntegration_UpdateRule(t *testing.T) {
 	// Update the rule
 	newName := "Updated Rule"
 	newScript := "return event.temperature > 30"
+	newPriority := 10
 	newEnabled := false
 
 	updateReq := UpdateRuleRequest{
 		Name:      &newName,
 		LuaScript: &newScript,
+		Priority:  &newPriority,
 		Enabled:   &newEnabled,
 	}
 
@@ -266,6 +270,7 @@ func TestIntegration_DeleteRule(t *testing.T) {
 	createReq := CreateRuleRequest{
 		Name:      "Rule to Delete",
 		LuaScript: "return false",
+		Priority:  &[]int{0}[0],
 		Enabled:   &[]bool{true}[0],
 	}
 
@@ -535,6 +540,7 @@ func TestIntegration_RuleExecution(t *testing.T) {
 	createRuleReq := CreateRuleRequest{
 		Name:      "Execution Test Rule",
 		LuaScript: "return event.temperature > 20",
+		Priority:  &[]int{0}[0],
 		Enabled:   &[]bool{true}[0],
 	}
 
@@ -599,7 +605,8 @@ func TestIntegration_PlatformAPIFunctions(t *testing.T) {
 			store_data("last_execution", os.time())
 			return device_state ~= nil
 		`,
-		Enabled: &[]bool{true}[0],
+		Priority: &[]int{0}[0],
+		Enabled:  &[]bool{true}[0],
 	}
 
 	body, err := json.Marshal(createRuleReq)
@@ -667,6 +674,7 @@ func TestIntegration_ErrorHandling_InvalidRuleCreation(t *testing.T) {
 	createReq := CreateRuleRequest{
 		Name:      "",
 		LuaScript: "return true",
+		Priority:  &[]int{0}[0],
 		Enabled:   &[]bool{true}[0],
 	}
 
@@ -685,6 +693,7 @@ func TestIntegration_ErrorHandling_InvalidRuleCreation(t *testing.T) {
 	createReq2 := CreateRuleRequest{
 		Name:      "Valid Name",
 		LuaScript: "",
+		Priority:  &[]int{0}[0],
 		Enabled:   &[]bool{true}[0],
 	}
 

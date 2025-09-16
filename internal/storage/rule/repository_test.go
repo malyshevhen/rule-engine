@@ -24,6 +24,7 @@ func TestRepository_Create(t *testing.T) {
 	rule := &Rule{
 		Name:      "Test Rule",
 		LuaScript: "print('hello')",
+		Priority:  5,
 		Enabled:   true,
 	}
 
@@ -31,8 +32,8 @@ func TestRepository_Create(t *testing.T) {
 	expectedCreatedAt := time.Now()
 	expectedUpdatedAt := time.Now()
 
-	pool.ExpectQuery(`INSERT INTO rules \(name, lua_script, enabled\) VALUES \(\$1, \$2, \$3\) RETURNING id, created_at, updated_at`).
-		WithArgs(rule.Name, rule.LuaScript, rule.Enabled).
+	pool.ExpectQuery(`INSERT INTO rules \(name, lua_script, priority, enabled\) VALUES \(\$1, \$2, \$3, \$4\) RETURNING id, created_at, updated_at`).
+		WithArgs(rule.Name, rule.LuaScript, rule.Priority, rule.Enabled).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "created_at", "updated_at"}).
 			AddRow(expectedID, expectedCreatedAt, expectedUpdatedAt))
 
@@ -57,15 +58,16 @@ func TestRepository_GetByID(t *testing.T) {
 		ID:        uuid.New(),
 		Name:      "Test Rule",
 		LuaScript: "print('hello')",
+		Priority:  0,
 		Enabled:   true,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
 
-	pool.ExpectQuery(`SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules WHERE id = \$1`).
+	pool.ExpectQuery(`SELECT id, name, lua_script, priority, enabled, created_at, updated_at FROM rules WHERE id = \$1`).
 		WithArgs(expectedRule.ID).
-		WillReturnRows(pgxmock.NewRows([]string{"id", "name", "lua_script", "enabled", "created_at", "updated_at"}).
-			AddRow(expectedRule.ID, expectedRule.Name, expectedRule.LuaScript, expectedRule.Enabled, expectedRule.CreatedAt, expectedRule.UpdatedAt))
+		WillReturnRows(pgxmock.NewRows([]string{"id", "name", "lua_script", "priority", "enabled", "created_at", "updated_at"}).
+			AddRow(expectedRule.ID, expectedRule.Name, expectedRule.LuaScript, expectedRule.Priority, expectedRule.Enabled, expectedRule.CreatedAt, expectedRule.UpdatedAt))
 
 	rule, err := repo.GetByID(context.Background(), expectedRule.ID)
 
@@ -162,6 +164,7 @@ func TestRepository_List(t *testing.T) {
 			ID:        uuid.New(),
 			Name:      "Rule 1",
 			LuaScript: "print('rule1')",
+			Priority:  5,
 			Enabled:   true,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -170,18 +173,19 @@ func TestRepository_List(t *testing.T) {
 			ID:        uuid.New(),
 			Name:      "Rule 2",
 			LuaScript: "print('rule2')",
+			Priority:  0,
 			Enabled:   false,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		},
 	}
 
-	rows := pgxmock.NewRows([]string{"id", "name", "lua_script", "enabled", "created_at", "updated_at"})
+	rows := pgxmock.NewRows([]string{"id", "name", "lua_script", "priority", "enabled", "created_at", "updated_at"})
 	for _, rule := range expectedRules {
-		rows.AddRow(rule.ID, rule.Name, rule.LuaScript, rule.Enabled, rule.CreatedAt, rule.UpdatedAt)
+		rows.AddRow(rule.ID, rule.Name, rule.LuaScript, rule.Priority, rule.Enabled, rule.CreatedAt, rule.UpdatedAt)
 	}
 
-	pool.ExpectQuery(`SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules ORDER BY created_at DESC LIMIT \$1 OFFSET \$2`).
+	pool.ExpectQuery(`SELECT id, name, lua_script, priority, enabled, created_at, updated_at FROM rules ORDER BY priority DESC, created_at DESC LIMIT \$1 OFFSET \$2`).
 		WithArgs(10, 0).
 		WillReturnRows(rows)
 
@@ -206,11 +210,12 @@ func TestRepository_Update(t *testing.T) {
 		ID:        uuid.New(),
 		Name:      "Updated Rule",
 		LuaScript: "print('updated')",
+		Priority:  10,
 		Enabled:   false,
 	}
 
-	pool.ExpectQuery(`UPDATE rules SET name = \$1, lua_script = \$2, enabled = \$3, updated_at = NOW\(\) WHERE id = \$4`).
-		WithArgs(rule.Name, rule.LuaScript, rule.Enabled, rule.ID).
+	pool.ExpectQuery(`UPDATE rules SET name = \$1, lua_script = \$2, priority = \$3, enabled = \$4, updated_at = NOW\(\) WHERE id = \$5`).
+		WithArgs(rule.Name, rule.LuaScript, rule.Priority, rule.Enabled, rule.ID).
 		WillReturnRows(pgxmock.NewRows([]string{}))
 
 	err = repo.Update(context.Background(), rule)
@@ -249,7 +254,7 @@ func TestRepository_GetByID_NotFound(t *testing.T) {
 
 	id := uuid.New()
 
-	pool.ExpectQuery(`SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules WHERE id = \$1`).
+	pool.ExpectQuery(`SELECT id, name, lua_script, priority, enabled, created_at, updated_at FROM rules WHERE id = \$1`).
 		WithArgs(id).
 		WillReturnError(pgx.ErrNoRows)
 
@@ -272,11 +277,12 @@ func TestRepository_Update_Error(t *testing.T) {
 		ID:        uuid.New(),
 		Name:      "Updated Rule",
 		LuaScript: "print('updated')",
+		Priority:  10,
 		Enabled:   false,
 	}
 
-	pool.ExpectQuery(`UPDATE rules SET name = \$1, lua_script = \$2, enabled = \$3, updated_at = NOW\(\) WHERE id = \$4`).
-		WithArgs(rule.Name, rule.LuaScript, rule.Enabled, rule.ID).
+	pool.ExpectQuery(`UPDATE rules SET name = \$1, lua_script = \$2, priority = \$3, enabled = \$4, updated_at = NOW\(\) WHERE id = \$5`).
+		WithArgs(rule.Name, rule.LuaScript, rule.Priority, rule.Enabled, rule.ID).
 		WillReturnError(assert.AnError)
 
 	err = repo.Update(context.Background(), rule)

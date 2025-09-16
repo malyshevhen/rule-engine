@@ -114,12 +114,13 @@ func TestServer_CreateRule(t *testing.T) {
 			requestBody: CreateRuleRequest{
 				Name:      "Test Rule",
 				LuaScript: "return true",
+				Priority:  &[]int{5}[0],
 				Enabled:   &[]bool{true}[0],
 			},
 			expectedStatus: http.StatusOK,
 			setupMocks: func() {
 				mockRuleSvc.On("Create", mock.Anything, mock.MatchedBy(func(r *rule.Rule) bool {
-					return r.Name == "Test Rule" && r.LuaScript == "return true" && r.Enabled == true
+					return r.Name == "Test Rule" && r.LuaScript == "return true" && r.Priority == 5 && r.Enabled == true
 				})).Return(nil)
 			},
 		},
@@ -238,6 +239,7 @@ func TestServer_UpdateRule(t *testing.T) {
 		ID:        ruleID,
 		Name:      "Old Name",
 		LuaScript: "return false",
+		Priority:  0,
 		Enabled:   false,
 	}
 
@@ -254,13 +256,14 @@ func TestServer_UpdateRule(t *testing.T) {
 			requestBody: UpdateRuleRequest{
 				Name:      &[]string{"New Name"}[0],
 				LuaScript: &[]string{"return true"}[0],
+				Priority:  &[]int{10}[0],
 				Enabled:   &[]bool{true}[0],
 			},
 			expectedStatus: http.StatusOK,
 			setupMocks: func() {
 				mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return(existingRule, nil)
 				mockRuleSvc.On("Update", mock.Anything, mock.MatchedBy(func(r *rule.Rule) bool {
-					return r.ID == ruleID && r.Name == "New Name" && r.LuaScript == "return true" && r.Enabled == true
+					return r.ID == ruleID && r.Name == "New Name" && r.LuaScript == "return true" && r.Priority == 10 && r.Enabled == true
 				})).Return(nil)
 			},
 		},
