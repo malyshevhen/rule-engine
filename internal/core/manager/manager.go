@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
+	"github.com/malyshevhen/rule-engine/internal/core/queue"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
@@ -47,11 +48,12 @@ type Manager struct {
 	triggerSvc     TriggerService
 	triggerEval    TriggerEvaluator
 	executor       Executor
+	queue          queue.Queue
 	executingRules map[uuid.UUID]bool // To detect cycles in rule chaining
 }
 
 // NewManager creates a new trigger manager
-func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, triggerSvc TriggerService, triggerEval TriggerEvaluator, executor Executor) *Manager {
+func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, triggerSvc TriggerService, triggerEval TriggerEvaluator, executor Executor, queue queue.Queue) *Manager {
 	return &Manager{
 		nc:             nc,
 		cron:           cron,
@@ -59,6 +61,7 @@ func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, triggerSvc 
 		triggerSvc:     triggerSvc,
 		triggerEval:    triggerEval,
 		executor:       executor,
+		queue:          queue,
 		executingRules: make(map[uuid.UUID]bool),
 	}
 }
@@ -123,7 +126,7 @@ func (m *Manager) handleConditionalTrigger(ctx context.Context, msg *nats.Msg) {
 			metrics.TriggerEventsTotal.WithLabelValues("conditional", "fired").Inc()
 
 			// Execute the associated rule
-			m.executeRule(ctx, result.RuleID)
+			m.executeRuleInternal(ctx, result.RuleID, eventData, result.TriggerID, true)
 		} else if result.Error != "" {
 			slog.Error("Trigger evaluation failed",
 				"trigger_id", result.TriggerID,
@@ -154,12 +157,46 @@ func (m *Manager) handleScheduledTrigger(ctx context.Context, triggerID uuid.UUI
 
 	// TODO: Get trigger, get rule ID, execute rule
 	dummyRuleID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	m.executeRule(ctx, dummyRuleID)
+	m.executeRuleInternal(ctx, dummyRuleID, nil, triggerID, true)
 }
 
-// executeRule executes a rule's logic
+// executeRule executes a rule's logic (queues by default)
 func (m *Manager) executeRule(ctx context.Context, ruleID uuid.UUID) {
-	ctx, span := tracing.StartSpan(ctx, "manager.execute_rule")
+	m.executeRuleInternal(ctx, ruleID, nil, uuid.Nil, true)
+}
+
+// executeRuleSync executes a rule synchronously (for rule chaining)
+func (m *Manager) executeRuleSync(ctx context.Context, ruleID uuid.UUID) {
+	m.executeRuleInternal(ctx, ruleID, nil, uuid.Nil, false)
+}
+
+// executeRuleInternal executes a rule's logic with queuing option
+func (m *Manager) executeRuleInternal(ctx context.Context, ruleID uuid.UUID, eventData map[string]interface{}, triggerID uuid.UUID, allowQueue bool) {
+	// If queuing is allowed and we have a queue, enqueue the request
+	if allowQueue && m.queue != nil {
+		req := &queue.ExecutionRequest{
+			RuleID:    ruleID,
+			TriggerID: triggerID,
+			EventData: eventData,
+		}
+
+		if err := m.queue.Enqueue(ctx, req); err != nil {
+			slog.Error("Failed to enqueue rule execution", "rule_id", ruleID, "error", err)
+			// Fall back to synchronous execution
+			m.executeRuleSynchronous(ctx, ruleID, eventData, triggerID)
+		} else {
+			slog.Info("Rule execution enqueued", "rule_id", ruleID, "trigger_id", triggerID)
+		}
+		return
+	}
+
+	// Execute synchronously
+	m.executeRuleSynchronous(ctx, ruleID, eventData, triggerID)
+}
+
+// executeRuleSynchronous executes a rule synchronously
+func (m *Manager) executeRuleSynchronous(ctx context.Context, ruleID uuid.UUID, eventData map[string]interface{}, triggerID uuid.UUID) {
+	ctx, span := tracing.StartSpan(ctx, "manager.execute_rule_sync")
 	defer span.End()
 
 	span.SetAttributes(
@@ -186,7 +223,14 @@ func (m *Manager) executeRule(ctx context.Context, ruleID uuid.UUID) {
 	)
 
 	// Create execution context
-	execCtx := m.executor.GetContextService().CreateContext(ruleID.String(), "")
+	execCtx := m.executor.GetContextService().CreateContext(ruleID.String(), triggerID.String())
+
+	// Add event data to context if available
+	if eventData != nil {
+		for key, value := range eventData {
+			execCtx.Data[key] = value
+		}
+	}
 
 	// Execute rule script
 	ruleCtx, ruleSpan := tracing.StartSpan(ctx, "rule.script_execution")
@@ -254,8 +298,8 @@ func (m *Manager) executeRule(ctx context.Context, ruleID uuid.UUID) {
 				slog.Error("Invalid rule_id format", "action_id", action.ID, "rule_id_str", ruleIDStr, "error", err)
 				continue
 			}
-			slog.Info("Executing chained rule", "action_id", action.ID, "target_rule_id", targetRuleID)
-			m.executeRule(actionCtx, targetRuleID)
+			slog.Info("Executing chained rule synchronously", "action_id", action.ID, "target_rule_id", targetRuleID)
+			m.executeRuleSync(actionCtx, targetRuleID)
 		default:
 			actionSpan.RecordError(fmt.Errorf("unknown action type: %s", action.Type))
 			slog.Error("Unknown action type", "action_id", action.ID, "type", action.Type)

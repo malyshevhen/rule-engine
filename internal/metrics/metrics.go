@@ -61,4 +61,37 @@ var (
 		},
 		[]string{"trigger_type"},
 	)
+
+	// QueueSize measures the current queue size
+	QueueSize = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "rule_engine_queue_size",
+			Help: "Current number of items in the execution queue",
+		},
+	)
+
+	// QueueEnqueueTotal counts enqueued execution requests
+	QueueEnqueueTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "rule_engine_queue_enqueue_total",
+			Help: "Total number of execution requests enqueued",
+		},
+	)
+
+	// QueueDequeueTotal counts dequeued execution requests
+	QueueDequeueTotal = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Name: "rule_engine_queue_dequeue_total",
+			Help: "Total number of execution requests dequeued",
+		},
+	)
+
+	// QueueProcessingDuration measures queue processing duration
+	QueueProcessingDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "rule_engine_queue_processing_duration_seconds",
+			Help:    "Duration of queue processing in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
 )

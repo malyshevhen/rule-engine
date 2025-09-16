@@ -14,6 +14,7 @@ import (
 	"github.com/malyshevhen/rule-engine/api"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/manager"
+	"github.com/malyshevhen/rule-engine/internal/core/queue"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
@@ -57,13 +58,14 @@ type Config struct {
 
 // App represents the rule engine application
 type App struct {
-	config  Config
-	db      *pgxpool.Pool
-	redis   *redisClient.Client
-	server  *api.Server
-	manager *manager.Manager
-	nc      *nats.Conn
-	cron    *cron.Cron
+	config     Config
+	db         *pgxpool.Pool
+	redis      *redisClient.Client
+	server     *api.Server
+	manager    *manager.Manager
+	workerPool *queue.WorkerPool
+	nc         *nats.Conn
+	cron       *cron.Cron
 }
 
 // loadConfig loads configuration from environment variables
@@ -154,6 +156,11 @@ func New() *App {
 	// Initialize trigger evaluator
 	triggerEval := trigger.NewEvaluator(executorSvc)
 
+	// Initialize execution queue and worker pool
+	execQueue := queue.NewInMemoryQueue()
+	workerPool := queue.NewWorkerPool(execQueue, ruleSvc, executorSvc, 5)
+	workerPool.Start(ctx)
+
 	// Initialize NATS connection
 	nc, err := nats.Connect(config.NATSURL)
 	if err != nil {
@@ -168,20 +175,21 @@ func New() *App {
 	// Initialize trigger manager
 	ruleSvcForManager := &ruleServiceAdapter{ruleSvc: ruleSvc}
 	triggerSvcForManager := &triggerServiceAdapter{triggerSvc: triggerSvc}
-	mgr := manager.NewManager(nc, c, ruleSvcForManager, triggerSvcForManager, triggerEval, executorSvc)
+	mgr := manager.NewManager(nc, c, ruleSvcForManager, triggerSvcForManager, triggerEval, executorSvc, execQueue)
 
 	// Initialize HTTP server
 	serverConfig := &api.ServerConfig{Port: config.Port}
 	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc)
 
 	return &App{
-		config:  config,
-		db:      pool,
-		redis:   redisCli,
-		server:  server,
-		manager: mgr,
-		nc:      nc,
-		cron:    c,
+		config:     config,
+		db:         pool,
+		redis:      redisCli,
+		server:     server,
+		manager:    mgr,
+		workerPool: workerPool,
+		nc:         nc,
+		cron:       c,
 	}
 }
 
@@ -224,6 +232,7 @@ func (a *App) Run() error {
 	}
 
 	a.manager.Stop()
+	a.workerPool.Stop()
 	a.cron.Stop()
 	a.nc.Close()
 	a.db.Close()
