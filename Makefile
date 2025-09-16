@@ -28,6 +28,13 @@ run-local: ## Run the application locally with default development settings
 	go run cmd/main.go
 
 migrate: ## Run database migrations
+	@export DATABASE_URL="postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable" && \
+	export API_KEY="dev-api-key-12345" && \
+	export JWT_SECRET="dev-jwt-secret-67890" && \
+	export PORT="8080" && \
+	export NATS_URL="nats://localhost:4222" && \
+	export REDIS_URL="localhost:6379" && \
+	export ALERTING_ENABLED="false" && \
 	go run cmd/main.go migrate
 
 clean: ## Clean build artifacts
