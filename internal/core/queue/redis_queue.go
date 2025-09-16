@@ -2,9 +2,12 @@ package queue
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"strconv"
 	"time"
 
@@ -13,18 +16,43 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// generateInstanceID creates a unique identifier for this application instance
+func generateInstanceID() string {
+	// Generate a random component for uniqueness
+	randomBytes := make([]byte, 8)
+	if _, err := rand.Read(randomBytes); err != nil {
+		// Fallback to UUID if random generation fails
+		return uuid.New().String()
+	}
+
+	// Include hostname and PID for additional uniqueness
+	hostname, _ := os.Hostname()
+	pid := os.Getpid()
+
+	return fmt.Sprintf("%s-%d-%s", hostname, pid, hex.EncodeToString(randomBytes))
+}
+
 // RedisQueue implements a persistent queue using Redis
 type RedisQueue struct {
-	client     *redisClient.Client
-	queueKey   string
-	processing bool
+	client        *redisClient.Client
+	queueKey      string
+	instanceID    string
+	processing    bool
+	metricsKey    string
+	healthKey     string
+	lastHeartbeat time.Time
 }
 
 // NewRedisQueue creates a new Redis-backed queue
 func NewRedisQueue(client *redisClient.Client, queueKey string) *RedisQueue {
+	instanceID := generateInstanceID()
 	return &RedisQueue{
-		client:   client,
-		queueKey: queueKey,
+		client:        client,
+		queueKey:      queueKey,
+		instanceID:    instanceID,
+		metricsKey:    queueKey + ":metrics",
+		healthKey:     fmt.Sprintf("instances:%s", instanceID),
+		lastHeartbeat: time.Now(),
 	}
 }
 
@@ -63,46 +91,81 @@ func (q *RedisQueue) Enqueue(ctx context.Context, req *ExecutionRequest) error {
 	return nil
 }
 
-// Dequeue removes and returns the next rule execution request from the Redis queue
+// Dequeue removes and returns the next rule execution request from the Redis queue with distributed locking
 func (q *RedisQueue) Dequeue(ctx context.Context) (*ExecutionRequest, error) {
 	if q.client == nil {
 		return nil, fmt.Errorf("Redis client not available")
 	}
 
-	// Get the first item from the sorted set (lowest score = oldest)
-	result := q.client.GetClient().ZPopMin(ctx, q.queueKey, 1)
-	if result.Err() != nil {
-		return nil, result.Err()
-	}
+	// Try to find an available item that we can lock
+	maxAttempts := 10 // Limit attempts to avoid infinite loops
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		// Peek at the first item without removing it
+		result := q.client.GetClient().ZRangeWithScores(ctx, q.queueKey, 0, 0)
+		if result.Err() != nil {
+			return nil, result.Err()
+		}
 
-	vals := result.Val()
-	if len(vals) == 0 {
-		return nil, ErrQueueEmpty
-	}
+		vals := result.Val()
+		if len(vals) == 0 {
+			return nil, ErrQueueEmpty
+		}
 
-	requestID := vals[0].Member.(string)
+		requestID := vals[0].Member.(string)
 
-	// Get the actual request data
-	data, err := q.client.Get(ctx, fmt.Sprintf("queue:item:%s", requestID))
-	if err != nil {
-		// If we can't get the data, log error but continue (item might have expired)
-		slog.Error("Failed to get queued request data", "request_id", requestID, "error", err)
-		return nil, ErrQueueEmpty
-	}
+		// Try to acquire a lock for this request (30 second TTL)
+		lockAcquired, err := q.acquireLock(ctx, requestID, 30*time.Second)
+		if err != nil {
+			slog.Error("Failed to acquire lock", "request_id", requestID, "error", err)
+			continue
+		}
 
-	var req ExecutionRequest
-	if err := json.Unmarshal([]byte(data), &req); err != nil {
-		slog.Error("Failed to unmarshal queued request", "request_id", requestID, "error", err)
-		// Clean up corrupted data
+		if !lockAcquired {
+			// Another instance got the lock, try the next item
+			continue
+		}
+
+		// We acquired the lock, now try to dequeue the item
+		// Use ZREM to remove the specific item (in case another instance removed it)
+		removed, err := q.client.GetClient().ZRem(ctx, q.queueKey, requestID).Result()
+		if err != nil {
+			q.releaseLock(ctx, requestID) // Release lock on error
+			return nil, fmt.Errorf("failed to remove item from queue: %w", err)
+		}
+
+		if removed == 0 {
+			// Item was already processed by another instance
+			q.releaseLock(ctx, requestID)
+			continue
+		}
+
+		// Get the actual request data
+		data, err := q.client.Get(ctx, fmt.Sprintf("queue:item:%s", requestID))
+		if err != nil {
+			q.releaseLock(ctx, requestID)
+			// If we can't get the data, log error but continue (item might have expired)
+			slog.Error("Failed to get queued request data", "request_id", requestID, "error", err)
+			continue
+		}
+
+		var req ExecutionRequest
+		if err := json.Unmarshal([]byte(data), &req); err != nil {
+			q.releaseLock(ctx, requestID)
+			slog.Error("Failed to unmarshal queued request", "request_id", requestID, "error", err)
+			// Clean up corrupted data
+			q.client.Del(ctx, fmt.Sprintf("queue:item:%s", requestID))
+			continue
+		}
+
+		// Clean up the stored data
 		q.client.Del(ctx, fmt.Sprintf("queue:item:%s", requestID))
-		return nil, ErrQueueEmpty
+
+		slog.Debug("Dequeued rule execution request", "request_id", req.ID, "rule_id", req.RuleID, "instance_id", q.instanceID)
+		return &req, nil
 	}
 
-	// Clean up the stored data
-	q.client.Del(ctx, fmt.Sprintf("queue:item:%s", requestID))
-
-	slog.Debug("Dequeued rule execution request", "request_id", req.ID, "rule_id", req.RuleID)
-	return &req, nil
+	// If we couldn't find an available item after max attempts, return empty
+	return nil, ErrQueueEmpty
 }
 
 // Size returns the current number of items in the Redis queue
@@ -143,6 +206,136 @@ func (q *RedisQueue) CleanupExpired(ctx context.Context, maxAge time.Duration) e
 
 	if removed > 0 {
 		slog.Info("Cleaned up expired queue items", "count", removed)
+	}
+
+	return nil
+}
+
+// acquireLock attempts to acquire a distributed lock for processing a specific request
+func (q *RedisQueue) acquireLock(ctx context.Context, requestID string, lockTTL time.Duration) (bool, error) {
+	if q.client == nil {
+		return false, fmt.Errorf("Redis client not available")
+	}
+
+	lockKey := fmt.Sprintf("lock:%s", requestID)
+
+	// Try to set the lock with NX (only if not exists) and EX (expire)
+	success, err := q.client.GetClient().SetNX(ctx, lockKey, q.instanceID, lockTTL).Result()
+	if err != nil {
+		return false, fmt.Errorf("failed to acquire lock for request %s: %w", requestID, err)
+	}
+
+	if success {
+		slog.Debug("Acquired distributed lock", "request_id", requestID, "instance_id", q.instanceID)
+	}
+
+	return success, nil
+}
+
+// ReleaseLock releases the distributed lock for a specific request (public method)
+func (q *RedisQueue) ReleaseLock(ctx context.Context, requestID string) error {
+	return q.releaseLock(ctx, requestID)
+}
+
+// releaseLock releases the distributed lock for a specific request
+func (q *RedisQueue) releaseLock(ctx context.Context, requestID string) error {
+	if q.client == nil {
+		return fmt.Errorf("Redis client not available")
+	}
+
+	lockKey := fmt.Sprintf("lock:%s", requestID)
+
+	// Only release the lock if it belongs to this instance
+	currentOwner, err := q.client.Get(ctx, lockKey)
+	if err != nil {
+		// Lock doesn't exist or expired, nothing to release
+		return nil
+	}
+
+	if currentOwner == q.instanceID {
+		err = q.client.Del(ctx, lockKey)
+		if err != nil {
+			return fmt.Errorf("failed to release lock for request %s: %w", requestID, err)
+		}
+		slog.Debug("Released distributed lock", "request_id", requestID, "instance_id", q.instanceID)
+	}
+
+	return nil
+}
+
+// SendHeartbeat updates the instance's health status in Redis
+func (q *RedisQueue) SendHeartbeat(ctx context.Context) error {
+	if q.client == nil {
+		return fmt.Errorf("Redis client not available")
+	}
+
+	q.lastHeartbeat = time.Now()
+	heartbeatData := map[string]interface{}{
+		"instance_id": q.instanceID,
+		"heartbeat":   q.lastHeartbeat.Unix(),
+		"queue_size":  q.Size(),
+		"processing":  q.processing,
+	}
+
+	data, err := json.Marshal(heartbeatData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal heartbeat data: %w", err)
+	}
+
+	err = q.client.Set(ctx, q.healthKey, string(data), 60*time.Second) // 60 second TTL
+	if err != nil {
+		return fmt.Errorf("failed to send heartbeat: %w", err)
+	}
+
+	return nil
+}
+
+// GetInstanceID returns the instance ID (for testing purposes)
+func (q *RedisQueue) GetInstanceID() string {
+	return q.instanceID
+}
+
+// CleanupStaleLocks removes locks held by instances that are no longer active
+func (q *RedisQueue) CleanupStaleLocks(ctx context.Context) error {
+	if q.client == nil {
+		return fmt.Errorf("Redis client not available")
+	}
+
+	// Get all lock keys
+	lockKeys, err := q.client.GetClient().Keys(ctx, "lock:*").Result()
+	if err != nil {
+		return fmt.Errorf("failed to get lock keys: %w", err)
+	}
+
+	cleaned := 0
+	for _, lockKey := range lockKeys {
+		// Extract request ID from lock key
+		if len(lockKey) <= 5 { // "lock:" prefix
+			continue
+		}
+		requestID := lockKey[5:] // Remove "lock:" prefix
+
+		// Get the lock owner
+		owner, err := q.client.Get(ctx, lockKey)
+		if err != nil {
+			continue // Lock might have expired
+		}
+
+		// Check if the owner instance is still active
+		ownerHealthKey := fmt.Sprintf("instances:%s", owner)
+		if _, err := q.client.Get(ctx, ownerHealthKey); err != nil {
+			// Instance is not active, release the lock
+			if err := q.client.Del(ctx, lockKey); err != nil {
+				slog.Error("Failed to cleanup stale lock", "lock_key", lockKey, "error", err)
+			} else {
+				cleaned++
+				slog.Info("Cleaned up stale lock", "request_id", requestID, "owner_instance", owner)
+			}
+		}
+	}
+
+	if cleaned > 0 {
+		slog.Info("Cleaned up stale locks", "count", cleaned)
 	}
 
 	return nil

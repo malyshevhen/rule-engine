@@ -143,3 +143,33 @@ func TestRedisQueue_BasicOperations(t *testing.T) {
 	err = q.Close()
 	assert.NoError(t, err)
 }
+
+func TestRedisQueue_DistributedLocking(t *testing.T) {
+	// Skip if Redis is not available
+	if testing.Short() {
+		t.Skip("Skipping Redis distributed locking test in short mode")
+	}
+
+	// This test would require a Redis instance
+	// For now, just test that the constructor initializes instance ID
+	q := NewRedisQueue(nil, "test:queue")
+	assert.NotNil(t, q)
+	assert.NotEmpty(t, q.GetInstanceID())
+	assert.Contains(t, q.GetInstanceID(), "-") // Should contain hostname-pid-random format
+}
+
+func TestGenerateInstanceID(t *testing.T) {
+	id1 := generateInstanceID()
+	id2 := generateInstanceID()
+
+	// IDs should be unique
+	assert.NotEqual(t, id1, id2)
+
+	// Should contain hostname, PID, and random component
+	assert.Contains(t, id1, "-")
+	assert.Contains(t, id2, "-")
+
+	// Should be reasonably long (hostname + pid + random)
+	assert.Greater(t, len(id1), 10)
+	assert.Greater(t, len(id2), 10)
+}

@@ -262,22 +262,33 @@ func (wp *WorkerPool) processRequest(ctx context.Context, req *ExecutionRequest,
 	// Record processing duration metric
 	processingDuration := time.Since(startTime)
 	metrics.QueueProcessingDuration.Observe(processingDuration.Seconds())
+
+	// Release the distributed lock if using Redis queue
+	if redisQueue, ok := wp.queue.(*RedisQueue); ok {
+		if err := redisQueue.ReleaseLock(ctx, req.ID.String()); err != nil {
+			slog.Error("Failed to release distributed lock", "request_id", req.ID, "error", err)
+		}
+	}
 }
 
-// cleanupWorker periodically cleans up expired items from Redis queues
+// cleanupWorker periodically cleans up expired items from Redis queues and sends heartbeats
 func (wp *WorkerPool) cleanupWorker(ctx context.Context) {
 	defer wp.wg.Done()
 
-	ticker := time.NewTicker(5 * time.Minute) // cleanup every 5 minutes
-	defer ticker.Stop()
+	cleanupTicker := time.NewTicker(5 * time.Minute)    // cleanup every 5 minutes
+	heartbeatTicker := time.NewTicker(30 * time.Second) // heartbeat every 30 seconds
+	defer cleanupTicker.Stop()
+	defer heartbeatTicker.Stop()
 
 	for {
 		select {
 		case <-wp.cleanupCh:
 			slog.Info("Queue cleanup worker stopping")
 			return
-		case <-ticker.C:
+		case <-cleanupTicker.C:
 			wp.performCleanup(ctx)
+		case <-heartbeatTicker.C:
+			wp.sendHeartbeat(ctx)
 		}
 	}
 }
@@ -288,6 +299,19 @@ func (wp *WorkerPool) performCleanup(ctx context.Context) {
 	if redisQueue, ok := wp.queue.(*RedisQueue); ok {
 		if err := redisQueue.CleanupExpired(ctx, 24*time.Hour); err != nil {
 			slog.Error("Failed to cleanup expired queue items", "error", err)
+		}
+		// Also cleanup stale locks from dead instances
+		if err := redisQueue.CleanupStaleLocks(ctx); err != nil {
+			slog.Error("Failed to cleanup stale locks", "error", err)
+		}
+	}
+}
+
+// sendHeartbeat sends a heartbeat for Redis queue instances
+func (wp *WorkerPool) sendHeartbeat(ctx context.Context) {
+	if redisQueue, ok := wp.queue.(*RedisQueue); ok {
+		if err := redisQueue.SendHeartbeat(ctx); err != nil {
+			slog.Error("Failed to send heartbeat", "error", err)
 		}
 	}
 }
