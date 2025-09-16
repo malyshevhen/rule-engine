@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24.0-alpine3.17 AS builder
+FROM golang:1.24.7-alpine3.22 AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates
@@ -18,13 +18,13 @@ COPY . .
 
 # Build the application with optimizations
 RUN CGO_ENABLED=0 GOOS=linux go build \
-    -a -installsuffix cgo \
-    -ldflags="-w -s" \
-    -o rule-engine \
-    cmd/main.go
+        -a -installsuffix cgo \
+        -ldflags="-w -s" \
+        -o rule-engine \
+        cmd/main.go
 
 # Runtime stage
-FROM alpine:3.17
+FROM alpine:3.22
 
 # Install runtime dependencies
 RUN apk add --no-cache ca-certificates tzdata
@@ -48,7 +48,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+        CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the application
 CMD ["./rule-engine"]
