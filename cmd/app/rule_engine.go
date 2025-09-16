@@ -9,11 +9,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/malyshevhen/rule-engine/api"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
+	"github.com/malyshevhen/rule-engine/internal/core/manager"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	"github.com/malyshevhen/rule-engine/internal/engine/executor"
+	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
+	"github.com/malyshevhen/rule-engine/internal/engine/executor/platform"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
@@ -21,6 +26,15 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 )
+
+// ruleServiceAdapter adapts the rule.Service to manager.RuleService interface
+type ruleServiceAdapter struct {
+	ruleSvc *rule.Service
+}
+
+func (a *ruleServiceAdapter) GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule, error) {
+	return a.ruleSvc.GetByID(ctx, id)
+}
 
 // Config holds application configuration
 type Config struct {
@@ -31,11 +45,12 @@ type Config struct {
 
 // App represents the rule engine application
 type App struct {
-	config Config
-	db     *pgxpool.Pool
-	server *api.Server
-	nc     *nats.Conn
-	cron   *cron.Cron
+	config  Config
+	db      *pgxpool.Pool
+	server  *api.Server
+	manager *manager.Manager
+	nc      *nats.Conn
+	cron    *cron.Cron
 }
 
 // loadConfig loads configuration from environment variables
@@ -92,6 +107,11 @@ func New() *App {
 	triggerSvc := trigger.NewService(triggerRepo)
 	actionSvc := action.NewService(actionRepo)
 
+	// Initialize executor components
+	contextSvc := execCtx.NewService()
+	platformSvc := platform.NewService()
+	executorSvc := executor.NewService(contextSvc, platformSvc)
+
 	// Initialize NATS connection
 	nc, err := nats.Connect(config.NATSURL)
 	if err != nil {
@@ -103,16 +123,21 @@ func New() *App {
 	// Initialize cron scheduler
 	c := cron.New()
 
+	// Initialize trigger manager
+	ruleSvcForManager := &ruleServiceAdapter{ruleSvc: ruleSvc}
+	mgr := manager.NewManager(nc, c, ruleSvcForManager, executorSvc)
+
 	// Initialize HTTP server
 	serverConfig := &api.ServerConfig{Port: config.Port}
 	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc)
 
 	return &App{
-		config: config,
-		db:     pool,
-		server: server,
-		nc:     nc,
-		cron:   c,
+		config:  config,
+		db:      pool,
+		server:  server,
+		manager: mgr,
+		nc:      nc,
+		cron:    c,
 	}
 }
 
@@ -122,6 +147,14 @@ func (a *App) Run() error {
 
 	// Start cron scheduler
 	a.cron.Start()
+
+	// Start trigger manager
+	ctx := context.Background()
+	if err := a.manager.Start(ctx); err != nil {
+		slog.Error("Failed to start trigger manager", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("Trigger manager started")
 
 	// Start server in a goroutine
 	go func() {
@@ -146,6 +179,7 @@ func (a *App) Run() error {
 		slog.Error("Server shutdown failed", "error", err)
 	}
 
+	a.manager.Stop()
 	a.cron.Stop()
 	a.nc.Close()
 	a.db.Close()

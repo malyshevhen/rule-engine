@@ -6,12 +6,14 @@ import (
 	"time"
 
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
+	"github.com/malyshevhen/rule-engine/internal/engine/executor/platform"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestExecutorService_ExecuteScript_Success(t *testing.T) {
 	ctxSvc := execCtx.NewService()
-	svc := NewService(ctxSvc)
+	platformSvc := platform.NewService()
+	svc := NewService(ctxSvc, platformSvc)
 
 	ctx := ctxSvc.CreateContext("test-rule", "test-trigger")
 
@@ -25,7 +27,8 @@ func TestExecutorService_ExecuteScript_Success(t *testing.T) {
 
 func TestExecutorService_ExecuteScript_Error(t *testing.T) {
 	ctxSvc := execCtx.NewService()
-	svc := NewService(ctxSvc)
+	platformSvc := platform.NewService()
+	svc := NewService(ctxSvc, platformSvc)
 
 	ctx := ctxSvc.CreateContext("test-rule", "test-trigger")
 
@@ -39,7 +42,8 @@ func TestExecutorService_ExecuteScript_Error(t *testing.T) {
 
 func TestExecutorService_ExecuteScript_Sandboxing(t *testing.T) {
 	ctxSvc := execCtx.NewService()
-	svc := NewService(ctxSvc)
+	platformSvc := platform.NewService()
+	svc := NewService(ctxSvc, platformSvc)
 
 	ctx := ctxSvc.CreateContext("test-rule", "test-trigger")
 
@@ -56,7 +60,8 @@ func TestExecutorService_ExecuteScript_Sandboxing(t *testing.T) {
 
 func TestExecutorService_ExecuteScript_WithContext(t *testing.T) {
 	ctxSvc := execCtx.NewService()
-	svc := NewService(ctxSvc)
+	platformSvc := platform.NewService()
+	svc := NewService(ctxSvc, platformSvc)
 
 	ctx := ctxSvc.CreateContext("rule-123", "trigger-456")
 

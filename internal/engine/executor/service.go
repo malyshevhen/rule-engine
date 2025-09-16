@@ -5,6 +5,7 @@ import (
 	"time"
 
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
+	"github.com/malyshevhen/rule-engine/internal/engine/executor/platform"
 	"github.com/malyshevhen/rule-engine/internal/metrics"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -12,12 +13,14 @@ import (
 // Service handles Lua script execution
 type Service struct {
 	contextService *execCtx.Service
+	platformAPI    *platform.Service
 }
 
 // NewService creates a new executor service
-func NewService(contextService *execCtx.Service) *Service {
+func NewService(contextService *execCtx.Service, platformAPI *platform.Service) *Service {
 	return &Service{
 		contextService: contextService,
+		platformAPI:    platformAPI,
 	}
 }
 
@@ -63,7 +66,9 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 	// Set execution context in Lua
 	L.SetGlobal("rule_id", lua.LString(execCtx.RuleID))
 	L.SetGlobal("trigger_id", lua.LString(execCtx.TriggerID))
-	// TODO: Set other context data
+
+	// Register platform API functions
+	s.platformAPI.RegisterAPIFunctions(L, execCtx.RuleID, execCtx.TriggerID)
 
 	// Execute the script
 	err := L.DoString(script)
