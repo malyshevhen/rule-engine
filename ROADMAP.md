@@ -79,8 +79,8 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - [x] Set up HTTP server in `api/server.go`
 - [x] Implement router in `api/router.go` with endpoints:
   - [x] Rules: POST /rules, GET /rules, GET /rules/:id, PUT /rules/:id, DELETE /rules/:id
-  - [ ] Triggers: POST /triggers, GET /triggers, GET /triggers/:id, PUT /triggers/:id, DELETE /triggers/:id
-  - [ ] Actions: POST /actions, GET /actions, GET /actions/:id, PUT /actions/:id, DELETE /actions/:id
+  - [x] Triggers: POST /triggers, GET /triggers, GET /triggers/:id, PUT /triggers/:id, DELETE /triggers/:id
+  - [x] Actions: POST /actions, GET /actions, GET /actions/:id, PUT /actions/:id, DELETE /actions/:id
 
 ## Phase 4: Trigger System
 
