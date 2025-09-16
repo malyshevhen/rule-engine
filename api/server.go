@@ -138,10 +138,72 @@ func (s *Server) GetRule(w http.ResponseWriter, r *http.Request) {
 func (s *Server) UpdateRule(w http.ResponseWriter, r *http.Request) {}
 func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {}
 
-func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {}
-func (s *Server) ListTriggers(w http.ResponseWriter, r *http.Request)  {}
-func (s *Server) GetTrigger(w http.ResponseWriter, r *http.Request)    {}
+func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {
+	var req CreateTriggerRequest
+	if err := ParseJSONBody(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
 
-func (s *Server) CreateAction(w http.ResponseWriter, r *http.Request) {}
-func (s *Server) ListActions(w http.ResponseWriter, r *http.Request)  {}
-func (s *Server) GetAction(w http.ResponseWriter, r *http.Request)    {}
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	trigger := &trigger.Trigger{
+		RuleID:          req.RuleID,
+		Type:            trigger.TriggerType(req.Type),
+		ConditionScript: req.ConditionScript,
+		Enabled:         enabled,
+	}
+
+	if err := s.triggerSvc.Create(r.Context(), trigger); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to create trigger")
+		return
+	}
+
+	SuccessResponse(w, trigger)
+}
+
+func (s *Server) ListTriggers(w http.ResponseWriter, r *http.Request) {
+	// TODO: Implement list
+	SuccessResponse(w, []trigger.Trigger{})
+}
+func (s *Server) GetTrigger(w http.ResponseWriter, r *http.Request) {
+	// TODO: Implement GetByID in trigger service
+	ErrorResponse(w, http.StatusNotImplemented, "Get trigger not implemented")
+}
+
+func (s *Server) CreateAction(w http.ResponseWriter, r *http.Request) {
+	var req CreateActionRequest
+	if err := ParseJSONBody(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	action := &action.Action{
+		LuaScript: req.LuaScript,
+		Enabled:   enabled,
+	}
+
+	if err := s.actionSvc.Create(r.Context(), action); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to create action")
+		return
+	}
+
+	SuccessResponse(w, action)
+}
+
+func (s *Server) ListActions(w http.ResponseWriter, r *http.Request) {
+	// TODO: Implement list
+	SuccessResponse(w, []action.Action{})
+}
+func (s *Server) GetAction(w http.ResponseWriter, r *http.Request) {
+	// TODO: Implement GetByID in action service
+	ErrorResponse(w, http.StatusNotImplemented, "Get action not implemented")
+}
