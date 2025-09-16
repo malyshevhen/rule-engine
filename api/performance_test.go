@@ -16,11 +16,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/malyshevhen/rule-engine/internal/analytics"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
+	"github.com/malyshevhen/rule-engine/internal/storage/redis"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 	"github.com/stretchr/testify/require"
@@ -74,7 +76,7 @@ func setupPerformanceTest(t *testing.T) (*Server, func()) {
 	// Get database connection from environment
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:password@localhost:5433/rule_engine_test?sslmode=disable"
+		dbURL = "postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable"
 	}
 
 	// Connect to database
@@ -86,26 +88,34 @@ func setupPerformanceTest(t *testing.T) (*Server, func()) {
 	err = db.RunMigrations(pool)
 	require.NoError(t, err)
 
+	// Create Redis client
+	redisConfig := &redis.Config{
+		Addr: "localhost:6379",
+	}
+	redisClient := redis.NewClient(redisConfig)
+
 	// Create repositories
 	ruleRepo := ruleStorage.NewRepository(pool)
 	triggerRepo := triggerStorage.NewRepository(pool)
 	actionRepo := actionStorage.NewRepository(pool)
 
 	// Create services
-	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo)
-	triggerSvc := trigger.NewService(triggerRepo)
+	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo, redisClient)
+	triggerSvc := trigger.NewService(triggerRepo, redisClient)
 	actionSvc := action.NewService(actionRepo)
+	analyticsSvc := analytics.NewService()
 
 	// Disable rate limiting for performance testing
 	DisableRateLimiting()
 
 	// Create server
 	config := &ServerConfig{Port: "8080"}
-	server := NewServer(config, ruleSvc, triggerSvc, actionSvc)
+	server := NewServer(config, ruleSvc, triggerSvc, actionSvc, analyticsSvc)
 
 	// Return cleanup function
 	cleanup := func() {
 		EnableRateLimiting() // Re-enable rate limiting
+		redisClient.Close()
 		pool.Close()
 		if originalAPIKey != "" {
 			os.Setenv("API_KEY", originalAPIKey)
@@ -401,7 +411,7 @@ func BenchmarkDatabaseQueries(b *testing.B) {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:password@localhost:5433/rule_engine_test?sslmode=disable"
+		dbURL = "postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable"
 	}
 
 	ctx := context.Background()
