@@ -11,15 +11,23 @@ import (
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
 
+// RuleRepository interface for rule storage operations
+type RuleRepository interface {
+	Create(ctx context.Context, rule *ruleStorage.Rule) error
+	GetByID(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, error)
+	GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*triggerStorage.Trigger, error)
+	GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*actionStorage.Action, error)
+}
+
 // Service handles business logic for rules
 type Service struct {
-	ruleRepo    *ruleStorage.Repository
+	ruleRepo    RuleRepository
 	triggerRepo *triggerStorage.Repository
 	actionRepo  *actionStorage.Repository
 }
 
 // NewService creates a new rule service
-func NewService(ruleRepo *ruleStorage.Repository, triggerRepo *triggerStorage.Repository, actionRepo *actionStorage.Repository) *Service {
+func NewService(ruleRepo RuleRepository, triggerRepo *triggerStorage.Repository, actionRepo *actionStorage.Repository) *Service {
 	return &Service{
 		ruleRepo:    ruleRepo,
 		triggerRepo: triggerRepo,
