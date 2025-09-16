@@ -219,8 +219,28 @@ func StartRateLimiterCleanup() {
 func StopRateLimiterCleanup() {
 	if cleanupEnabled {
 		cleanupEnabled = false
-		close(cleanupDone)
+		select {
+		case <-cleanupDone:
+			// Already closed
+		default:
+			close(cleanupDone)
+		}
 	}
+}
+
+// ResetMiddlewareForTesting resets the middleware state for testing
+// This should only be used in test code to ensure test isolation
+func ResetMiddlewareForTesting() {
+	limitersMu.Lock()
+	defer limitersMu.Unlock()
+
+	// Clear all limiters
+	limiters = make(map[string]*limiterEntry)
+
+	// Reset flags
+	rateLimitingEnabled = true
+	cleanupEnabled = false
+	cleanupDone = make(chan struct{})
 }
 
 // DisableRateLimiting disables rate limiting (for performance testing)

@@ -61,6 +61,9 @@ func setupPerformanceTest(t *testing.T) (*Server, func()) {
 		t.Skip("Skipping performance test")
 	}
 
+	// Reset middleware state for test isolation
+	ResetMiddlewareForTesting()
+
 	// Set test API key for authentication
 	testAPIKey := "test-api-key-performance"
 	originalAPIKey := os.Getenv("API_KEY")

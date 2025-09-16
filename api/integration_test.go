@@ -34,6 +34,9 @@ func setupIntegrationTest(t *testing.T) (*Server, func()) {
 		t.Skip("Skipping integration test")
 	}
 
+	// Reset middleware state for test isolation
+	ResetMiddlewareForTesting()
+
 	// Set test API key for authentication
 	testAPIKey := "test-api-key-integration"
 	originalAPIKey := os.Getenv("API_KEY")
