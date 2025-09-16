@@ -173,6 +173,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 - [x] Add caching layer (Redis)
 - [x] Implement rule execution queuing
+- [x] Implement queue persistence to survive restarts
 - [ ] Add horizontal scaling support
 
 ### 8.3 Monitoring and Alerting

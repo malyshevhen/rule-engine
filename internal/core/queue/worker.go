@@ -37,6 +37,7 @@ type WorkerPool struct {
 	stopCh     chan struct{}
 	stopped    bool
 	mu         sync.RWMutex
+	cleanupCh  chan struct{} // for cleanup goroutine
 }
 
 // NewWorkerPool creates a new worker pool
@@ -51,6 +52,7 @@ func NewWorkerPool(queue Queue, ruleSvc RuleService, executor Executor, numWorke
 		executor:   executor,
 		numWorkers: numWorkers,
 		stopCh:     make(chan struct{}),
+		cleanupCh:  make(chan struct{}),
 	}
 }
 
@@ -69,6 +71,10 @@ func (wp *WorkerPool) Start(ctx context.Context) {
 		wp.wg.Add(1)
 		go wp.worker(ctx, i)
 	}
+
+	// Start cleanup goroutine for Redis queues
+	wp.wg.Add(1)
+	go wp.cleanupWorker(ctx)
 }
 
 // Stop gracefully stops the worker pool
@@ -82,6 +88,7 @@ func (wp *WorkerPool) Stop() {
 
 	slog.Info("Stopping rule execution worker pool")
 	close(wp.stopCh)
+	close(wp.cleanupCh)
 	wp.stopped = true
 	wp.wg.Wait()
 	slog.Info("Rule execution worker pool stopped")
@@ -255,4 +262,32 @@ func (wp *WorkerPool) processRequest(ctx context.Context, req *ExecutionRequest,
 	// Record processing duration metric
 	processingDuration := time.Since(startTime)
 	metrics.QueueProcessingDuration.Observe(processingDuration.Seconds())
+}
+
+// cleanupWorker periodically cleans up expired items from Redis queues
+func (wp *WorkerPool) cleanupWorker(ctx context.Context) {
+	defer wp.wg.Done()
+
+	ticker := time.NewTicker(5 * time.Minute) // cleanup every 5 minutes
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-wp.cleanupCh:
+			slog.Info("Queue cleanup worker stopping")
+			return
+		case <-ticker.C:
+			wp.performCleanup(ctx)
+		}
+	}
+}
+
+// performCleanup cleans up expired queue items
+func (wp *WorkerPool) performCleanup(ctx context.Context) {
+	// Check if queue supports cleanup (Redis queue does, in-memory doesn't)
+	if redisQueue, ok := wp.queue.(*RedisQueue); ok {
+		if err := redisQueue.CleanupExpired(ctx, 24*time.Hour); err != nil {
+			slog.Error("Failed to cleanup expired queue items", "error", err)
+		}
+	}
 }

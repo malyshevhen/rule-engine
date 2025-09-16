@@ -156,8 +156,16 @@ func New() *App {
 	// Initialize trigger evaluator
 	triggerEval := trigger.NewEvaluator(executorSvc)
 
-	// Initialize execution queue and worker pool
-	execQueue := queue.NewInMemoryQueue()
+	// Initialize execution queue (use Redis if available, otherwise in-memory)
+	var execQueue queue.Queue
+	if redisCli != nil {
+		execQueue = queue.NewRedisQueue(redisCli, "rule_engine:queue")
+		slog.Info("Using Redis-backed execution queue")
+	} else {
+		execQueue = queue.NewInMemoryQueue()
+		slog.Info("Using in-memory execution queue")
+	}
+
 	workerPool := queue.NewWorkerPool(execQueue, ruleSvc, executorSvc, 5)
 	workerPool.Start(ctx)
 

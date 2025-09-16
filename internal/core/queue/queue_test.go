@@ -113,3 +113,33 @@ func TestInMemoryQueue_Close(t *testing.T) {
 	_, err = q.Dequeue(ctx)
 	assert.Equal(t, ErrQueueClosed, err)
 }
+
+func TestRedisQueue_BasicOperations(t *testing.T) {
+	// Skip if Redis is not available
+	if testing.Short() {
+		t.Skip("Skipping Redis queue test in short mode")
+	}
+
+	// This test would require a Redis instance
+	// For now, just test that the constructor works with nil client
+	q := NewRedisQueue(nil, "test:queue")
+	assert.NotNil(t, q)
+
+	// Should return error for operations without Redis client
+	ctx := context.Background()
+	req := &ExecutionRequest{RuleID: uuid.New()}
+
+	err := q.Enqueue(ctx, req)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Redis client not available")
+
+	_, err = q.Dequeue(ctx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Redis client not available")
+
+	size := q.Size()
+	assert.Equal(t, 0, size)
+
+	err = q.Close()
+	assert.NoError(t, err)
+}
