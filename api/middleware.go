@@ -15,15 +15,25 @@ import (
 	"golang.org/x/time/rate"
 )
 
+func init() {
+	// Start background cleanup of unused rate limiters
+	go cleanupLimiters()
+}
+
 var (
 	// Rate limiter: 100 requests per minute per IP using token bucket algorithm
-	limiters   = make(map[string]*rate.Limiter)
+	limiters   = make(map[string]*limiterEntry)
 	limitersMu sync.RWMutex
 	rateLimit  = rate.Limit(100.0 / 60.0) // 100 requests per minute
 	burstLimit = 100                      // Allow bursts of up to 100 requests for testing
 	// Allow disabling rate limiting for performance tests
 	rateLimitingEnabled = true
 )
+
+type limiterEntry struct {
+	limiter  *rate.Limiter
+	lastUsed time.Time
+}
 
 // LoggingMiddleware logs HTTP requests
 func LoggingMiddleware(next http.Handler) http.Handler {
@@ -164,13 +174,34 @@ func getLimiter(ip string) *rate.Limiter {
 	limitersMu.Lock()
 	defer limitersMu.Unlock()
 
-	limiter, exists := limiters[ip]
+	entry, exists := limiters[ip]
 	if !exists {
-		limiter = rate.NewLimiter(rateLimit, burstLimit)
-		limiters[ip] = limiter
+		entry = &limiterEntry{
+			limiter:  rate.NewLimiter(rateLimit, burstLimit),
+			lastUsed: time.Now(),
+		}
+		limiters[ip] = entry
+	} else {
+		entry.lastUsed = time.Now()
 	}
 
-	return limiter
+	return entry.limiter
+}
+
+// cleanupLimiters removes rate limiters that haven't been used in the last hour
+func cleanupLimiters() {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		limitersMu.Lock()
+		for ip, entry := range limiters {
+			if time.Since(entry.lastUsed) > 1*time.Hour {
+				delete(limiters, ip)
+			}
+		}
+		limitersMu.Unlock()
+	}
 }
 
 // DisableRateLimiting disables rate limiting (for performance testing)

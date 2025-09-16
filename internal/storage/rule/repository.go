@@ -199,7 +199,7 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	var deletedID uuid.UUID
 	err := row.Scan(&deletedID)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		return err

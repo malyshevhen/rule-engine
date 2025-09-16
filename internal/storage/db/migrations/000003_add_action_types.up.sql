@@ -3,7 +3,7 @@ ALTER TABLE actions ADD COLUMN params TEXT;
 
 -- Migrate existing lua_script to params as JSON
 UPDATE actions
-SET params = JSON_BUILD_OBJECT('script', lua_script)::TEXT
+SET params = JSON_BUILD_OBJECT('script', lua_script)
 WHERE params IS NULL;
 
 -- Make params NOT NULL after migration

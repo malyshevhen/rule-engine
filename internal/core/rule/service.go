@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -143,7 +144,16 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 
 // List retrieves rules with pagination
 func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, error) {
-	cacheKey := fmt.Sprintf("rules:list:%d:%d", limit, offset)
+	// Get current cache version for proper invalidation
+	version := int64(0)
+	if s.redis != nil {
+		if v, err := s.redis.Get(ctx, "rules_list_version"); err == nil {
+			if parsed, err := strconv.ParseInt(v, 10, 64); err == nil {
+				version = parsed
+			}
+		}
+	}
+	cacheKey := fmt.Sprintf("rules:list:v%d:%d:%d", version, limit, offset)
 
 	// Try to get from cache first
 	if s.redis != nil {
