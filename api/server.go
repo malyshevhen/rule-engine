@@ -26,12 +26,14 @@ type RuleService interface {
 type TriggerService interface {
 	Create(ctx context.Context, trigger *trigger.Trigger) error
 	GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error)
+	List(ctx context.Context) ([]*trigger.Trigger, error)
 }
 
 // ActionService interface
 type ActionService interface {
 	Create(ctx context.Context, action *action.Action) error
 	GetByID(ctx context.Context, id uuid.UUID) (*action.Action, error)
+	List(ctx context.Context) ([]*action.Action, error)
 }
 
 // ServerConfig holds server configuration
@@ -112,6 +114,11 @@ func (s *Server) Start() error {
 // Shutdown gracefully shuts down the server
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
+}
+
+// Router returns the router for testing purposes
+func (s *Server) Router() *mux.Router {
+	return s.router
 }
 
 // TODO: Implement handler methods
@@ -314,9 +321,13 @@ func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ListTriggers(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement list functionality in trigger service
-	// For now, return empty slice
-	SuccessResponse(w, []trigger.Trigger{})
+	triggers, err := s.triggerSvc.List(r.Context())
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to list triggers")
+		return
+	}
+
+	SuccessResponse(w, triggers)
 }
 func (s *Server) GetTrigger(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -373,9 +384,13 @@ func (s *Server) CreateAction(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ListActions(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement list functionality in action service
-	// For now, return empty slice
-	SuccessResponse(w, []action.Action{})
+	actions, err := s.actionSvc.List(r.Context())
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to list actions")
+		return
+	}
+
+	SuccessResponse(w, actions)
 }
 func (s *Server) GetAction(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

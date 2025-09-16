@@ -32,11 +32,18 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		return err
 	}
 
-	m, err := migrate.NewWithDatabaseInstance("file://internal/storage/db/migrations", "pgx5", driver)
+	m, err := migrate.NewWithDatabaseInstance("file:///home/evhen/projects/rule-engine/internal/storage/db/migrations", "pgx5", driver)
 	if err != nil {
 		return err
 	}
 	defer m.Close()
 
-	return m.Up()
+	err = m.Up()
+	if err != nil {
+		// ErrNoChange is not an error, it just means no migrations to apply
+		if err.Error() != "no change" {
+			return err
+		}
+	}
+	return nil
 }

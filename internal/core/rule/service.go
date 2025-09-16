@@ -45,7 +45,15 @@ func (s *Service) Create(ctx context.Context, rule *Rule) error {
 		LuaScript: rule.LuaScript,
 		Enabled:   rule.Enabled,
 	}
-	return s.ruleRepo.Create(ctx, storageRule)
+	err := s.ruleRepo.Create(ctx, storageRule)
+	if err != nil {
+		return err
+	}
+	// Copy the generated ID back to the domain rule
+	rule.ID = storageRule.ID
+	rule.CreatedAt = storageRule.CreatedAt
+	rule.UpdatedAt = storageRule.UpdatedAt
+	return nil
 }
 
 // GetByID retrieves a rule with its triggers and actions

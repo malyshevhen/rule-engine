@@ -11,6 +11,7 @@ import (
 type ActionRepository interface {
 	Create(ctx context.Context, action *actionStorage.Action) error
 	GetByID(ctx context.Context, id uuid.UUID) (*actionStorage.Action, error)
+	List(ctx context.Context) ([]*actionStorage.Action, error)
 }
 
 // Service handles business logic for actions
@@ -29,7 +30,15 @@ func (s *Service) Create(ctx context.Context, action *Action) error {
 		LuaScript: action.LuaScript,
 		Enabled:   action.Enabled,
 	}
-	return s.repo.Create(ctx, storageAction)
+	err := s.repo.Create(ctx, storageAction)
+	if err != nil {
+		return err
+	}
+	// Copy the generated ID back to the domain action
+	action.ID = storageAction.ID
+	action.CreatedAt = storageAction.CreatedAt
+	action.UpdatedAt = storageAction.UpdatedAt
+	return nil
 }
 
 // GetByID retrieves an action by its ID
@@ -48,6 +57,27 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
 	}
 
 	return action, nil
+}
+
+// List retrieves all actions
+func (s *Service) List(ctx context.Context) ([]*Action, error) {
+	storageActions, err := s.repo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	actions := make([]*Action, len(storageActions))
+	for i, storageAction := range storageActions {
+		actions[i] = &Action{
+			ID:        storageAction.ID,
+			LuaScript: storageAction.LuaScript,
+			Enabled:   storageAction.Enabled,
+			CreatedAt: storageAction.CreatedAt,
+			UpdatedAt: storageAction.UpdatedAt,
+		}
+	}
+
+	return actions, nil
 }
 
 // TODO: Add methods for action execution

@@ -40,4 +40,30 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error
 	return &trigger, nil
 }
 
+// List retrieves all triggers
+func (r *Repository) List(ctx context.Context) ([]*Trigger, error) {
+	query := `SELECT id, rule_id, type, condition_script, enabled, created_at, updated_at FROM triggers ORDER BY created_at DESC`
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var triggers []*Trigger
+	for rows.Next() {
+		var trigger Trigger
+		err := rows.Scan(&trigger.ID, &trigger.RuleID, &trigger.Type, &trigger.ConditionScript, &trigger.Enabled, &trigger.CreatedAt, &trigger.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		triggers = append(triggers, &trigger)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return triggers, nil
+}
+
 // TODO: add trigger repository

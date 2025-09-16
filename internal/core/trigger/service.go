@@ -11,6 +11,7 @@ import (
 type TriggerRepository interface {
 	Create(ctx context.Context, trigger *triggerStorage.Trigger) error
 	GetByID(ctx context.Context, id uuid.UUID) (*triggerStorage.Trigger, error)
+	List(ctx context.Context) ([]*triggerStorage.Trigger, error)
 }
 
 // Service handles business logic for triggers
@@ -31,7 +32,15 @@ func (s *Service) Create(ctx context.Context, trigger *Trigger) error {
 		ConditionScript: trigger.ConditionScript,
 		Enabled:         trigger.Enabled,
 	}
-	return s.repo.Create(ctx, storageTrigger)
+	err := s.repo.Create(ctx, storageTrigger)
+	if err != nil {
+		return err
+	}
+	// Copy the generated ID back to the domain trigger
+	trigger.ID = storageTrigger.ID
+	trigger.CreatedAt = storageTrigger.CreatedAt
+	trigger.UpdatedAt = storageTrigger.UpdatedAt
+	return nil
 }
 
 // GetByID retrieves a trigger by its ID
@@ -52,6 +61,29 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error) {
 	}
 
 	return trigger, nil
+}
+
+// List retrieves all triggers
+func (s *Service) List(ctx context.Context) ([]*Trigger, error) {
+	storageTriggers, err := s.repo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	triggers := make([]*Trigger, len(storageTriggers))
+	for i, storageTrigger := range storageTriggers {
+		triggers[i] = &Trigger{
+			ID:              storageTrigger.ID,
+			RuleID:          storageTrigger.RuleID,
+			Type:            TriggerType(storageTrigger.Type),
+			ConditionScript: storageTrigger.ConditionScript,
+			Enabled:         storageTrigger.Enabled,
+			CreatedAt:       storageTrigger.CreatedAt,
+			UpdatedAt:       storageTrigger.UpdatedAt,
+		}
+	}
+
+	return triggers, nil
 }
 
 // TODO: Add methods for trigger evaluation
