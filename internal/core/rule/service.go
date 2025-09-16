@@ -15,7 +15,9 @@ import (
 type RuleRepository interface {
 	Create(ctx context.Context, rule *ruleStorage.Rule) error
 	GetByID(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, error)
-	List(ctx context.Context) ([]*ruleStorage.Rule, error)
+	GetByIDWithAssociations(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, []*triggerStorage.Trigger, []*actionStorage.Action, error)
+	List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, error)
+	ListAll(ctx context.Context) ([]*ruleStorage.Rule, error)
 	Update(ctx context.Context, rule *ruleStorage.Rule) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*triggerStorage.Trigger, error)
@@ -58,19 +60,8 @@ func (s *Service) Create(ctx context.Context, rule *Rule) error {
 
 // GetByID retrieves a rule with its triggers and actions
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
-	// Get the rule
-	ruleStorage, err := s.ruleRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Load triggers and actions associated with the rule
-	triggersStorage, err := s.ruleRepo.GetTriggersByRuleID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	actionsStorage, err := s.ruleRepo.GetActionsByRuleID(ctx, id)
+	// Get the rule with associations using optimized JOIN queries
+	ruleStorage, triggersStorage, actionsStorage, err := s.ruleRepo.GetByIDWithAssociations(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +104,9 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 	return rule, nil
 }
 
-// List retrieves all rules (TODO: add pagination and filtering)
-func (s *Service) List(ctx context.Context) ([]*Rule, error) {
-	// TODO: Implement list functionality in storage layer
-	// For now, call repository but expect it to fail
-	rules, err := s.ruleRepo.List(ctx)
+// List retrieves rules with pagination
+func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, error) {
+	rules, err := s.ruleRepo.List(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +125,11 @@ func (s *Service) List(ctx context.Context) ([]*Rule, error) {
 	}
 
 	return domainRules, nil
+}
+
+// ListAll retrieves all rules (for backward compatibility)
+func (s *Service) ListAll(ctx context.Context) ([]*Rule, error) {
+	return s.List(ctx, 1000, 0) // Default limit of 1000
 }
 
 // Update updates an existing rule

@@ -32,7 +32,12 @@ func (m *mockRuleService) GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule
 	return args.Get(0).(*rule.Rule), args.Error(1)
 }
 
-func (m *mockRuleService) List(ctx context.Context) ([]*rule.Rule, error) {
+func (m *mockRuleService) List(ctx context.Context, limit int, offset int) ([]*rule.Rule, error) {
+	args := m.Called(ctx, limit, offset)
+	return args.Get(0).([]*rule.Rule), args.Error(1)
+}
+
+func (m *mockRuleService) ListAll(ctx context.Context) ([]*rule.Rule, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]*rule.Rule), args.Error(1)
 }
@@ -261,14 +266,14 @@ func TestServer_CreateTrigger(t *testing.T) {
 			name: "successful creation",
 			requestBody: CreateTriggerRequest{
 				RuleID:          ruleID,
-				Type:            "conditional",
+				Type:            "CONDITIONAL",
 				ConditionScript: "event.type == 'device_update'",
 				Enabled:         &[]bool{true}[0],
 			},
 			expectedStatus: http.StatusOK,
 			setupMocks: func() {
 				mockTriggerSvc.On("Create", mock.Anything, mock.MatchedBy(func(tr *trigger.Trigger) bool {
-					return tr.RuleID == ruleID && tr.Type == trigger.TriggerType("conditional") && tr.ConditionScript == "event.type == 'device_update'" && tr.Enabled == true
+					return tr.RuleID == ruleID && tr.Type == trigger.Conditional && tr.ConditionScript == "event.type == 'device_update'" && tr.Enabled == true
 				})).Return(nil)
 			},
 		},

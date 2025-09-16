@@ -25,6 +25,11 @@ func (m *mockActionRepository) GetByID(ctx context.Context, id uuid.UUID) (*acti
 	return args.Get(0).(*actionStorage.Action), args.Error(1)
 }
 
+func (m *mockActionRepository) List(ctx context.Context) ([]*actionStorage.Action, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*actionStorage.Action), args.Error(1)
+}
+
 func TestService_Create(t *testing.T) {
 	mockRepo := &mockActionRepository{}
 	service := NewService(mockRepo)

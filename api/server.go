@@ -17,7 +17,8 @@ import (
 type RuleService interface {
 	Create(ctx context.Context, rule *rule.Rule) error
 	GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule, error)
-	List(ctx context.Context) ([]*rule.Rule, error)
+	List(ctx context.Context, limit int, offset int) ([]*rule.Rule, error)
+	ListAll(ctx context.Context) ([]*rule.Rule, error)
 	Update(ctx context.Context, rule *rule.Rule) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -57,6 +58,35 @@ func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.
 
 	// Add middleware
 	router.Use(RateLimitMiddleware)
+	router.Use(LoggingMiddleware)
+	router.Use(AuthMiddleware)
+
+	// TODO: Setup CORS
+
+	s := &Server{
+		config:     config,
+		router:     router,
+		ruleSvc:    ruleSvc,
+		triggerSvc: triggerSvc,
+		actionSvc:  actionSvc,
+	}
+
+	s.setupRoutes()
+
+	addr := ":" + config.Port
+	s.server = &http.Server{
+		Addr:    addr,
+		Handler: router,
+	}
+
+	return s
+}
+
+// NewServerWithoutRateLimit creates a new HTTP server without rate limiting (for performance testing)
+func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service) *Server {
+	router := mux.NewRouter()
+
+	// Add middleware (excluding rate limiting)
 	router.Use(LoggingMiddleware)
 	router.Use(AuthMiddleware)
 
@@ -170,7 +200,7 @@ func (s *Server) CreateRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ListRules(w http.ResponseWriter, r *http.Request) {
-	rules, err := s.ruleSvc.List(r.Context())
+	rules, err := s.ruleSvc.ListAll(r.Context())
 	if err != nil {
 		ErrorResponse(w, http.StatusInternalServerError, "Failed to list rules")
 		return
@@ -285,8 +315,8 @@ func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 		ErrorResponse(w, http.StatusBadRequest, "Trigger type cannot be empty")
 		return
 	}
-	if req.Type != "conditional" && req.Type != "scheduled" {
-		ErrorResponse(w, http.StatusBadRequest, "Invalid trigger type (must be 'conditional' or 'scheduled')")
+	if req.Type != "CONDITIONAL" && req.Type != "CRON" {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid trigger type (must be 'CONDITIONAL' or 'CRON')")
 		return
 	}
 

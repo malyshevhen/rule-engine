@@ -25,6 +25,11 @@ func (m *mockTriggerRepository) GetByID(ctx context.Context, id uuid.UUID) (*tri
 	return args.Get(0).(*triggerStorage.Trigger), args.Error(1)
 }
 
+func (m *mockTriggerRepository) List(ctx context.Context) ([]*triggerStorage.Trigger, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*triggerStorage.Trigger), args.Error(1)
+}
+
 func TestService_Create(t *testing.T) {
 	mockRepo := &mockTriggerRepository{}
 	service := NewService(mockRepo)

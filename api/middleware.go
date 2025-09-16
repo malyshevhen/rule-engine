@@ -19,6 +19,8 @@ var (
 	rateLimitMu   sync.Mutex
 	maxRequests   = 100
 	window        = time.Minute
+	// Allow disabling rate limiting for performance tests
+	rateLimitingEnabled = true
 )
 
 // LoggingMiddleware logs HTTP requests
@@ -114,6 +116,11 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 // RateLimitMiddleware limits requests per IP (100 per minute)
 func RateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !rateLimitingEnabled {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		ip := r.RemoteAddr
 		// Simple IP extraction, in production use proper IP extraction
 
@@ -137,6 +144,20 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// DisableRateLimiting disables rate limiting (for performance testing)
+func DisableRateLimiting() {
+	rateLimitMu.Lock()
+	defer rateLimitMu.Unlock()
+	rateLimitingEnabled = false
+}
+
+// EnableRateLimiting enables rate limiting
+func EnableRateLimiting() {
+	rateLimitMu.Lock()
+	defer rateLimitMu.Unlock()
+	rateLimitingEnabled = true
 }
 
 // AuthMiddleware supports both JWT and API key authentication

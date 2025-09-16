@@ -27,6 +27,11 @@ func (m *mockRuleRepository) GetByID(ctx context.Context, id uuid.UUID) (*ruleSt
 	return args.Get(0).(*ruleStorage.Rule), args.Error(1)
 }
 
+func (m *mockRuleRepository) GetByIDWithAssociations(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, []*triggerStorage.Trigger, []*actionStorage.Action, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*ruleStorage.Rule), args.Get(1).([]*triggerStorage.Trigger), args.Get(2).([]*actionStorage.Action), args.Error(3)
+}
+
 func (m *mockRuleRepository) GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*triggerStorage.Trigger, error) {
 	args := m.Called(ctx, ruleID)
 	return args.Get(0).([]*triggerStorage.Trigger), args.Error(1)
@@ -37,7 +42,12 @@ func (m *mockRuleRepository) GetActionsByRuleID(ctx context.Context, ruleID uuid
 	return args.Get(0).([]*actionStorage.Action), args.Error(1)
 }
 
-func (m *mockRuleRepository) List(ctx context.Context) ([]*ruleStorage.Rule, error) {
+func (m *mockRuleRepository) List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, error) {
+	args := m.Called(ctx, limit, offset)
+	return args.Get(0).([]*ruleStorage.Rule), args.Error(1)
+}
+
+func (m *mockRuleRepository) ListAll(ctx context.Context) ([]*ruleStorage.Rule, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]*ruleStorage.Rule), args.Error(1)
 }
@@ -85,9 +95,7 @@ func TestService_GetByID(t *testing.T) {
 	expectedTriggers := []*triggerStorage.Trigger{}
 	expectedActions := []*actionStorage.Action{}
 
-	mockRepo.On("GetByID", mock.Anything, ruleID).Return(expectedRule, nil)
-	mockRepo.On("GetTriggersByRuleID", mock.Anything, ruleID).Return(expectedTriggers, nil)
-	mockRepo.On("GetActionsByRuleID", mock.Anything, ruleID).Return(expectedActions, nil)
+	mockRepo.On("GetByIDWithAssociations", mock.Anything, ruleID).Return(expectedRule, expectedTriggers, expectedActions, nil)
 
 	rule, err := svc.GetByID(context.Background(), ruleID)
 
@@ -109,7 +117,7 @@ func TestService_GetByID_Error(t *testing.T) {
 
 	ruleID := uuid.New()
 
-	mockRepo.On("GetByID", mock.Anything, ruleID).Return((*ruleStorage.Rule)(nil), assert.AnError)
+	mockRepo.On("GetByIDWithAssociations", mock.Anything, ruleID).Return((*ruleStorage.Rule)(nil), ([]*triggerStorage.Trigger)(nil), ([]*actionStorage.Action)(nil), assert.AnError)
 
 	rule, err := svc.GetByID(context.Background(), ruleID)
 
@@ -131,9 +139,9 @@ func TestService_List(t *testing.T) {
 		},
 	}
 
-	mockRepo.On("List", mock.Anything).Return(expectedRules, nil)
+	mockRepo.On("List", mock.Anything, 1000, 0).Return(expectedRules, nil)
 
-	rules, err := svc.List(context.Background())
+	rules, err := svc.ListAll(context.Background())
 
 	assert.NoError(t, err)
 	assert.Len(t, rules, 1)

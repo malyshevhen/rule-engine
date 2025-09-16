@@ -42,6 +42,67 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 	return &rule, nil
 }
 
+// GetByIDWithAssociations retrieves a rule with its triggers and actions using JOINs
+func (r *Repository) GetByIDWithAssociations(ctx context.Context, id uuid.UUID) (*Rule, []*triggerStorage.Trigger, []*actionStorage.Action, error) {
+	// Get the rule
+	ruleQuery := `SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules WHERE id = $1`
+	var rule Rule
+	err := r.db.QueryRow(ctx, ruleQuery, id).Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Get triggers using JOIN
+	triggersQuery := `
+		SELECT t.id, t.rule_id, t.type, t.condition_script, t.enabled, t.created_at, t.updated_at
+		FROM triggers t
+		INNER JOIN rule_triggers rt ON t.id = rt.trigger_id
+		WHERE rt.rule_id = $1
+		ORDER BY t.created_at
+	`
+	triggersRows, err := r.db.Query(ctx, triggersQuery, id)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer triggersRows.Close()
+
+	var triggers []*triggerStorage.Trigger
+	for triggersRows.Next() {
+		var t triggerStorage.Trigger
+		err := triggersRows.Scan(&t.ID, &t.RuleID, &t.Type, &t.ConditionScript, &t.Enabled, &t.CreatedAt, &t.UpdatedAt)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		triggers = append(triggers, &t)
+	}
+
+	// Get actions using JOIN
+	actionsQuery := `
+		SELECT a.id, a.lua_script, a.enabled, a.created_at, a.updated_at
+		FROM actions a
+		INNER JOIN rule_actions ra ON a.id = ra.action_id
+		WHERE ra.rule_id = $1
+		ORDER BY a.created_at
+	`
+	actionsRows, err := r.db.Query(ctx, actionsQuery, id)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer actionsRows.Close()
+
+	var actions []*actionStorage.Action
+	for actionsRows.Next() {
+		var a actionStorage.Action
+		err := actionsRows.Scan(&a.ID, &a.LuaScript, &a.Enabled, &a.CreatedAt, &a.UpdatedAt)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		actions = append(actions, &a)
+	}
+
+	return &rule, triggers, actions, nil
+}
+
 // GetTriggersByRuleID retrieves all triggers associated with a rule
 func (r *Repository) GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*triggerStorage.Trigger, error) {
 	query := `
@@ -94,10 +155,10 @@ func (r *Repository) GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) (
 	return actions, nil
 }
 
-// List retrieves all rules
-func (r *Repository) List(ctx context.Context) ([]*Rule, error) {
-	query := `SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules ORDER BY created_at DESC`
-	rows, err := r.db.Query(ctx, query)
+// List retrieves all rules with pagination
+func (r *Repository) List(ctx context.Context, limit int, offset int) ([]*Rule, error) {
+	query := `SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +174,11 @@ func (r *Repository) List(ctx context.Context) ([]*Rule, error) {
 		rules = append(rules, &rule)
 	}
 	return rules, nil
+}
+
+// ListAll retrieves all rules (for backward compatibility)
+func (r *Repository) ListAll(ctx context.Context) ([]*Rule, error) {
+	return r.List(ctx, 1000, 0) // Default limit of 1000
 }
 
 // Update updates an existing rule

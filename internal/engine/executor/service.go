@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
@@ -67,6 +68,11 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 	L.SetGlobal("rule_id", lua.LString(execCtx.RuleID))
 	L.SetGlobal("trigger_id", lua.LString(execCtx.TriggerID))
 
+	// Inject event data into Lua globals
+	for key, value := range execCtx.Data {
+		L.SetGlobal(key, luaValueToLValue(value))
+	}
+
 	// Register platform API functions
 	s.platformAPI.RegisterAPIFunctions(L, execCtx.RuleID, execCtx.TriggerID)
 
@@ -123,5 +129,44 @@ func luaValueToGo(v lua.LValue) interface{} {
 		return v.String()
 	default:
 		return v.String()
+	}
+}
+
+// luaValueToLValue converts a Go value to a Lua LValue
+func luaValueToLValue(v interface{}) lua.LValue {
+	switch val := v.(type) {
+	case nil:
+		return lua.LNil
+	case bool:
+		return lua.LBool(val)
+	case int:
+		return lua.LNumber(val)
+	case int32:
+		return lua.LNumber(val)
+	case int64:
+		return lua.LNumber(val)
+	case float32:
+		return lua.LNumber(val)
+	case float64:
+		return lua.LNumber(val)
+	case string:
+		return lua.LString(val)
+	case []interface{}:
+		// Convert slice to Lua table
+		table := &lua.LTable{}
+		for i, item := range val {
+			table.RawSetInt(i+1, luaValueToLValue(item)) // Lua is 1-indexed
+		}
+		return table
+	case map[string]interface{}:
+		// Convert map to Lua table
+		table := &lua.LTable{}
+		for k, v := range val {
+			table.RawSetString(k, luaValueToLValue(v))
+		}
+		return table
+	default:
+		// For unsupported types, convert to string
+		return lua.LString(fmt.Sprintf("%v", v))
 	}
 }
