@@ -181,7 +181,21 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 - [x] Add alerting for failed executions
 - [ ] Implement execution analytics dashboard
+  - **Tools & Frameworks**: Prometheus metrics + custom API endpoints returning JSON data for dashboard consumption
+  - **Implementation Plan**:
+    - Add new API endpoints under `/api/v1/analytics/` for aggregated metrics
+    - Create analytics service to aggregate rule execution data from Prometheus metrics
+    - Return time-series data for rule executions, success rates, latency percentiles
+    - Support date range filtering and rule-specific analytics
+    - Add caching layer for expensive aggregations
 - [ ] Add audit logging for rule changes
+  - **Tools & Frameworks**: PostgreSQL for storage + structured logging with slog
+  - **Implementation Plan**:
+    - Create audit_log table with fields: id, entity_type, entity_id, action, user_id, old_values, new_values, timestamp
+    - Add audit logging middleware to intercept rule/trigger/action CRUD operations
+    - Store full before/after snapshots of changed entities
+    - Add API endpoints to query audit logs with filtering and pagination
+    - Implement audit log retention policy (configurable cleanup)
 
 ## Success Criteria
 
