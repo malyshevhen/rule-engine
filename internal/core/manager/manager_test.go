@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -123,4 +124,117 @@ func TestManager_executeRule_FailedCondition(t *testing.T) {
 	mockExec.AssertExpectations(t)
 	// Ensure only rule script was executed, no actions
 	mockExec.AssertNumberOfCalls(t, "ExecuteScript", 1)
+}
+
+func TestManager_executeRule_RuleNotFound(t *testing.T) {
+	mockRuleSvc := &mockRuleService{}
+	mockExec := &mockExecutor{}
+
+	mgr := &Manager{
+		ruleSvc:  mockRuleSvc,
+		executor: mockExec,
+	}
+
+	ruleID := uuid.New()
+
+	mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return((*rule.Rule)(nil), errors.New("rule not found"))
+
+	mgr.executeRule(context.Background(), ruleID)
+
+	mockRuleSvc.AssertExpectations(t)
+	mockExec.AssertNotCalled(t, "ExecuteScript")
+}
+
+func TestManager_executeRule_ExecutionError(t *testing.T) {
+	mockRuleSvc := &mockRuleService{}
+	mockExec := &mockExecutor{}
+
+	mgr := &Manager{
+		ruleSvc:  mockRuleSvc,
+		executor: mockExec,
+	}
+
+	ruleID := uuid.New()
+	expectedRule := &rule.Rule{
+		ID:        ruleID,
+		Name:      "Test Rule",
+		LuaScript: "error('test error')",
+		Enabled:   true,
+		Actions:   []action.Action{},
+	}
+
+	mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return(expectedRule, nil)
+
+	mockExec.On("GetContextService").Return(ctxPkg.NewService())
+
+	// Mock rule execution - returns error
+	ruleResult := &execPkg.ExecuteResult{
+		Success: false,
+		Output:  []any{},
+		Error:   "test error",
+	}
+	mockExec.On("ExecuteScript", mock.Anything, expectedRule.LuaScript, mock.Anything).Return(ruleResult)
+
+	mgr.executeRule(context.Background(), ruleID)
+
+	mockRuleSvc.AssertExpectations(t)
+	mockExec.AssertExpectations(t)
+	mockExec.AssertNumberOfCalls(t, "ExecuteScript", 1)
+}
+
+func TestManager_executeRule_MultipleActions(t *testing.T) {
+	mockRuleSvc := &mockRuleService{}
+	mockExec := &mockExecutor{}
+
+	mgr := &Manager{
+		ruleSvc:  mockRuleSvc,
+		executor: mockExec,
+	}
+
+	ruleID := uuid.New()
+	expectedRule := &rule.Rule{
+		ID:        ruleID,
+		Name:      "Test Rule",
+		LuaScript: "return true",
+		Enabled:   true,
+		Actions: []action.Action{
+			{
+				ID:        uuid.New(),
+				LuaScript: "print('action1')",
+				Enabled:   true,
+			},
+			{
+				ID:        uuid.New(),
+				LuaScript: "print('action2')",
+				Enabled:   true,
+			},
+		},
+	}
+
+	mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return(expectedRule, nil)
+
+	mockExec.On("GetContextService").Return(ctxPkg.NewService())
+
+	// Mock rule execution - returns true
+	ruleResult := &execPkg.ExecuteResult{
+		Success: true,
+		Output:  []any{true},
+		Error:   "",
+	}
+	mockExec.On("ExecuteScript", mock.Anything, expectedRule.LuaScript, mock.Anything).Return(ruleResult)
+
+	// Mock action executions
+	actionResult := &execPkg.ExecuteResult{
+		Success: true,
+		Output:  []any{},
+		Error:   "",
+	}
+	mockExec.On("ExecuteScript", mock.Anything, expectedRule.Actions[0].LuaScript, mock.Anything).Return(actionResult)
+	mockExec.On("ExecuteScript", mock.Anything, expectedRule.Actions[1].LuaScript, mock.Anything).Return(actionResult)
+
+	mgr.executeRule(context.Background(), ruleID)
+
+	mockRuleSvc.AssertExpectations(t)
+	mockExec.AssertExpectations(t)
+	mockExec.AssertNumberOfCalls(t, "ExecuteScript", 3) // rule + 2 actions
 }

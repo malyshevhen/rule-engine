@@ -70,3 +70,14 @@ func TestExecutorService_ExecuteScript_WithContext(t *testing.T) {
 	assert.True(t, result.Success)
 	assert.Equal(t, "rule-123", result.Output[len(result.Output)-1])
 }
+
+func TestExecutorService_GetContextService(t *testing.T) {
+	ctxSvc := execCtx.NewService()
+	platformSvc := platform.NewService()
+	svc := NewService(ctxSvc, platformSvc)
+
+	result := svc.GetContextService()
+
+	assert.NotNil(t, result)
+	assert.Equal(t, ctxSvc, result)
+}
