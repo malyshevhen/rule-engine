@@ -39,48 +39,41 @@ The service follows a clean architecture with clear separation of concerns:
     cd rule-engine
     ```
 
-2. **Start PostgreSQL database**
+2. **Start the full development stack**
     ```bash
-    make db-up
-    # Or manually:
-    docker run -d \
-      --name rule-engine-db \
-      -e POSTGRES_DB=rule_engine \
-      -e POSTGRES_USER=postgres \
-      -e POSTGRES_PASSWORD=password \
-      -p 5433:5432 \
-      postgres:15-alpine
+    make dev-up
+    ```
+    This starts all services using Docker Compose:
+    - **PostgreSQL** database (port 5433)
+    - **Redis** cache (port 6379)
+    - **NATS** message bus (port 4222)
+    - **Rule Engine** app (port 8080)
+
+    The app will automatically run migrations and be ready to use!
+
+3. **Access the application**
+    - **API**: http://localhost:8080
+    - **Analytics Dashboard**: http://localhost:8080/dashboard
+    - **API Documentation**: http://localhost:8080/swagger/
+    - **Health Check**: http://localhost:8080/health
+
+4. **Stop the development stack**
+    ```bash
+    make dev-down
     ```
 
-3. **Run the full development environment**
-    ```bash
-    make dev
-    ```
-    This will:
-    - Start the database (if not already running)
-    - Run database migrations
-    - Start the service with default development configuration
+### Alternative Manual Setup
 
-    **Alternative manual setup:**
+If you prefer manual setup or need more control:
 
-    Set environment variables:
-    ```bash
-    export DATABASE_URL="postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable"
-    export API_KEY="your-api-key-here"
-    export JWT_SECRET="your-jwt-secret-here"
-    ```
+```bash
+# Start individual services
+make db-up          # PostgreSQL only
+make run-local      # Run app locally (requires DB to be running)
 
-    Run database migrations:
-    ```bash
-    make migrate
-    # Or: go run cmd/main.go migrate
-    ```
-
-    Start the service:
-    ```bash
-    make run-local
-    # Or: go run cmd/main.go
-    ```
+# Or use legacy workflow
+make dev           # Manual DB + migrations + app
+```
 
 The service will be available at `http://localhost:8080`
 
@@ -444,35 +437,26 @@ The service is configured via environment variables:
 The project includes a comprehensive Makefile for development tasks:
 
 ```bash
-# Quick development setup
-make dev                    # Start full development environment (DB + migrations + app)
-make run-local             # Run app with default development config
+# 🚀 Quick Start (Recommended)
+make dev-up                # Start full development stack (PostgreSQL + Redis + NATS + App)
+make dev-down              # Stop development stack
+make dev-logs              # View logs from all services
 make dashboard             # Open analytics dashboard in browser
 
-# Database operations
-make db-up                 # Start local PostgreSQL database
-make db-down               # Stop local database
+# 🔧 Development
+make run-local             # Run app locally with dev config
 make migrate               # Run database migrations
-
-# Testing
 make test                  # Run all unit tests
 make test-integration      # Run integration tests
-make test-race             # Run tests with race detection
-make test-verbose          # Run tests with verbose output
-
-# Code quality
-make format                # Format code with gofmt
-make vet                   # Vet code for potential issues
-make lint                  # Run linter (golangci-lint)
 make quality               # Run all code quality checks
 
-# Docker operations
-make docker-build          # Build Docker container
-make docker-compose-up     # Start services with Docker Compose
+# 🐳 Docker
+make docker-build          # Build production container
+make docker-run            # Run production container
 
-# Utility
+# 🔍 Utilities
 make health                # Check application health
-make metrics               # Show application metrics
+make metrics               # Show Prometheus metrics
 make clean                 # Clean build artifacts
 ```
 

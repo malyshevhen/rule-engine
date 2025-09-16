@@ -1,13 +1,28 @@
 # Rule Engine Makefile
 # This Makefile provides convenient commands for development, testing, and deployment
 
-.PHONY: help build run migrate clean test test-integration test-performance test-race lint format vet tidy sql-lint docker-build docker-run docker-compose-up db-up db-down
+.PHONY: help build run run-local migrate clean test test-integration test-performance test-race test-verbose test-specific lint format vet tidy sql-lint docs quality docker-build docker-run docker-compose-up docker-compose-down dev-up dev-down dev-logs dev-restart db-up db-wait db-down dev ci setup logs health metrics dashboard
 
 # Default target
 help: ## Show this help message
-	@echo "Rule Engine Development Commands:"
+	@echo "🚀 Rule Engine Development Commands"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@echo "📦 Quick Start (Recommended):"
+	@echo "  make dev-up          Start full development stack"
+	@echo "  make dev-down        Stop development stack"
+	@echo "  make dashboard       Open analytics dashboard"
+	@echo ""
+	@echo "🔧 Development Commands:"
+	@grep -E '^(run|run-local|migrate|dev-|test|lint|format|vet|tidy|quality):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@echo ""
+	@echo "🐳 Docker Commands:"
+	@grep -E '^(docker-|dev-):.*?## .*$$' $(MAKEFILE_LIST) | grep -v "dev-up\|dev-down\|dev-logs\|dev-restart" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@echo ""
+	@echo "🗄️  Legacy Database Commands:"
+	@grep -E '^(db-):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@echo ""
+	@echo "🔍 Utility Commands:"
+	@grep -E '^(logs|health|metrics|dashboard|setup|clean|build):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
 # Build commands
 build: ## Build the application binary
@@ -102,8 +117,21 @@ docker-compose-up: ## Start services with Docker Compose
 docker-compose-down: ## Stop services with Docker Compose
 	docker-compose -f containers/compose.yaml down
 
-# Database commands
-db-up: ## Start local PostgreSQL database
+# Local development stack
+dev-up: ## Start local development stack with docker-compose
+	docker-compose -f docker-compose.dev.yml up -d
+
+dev-down: ## Stop local development stack
+	docker-compose -f docker-compose.dev.yml down
+
+dev-logs: ## Show logs from development stack
+	docker-compose -f docker-compose.dev.yml logs -f
+
+dev-restart: ## Restart development stack
+	docker-compose -f docker-compose.dev.yml restart
+
+# Legacy database commands (for manual setup)
+db-up: ## Start local PostgreSQL database (legacy)
 	docker run -d --name rule-engine-db \
 		-e POSTGRES_DB=rule_engine \
 		-e POSTGRES_USER=postgres \
@@ -111,7 +139,7 @@ db-up: ## Start local PostgreSQL database
 		-p 5433:5432 \
 		postgres:15-alpine
 
-db-wait: ## Wait for database to be ready
+db-wait: ## Wait for database to be ready (legacy)
 	@echo "Waiting for database to be ready..."
 	@until docker exec rule-engine-db pg_isready -U postgres -d rule_engine >/dev/null 2>&1; do \
 		echo "Database not ready, waiting..."; \
@@ -119,12 +147,12 @@ db-wait: ## Wait for database to be ready
 	done
 	@echo "Database is ready!"
 
-db-down: ## Stop local PostgreSQL database
+db-down: ## Stop local PostgreSQL database (legacy)
 	docker stop rule-engine-db
 	docker rm rule-engine-db
 
-# Development workflow
-dev: db-up db-wait migrate run-local ## Start development environment (DB + migrations + app)
+# Development workflow (legacy - use dev-up instead)
+dev: db-up db-wait migrate run-local ## Start development environment (legacy - use dev-up instead)
 
 # CI/CD simulation
 ci: quality test test-integration lint ## Run CI pipeline locally
