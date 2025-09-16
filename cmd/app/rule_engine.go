@@ -3,11 +3,14 @@ package app
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/malyshevhen/rule-engine/api"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
 )
 
@@ -21,7 +24,7 @@ type Config struct {
 type App struct {
 	config Config
 	db     *pgxpool.Pool
-	// TODO: add server, etc.
+	server *api.Server
 }
 
 // loadConfig loads configuration from environment variables
@@ -63,16 +66,28 @@ func New() *App {
 	}
 	slog.Info("Database migrations completed")
 
+	// Initialize HTTP server
+	serverConfig := &api.ServerConfig{Port: config.Port}
+	server := api.NewServer(serverConfig)
+
 	return &App{
 		config: config,
 		db:     pool,
+		server: server,
 	}
 }
 
 // Run starts the application
 func (a *App) Run() error {
 	slog.Info("Starting rule engine app", "port", a.config.Port)
-	// TODO: start server
+
+	// Start server in a goroutine
+	go func() {
+		if err := a.server.Start(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Server failed to start", "error", err)
+			os.Exit(1)
+		}
+	}()
 
 	// Wait for shutdown signal
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -80,6 +95,15 @@ func (a *App) Run() error {
 
 	<-ctx.Done()
 	slog.Info("Shutting down rule engine app")
+
+	// Gracefully shutdown server
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+
+	if err := a.server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Server shutdown failed", "error", err)
+	}
+
 	a.db.Close()
 	return nil
 }
