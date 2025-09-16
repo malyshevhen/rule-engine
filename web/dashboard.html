@@ -347,7 +347,7 @@
             // Update stats
             document.getElementById('total-executions').textContent = data.overall_stats.total_executions.toLocaleString();
             document.getElementById('success-rate').textContent = data.overall_stats.success_rate.toFixed(1) + '%';
-            document.getElementById('avg-latency').textContent = data.overall_stats.average_latency.toFixed(1) + 'ms';
+            document.getElementById('avg-latency').textContent = data.overall_stats.average_latency_ms.toFixed(1) + 'ms';
             document.getElementById('active-rules').textContent = data.rule_stats.length;
 
             // Update execution trend chart
