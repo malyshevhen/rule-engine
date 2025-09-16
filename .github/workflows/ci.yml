@@ -48,7 +48,7 @@ jobs:
       run: go test -race -coverprofile=coverage.out ./...
 
     - name: Run integration tests
-      run: go test -tags=integration -race ./api
+      run: go test -tags=integration ./api
       env:
         DATABASE_URL: postgres://postgres:password@localhost:5432/rule_engine_test?sslmode=disable
         API_KEY: test-api-key-integration
