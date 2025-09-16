@@ -9,6 +9,7 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // ServerConfig holds server configuration
@@ -57,6 +58,9 @@ func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.
 
 // setupRoutes registers all API routes
 func (s *Server) setupRoutes() {
+	// Metrics endpoint
+	s.router.Handle("/metrics", promhttp.Handler())
+
 	api := s.router.PathPrefix("/api/v1").Subrouter()
 
 	// Rules routes

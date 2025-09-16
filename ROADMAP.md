@@ -13,6 +13,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - RESTful API with basic CRUD operations for rules
 - Trigger system with NATS event processing and CRON scheduling
 - Structured JSON logging throughout the application
+- Prometheus metrics for monitoring rule executions, trigger events, and performance
 
 ## Phase 1: Core Infrastructure Setup
 
@@ -100,7 +101,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 ### 5.1 Logging and Monitoring
 
 - [x] Implement structured logging (JSON format) using `slog`
-- [ ] Add Prometheus metrics (execution counts, latency, error rates)
+- [x] Add Prometheus metrics (execution counts, latency, error rates)
 - [ ] Integrate OpenTelemetry for distributed tracing
 
 ### 5.2 Security Enhancements

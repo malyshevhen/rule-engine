@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
+	"github.com/malyshevhen/rule-engine/internal/metrics"
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 )
@@ -52,6 +53,9 @@ func (m *Manager) Stop() {
 
 // handleConditionalTrigger processes incoming events for conditional triggers
 func (m *Manager) handleConditionalTrigger(ctx context.Context, msg *nats.Msg) {
+	// Record metric
+	metrics.TriggerEventsTotal.WithLabelValues("conditional", "processed").Inc()
+
 	// Parse event data
 	var eventData map[string]interface{}
 	if err := json.Unmarshal(msg.Data, &eventData); err != nil {
@@ -82,6 +86,9 @@ func (m *Manager) loadScheduledTriggers(ctx context.Context) error {
 
 // handleScheduledTrigger processes scheduled triggers
 func (m *Manager) handleScheduledTrigger(ctx context.Context, triggerID uuid.UUID) {
+	// Record metric
+	metrics.TriggerEventsTotal.WithLabelValues("scheduled", "processed").Inc()
+
 	slog.Info("Executing scheduled trigger", "trigger_id", triggerID)
 
 	// TODO: Get trigger, get rule ID, execute rule

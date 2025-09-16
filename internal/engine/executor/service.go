@@ -5,6 +5,7 @@ import (
 	"time"
 
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
+	"github.com/malyshevhen/rule-engine/internal/metrics"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -67,6 +68,16 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 	// Execute the script
 	err := L.DoString(script)
 	duration := time.Since(start)
+
+	status := "success"
+	if err != nil {
+		status = "failure"
+		metrics.LuaExecutionErrorsTotal.WithLabelValues(execCtx.RuleID, "execution_error").Inc()
+	}
+
+	// Record metrics
+	metrics.RuleExecutionsTotal.WithLabelValues(execCtx.RuleID, status).Inc()
+	metrics.RuleExecutionDuration.WithLabelValues(execCtx.RuleID).Observe(duration.Seconds())
 
 	if err != nil {
 		return &ExecuteResult{
