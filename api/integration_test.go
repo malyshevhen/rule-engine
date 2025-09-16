@@ -59,6 +59,9 @@ func setupIntegrationTest(t *testing.T) (*Server, func()) {
 	// Setup Redis client
 	redisClient := tc.GetRedisClient(ctx, t)
 
+	// Initialize Redis rate limiter
+	InitRedisRateLimiter(redisClient)
+
 	// Create repositories
 	ruleRepo := ruleStorage.NewRepository(pool)
 	triggerRepo := triggerStorage.NewRepository(pool)

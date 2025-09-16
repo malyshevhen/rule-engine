@@ -6,32 +6,21 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
+	"github.com/go-redis/redis_rate/v10"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/malyshevhen/rule-engine/internal/storage/redis"
 	"github.com/malyshevhen/rule-engine/pkg/tracing"
 	"go.opentelemetry.io/otel/attribute"
-	"golang.org/x/time/rate"
 )
 
 var (
-	// Rate limiter: 100 requests per minute per IP using token bucket algorithm
-	limiters   = make(map[string]*limiterEntry)
-	limitersMu sync.RWMutex
-	rateLimit  = rate.Limit(100.0 / 60.0) // 100 requests per minute
-	burstLimit = 100                      // Allow bursts of up to 100 requests for testing
+	// Redis rate limiter: 100 requests per minute per IP
+	redisRateLimiter *redis_rate.Limiter
 	// Allow disabling rate limiting for performance tests
 	rateLimitingEnabled = true
-	// Control cleanup goroutine
-	cleanupEnabled = false
-	cleanupDone    = make(chan struct{})
 )
-
-type limiterEntry struct {
-	limiter  *rate.Limiter
-	lastUsed time.Time
-}
 
 // LoggingMiddleware logs HTTP requests
 func LoggingMiddleware(next http.Handler) http.Handler {
@@ -143,10 +132,10 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// RateLimitMiddleware limits requests per IP (100 per minute) using token bucket algorithm
+// RateLimitMiddleware limits requests per IP (100 per minute) using Redis-backed rate limiting
 func RateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !rateLimitingEnabled {
+		if !rateLimitingEnabled || redisRateLimiter == nil {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -154,11 +143,17 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 		ip := r.RemoteAddr
 		// Simple IP extraction, in production use proper IP extraction
 
-		// Get or create rate limiter for this IP
-		limiter := getLimiter(ip)
+		// Check rate limit using Redis
+		result, err := redisRateLimiter.Allow(r.Context(), ip, redis_rate.PerMinute(100))
+		if err != nil {
+			slog.Error("Rate limiter error", "error", err)
+			// Allow request on error to avoid blocking legitimate traffic
+			next.ServeHTTP(w, r)
+			return
+		}
 
 		// Check if request is allowed
-		if !limiter.Allow() {
+		if result.Allowed == 0 {
 			ErrorResponse(w, http.StatusTooManyRequests, "Rate limit exceeded")
 			return
 		}
@@ -167,80 +162,23 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// getLimiter returns the rate limiter for the given IP, creating one if it doesn't exist
-func getLimiter(ip string) *rate.Limiter {
-	limitersMu.Lock()
-	defer limitersMu.Unlock()
-
-	entry, exists := limiters[ip]
-	if !exists {
-		entry = &limiterEntry{
-			limiter:  rate.NewLimiter(rateLimit, burstLimit),
-			lastUsed: time.Now(),
-		}
-		limiters[ip] = entry
-	} else {
-		entry.lastUsed = time.Now()
-	}
-
-	return entry.limiter
+// InitRedisRateLimiter initializes the Redis-backed rate limiter
+func InitRedisRateLimiter(redisClient *redis.Client) {
+	redisRateLimiter = redis_rate.NewLimiter(redisClient.GetClient())
 }
 
-// cleanupLimiters removes rate limiters that haven't been used in the last hour
-func cleanupLimiters() {
-	ticker := time.NewTicker(1 * time.Hour)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			limitersMu.Lock()
-			for ip, entry := range limiters {
-				if time.Since(entry.lastUsed) > 1*time.Hour {
-					delete(limiters, ip)
-				}
-			}
-			limitersMu.Unlock()
-		case <-cleanupDone:
-			return
-		}
-	}
-}
-
-// StartRateLimiterCleanup starts the background cleanup of unused rate limiters
-func StartRateLimiterCleanup() {
-	if !cleanupEnabled {
-		cleanupEnabled = true
-		go cleanupLimiters()
-	}
-}
-
-// StopRateLimiterCleanup stops the background cleanup of unused rate limiters
-func StopRateLimiterCleanup() {
-	if cleanupEnabled {
-		cleanupEnabled = false
-		select {
-		case <-cleanupDone:
-			// Already closed
-		default:
-			close(cleanupDone)
-		}
-	}
+// GetRedisRateLimiter returns the Redis rate limiter instance
+func GetRedisRateLimiter() *redis_rate.Limiter {
+	return redisRateLimiter
 }
 
 // ResetMiddlewareForTesting resets the middleware state for testing
 // This should only be used in test code to ensure test isolation
 func ResetMiddlewareForTesting() {
-	limitersMu.Lock()
-	defer limitersMu.Unlock()
-
-	// Clear all limiters
-	limiters = make(map[string]*limiterEntry)
-
-	// Reset flags
+	// Reset rate limiting enabled flag
 	rateLimitingEnabled = true
-	cleanupEnabled = false
-	cleanupDone = make(chan struct{})
+	// Note: Redis rate limiter state is managed by Redis itself and persists across tests
+	// In a real testing scenario, you might want to flush Redis or use a test-specific Redis instance
 }
 
 // DisableRateLimiting disables rate limiting (for performance testing)

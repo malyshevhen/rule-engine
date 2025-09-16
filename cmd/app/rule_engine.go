@@ -166,10 +166,13 @@ func New() *App {
 
 	// Test Redis connection
 	if err := redisCli.Ping(ctx); err != nil {
-		slog.Warn("Failed to connect to Redis, caching will be disabled", "error", err)
+		slog.Warn("Failed to connect to Redis, caching and rate limiting will be disabled", "error", err)
 		redisCli = nil
 	} else {
 		slog.Info("Connected to Redis")
+		// Initialize Redis rate limiter
+		api.InitRedisRateLimiter(redisCli)
+		slog.Info("Redis rate limiter initialized")
 	}
 
 	// Initialize services
@@ -257,9 +260,7 @@ func (a *App) Run() error {
 	}
 	slog.Info("Trigger manager started")
 
-	// Start rate limiter cleanup
-	api.StartRateLimiterCleanup()
-	slog.Info("Rate limiter cleanup started")
+	// Redis rate limiter is already initialized and doesn't require cleanup
 
 	// Start server in a goroutine
 	go func() {
@@ -290,9 +291,7 @@ func (a *App) Run() error {
 	a.nc.Close()
 	a.db.Close()
 
-	// Stop rate limiter cleanup
-	api.StopRateLimiterCleanup()
-	slog.Info("Rate limiter cleanup stopped")
+	// Redis rate limiter cleanup not needed
 
 	// Shutdown tracing
 	if err := tracing.ShutdownTracing(shutdownCtx); err != nil {
