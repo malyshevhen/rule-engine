@@ -227,6 +227,7 @@
     <script>
         let executionChart, successRateChart, latencyChart;
         let currentTimeRange = '24h';
+        let refreshInterval = null;
 
         // Initialize charts
         function initCharts() {
@@ -388,8 +389,10 @@
             initCharts();
             fetchDashboardData();
 
-            // Auto-refresh every 30 seconds
-            setInterval(fetchDashboardData, 30000);
+            // Auto-refresh every 30 seconds (only set up once)
+            if (!refreshInterval) {
+                refreshInterval = setInterval(fetchDashboardData, 30000);
+            }
 
             // Time range button clicks
             document.querySelectorAll('.time-btn').forEach(btn => {
