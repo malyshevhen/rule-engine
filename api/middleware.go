@@ -20,7 +20,7 @@ var (
 	limiters   = make(map[string]*rate.Limiter)
 	limitersMu sync.RWMutex
 	rateLimit  = rate.Limit(100.0 / 60.0) // 100 requests per minute
-	burstLimit = 20                       // Allow bursts of up to 20 requests
+	burstLimit = 100                      // Allow bursts of up to 100 requests for testing
 	// Allow disabling rate limiting for performance tests
 	rateLimitingEnabled = true
 )
