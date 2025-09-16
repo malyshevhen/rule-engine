@@ -13,7 +13,18 @@ help: ## Show this help message
 build: ## Build the application binary
 	go build -o rule-engine cmd/main.go
 
-run: ## Run the application
+run: ## Run the application (requires environment variables to be set)
+	go run cmd/main.go
+
+run-local: ## Run the application locally with default development settings
+	@echo "Starting rule engine with local development configuration..."
+	@export DATABASE_URL="postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable" && \
+	export API_KEY="dev-api-key-12345" && \
+	export JWT_SECRET="dev-jwt-secret-67890" && \
+	export PORT="8080" && \
+	export NATS_URL="nats://localhost:4222" && \
+	export REDIS_URL="localhost:6379" && \
+	export ALERTING_ENABLED="false" && \
 	go run cmd/main.go
 
 migrate: ## Run database migrations
@@ -98,7 +109,7 @@ db-down: ## Stop local PostgreSQL database
 	docker rm rule-engine-db
 
 # Development workflow
-dev: db-up migrate run ## Start development environment (DB + migrations + app)
+dev: db-up migrate run-local ## Start development environment (DB + migrations + app)
 
 # CI/CD simulation
 ci: quality test test-integration lint ## Run CI pipeline locally
@@ -117,3 +128,10 @@ health: ## Check application health
 
 metrics: ## Show application metrics
 	curl -f http://localhost:8080/metrics || echo "Metrics endpoint failed"
+
+dashboard: ## Open analytics dashboard in browser (requires app to be running)
+	@echo "Analytics dashboard available at: http://localhost:8080/dashboard"
+	@echo "API documentation available at: http://localhost:8080/swagger/index.html"
+	@which xdg-open >/dev/null 2>&1 && xdg-open http://localhost:8080/dashboard || \
+	which open >/dev/null 2>&1 && open http://localhost:8080/dashboard || \
+	echo "Please open http://localhost:8080/dashboard in your browser"
