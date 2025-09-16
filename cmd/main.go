@@ -1,9 +1,20 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
 
-// TODO: define run function and run it in main
+	"github.com/malyshevhen/rule-engine/cmd/app"
+)
+
+func run() error {
+	app := app.New()
+	return app.Run()
+}
 
 func main() {
-	fmt.Println("Hello World")
+	if err := run(); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
 }
