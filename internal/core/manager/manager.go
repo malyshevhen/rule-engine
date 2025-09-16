@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -10,8 +11,10 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 	"github.com/malyshevhen/rule-engine/internal/metrics"
+	"github.com/malyshevhen/rule-engine/pkg/tracing"
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 // RuleService interface
@@ -110,18 +113,34 @@ func (m *Manager) handleScheduledTrigger(ctx context.Context, triggerID uuid.UUI
 
 // executeRule executes a rule's logic
 func (m *Manager) executeRule(ctx context.Context, ruleID uuid.UUID) {
+	ctx, span := tracing.StartSpan(ctx, "manager.execute_rule")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("rule.id", ruleID.String()),
+	)
+
 	rule, err := m.ruleSvc.GetByID(ctx, ruleID)
 	if err != nil {
+		span.RecordError(err)
 		slog.Error("Failed to get rule", "rule_id", ruleID, "error", err)
 		return
 	}
+
+	span.SetAttributes(
+		attribute.String("rule.name", rule.Name),
+	)
 
 	// Create execution context
 	execCtx := m.executor.GetContextService().CreateContext(ruleID.String(), "")
 
 	// Execute rule script
-	result := m.executor.ExecuteScript(ctx, rule.LuaScript, execCtx)
+	ruleCtx, ruleSpan := tracing.StartSpan(ctx, "rule.script_execution")
+	result := m.executor.ExecuteScript(ruleCtx, rule.LuaScript, execCtx)
+	ruleSpan.End()
+
 	if result.Error != "" {
+		span.RecordError(fmt.Errorf("rule execution failed: %s", result.Error))
 		slog.Error("Rule execution failed", "rule_id", ruleID, "error", result.Error)
 		return
 	}
@@ -134,6 +153,10 @@ func (m *Manager) executeRule(ctx context.Context, ruleID uuid.UUID) {
 		}
 	}
 
+	span.SetAttributes(
+		attribute.Bool("rule.condition_met", rulePassed),
+	)
+
 	if !rulePassed {
 		slog.Info("Rule condition not met", "rule_id", ruleID)
 		return
@@ -143,8 +166,16 @@ func (m *Manager) executeRule(ctx context.Context, ruleID uuid.UUID) {
 
 	// Execute actions
 	for _, action := range rule.Actions {
-		actionResult := m.executor.ExecuteScript(ctx, action.LuaScript, execCtx)
+		actionCtx, actionSpan := tracing.StartSpan(ctx, "action.script_execution")
+		actionSpan.SetAttributes(
+			attribute.String("action.id", action.ID.String()),
+		)
+
+		actionResult := m.executor.ExecuteScript(actionCtx, action.LuaScript, execCtx)
+		actionSpan.End()
+
 		if actionResult.Error != "" {
+			actionSpan.RecordError(fmt.Errorf("action execution failed: %s", actionResult.Error))
 			slog.Error("Action execution failed", "action_id", action.ID, "error", actionResult.Error)
 		} else {
 			slog.Info("Action executed", "action_id", action.ID)

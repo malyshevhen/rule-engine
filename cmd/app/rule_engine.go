@@ -23,6 +23,7 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
+	"github.com/malyshevhen/rule-engine/pkg/tracing"
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 )
@@ -78,6 +79,13 @@ func loadConfig() Config {
 func New() *App {
 	// Set up structured logging
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
+	// Initialize OpenTelemetry tracing
+	if err := tracing.InitTracing("rule-engine", "1.0.0"); err != nil {
+		slog.Error("Failed to initialize tracing", "error", err)
+		os.Exit(1)
+	}
+	slog.Info("OpenTelemetry tracing initialized")
 
 	config := loadConfig()
 
@@ -183,5 +191,11 @@ func (a *App) Run() error {
 	a.cron.Stop()
 	a.nc.Close()
 	a.db.Close()
+
+	// Shutdown tracing
+	if err := tracing.ShutdownTracing(shutdownCtx); err != nil {
+		slog.Error("Tracing shutdown failed", "error", err)
+	}
+
 	return nil
 }

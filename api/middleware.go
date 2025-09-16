@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/malyshevhen/rule-engine/pkg/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 var (
@@ -34,6 +36,26 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			"url", r.URL.Path,
 			"duration", duration,
 		)
+	})
+}
+
+// TracingMiddleware adds distributed tracing to HTTP requests
+func TracingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, span := tracing.StartSpan(r.Context(), "http.request")
+		defer span.End()
+
+		// Add HTTP attributes to the span
+		span.SetAttributes(
+			attribute.String("http.method", r.Method),
+			attribute.String("http.url", r.URL.Path),
+			attribute.String("http.user_agent", r.Header.Get("User-Agent")),
+		)
+
+		// Add span to request context
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(w, r)
 	})
 }
 

@@ -58,6 +58,7 @@ func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.
 
 	// Add middleware
 	router.Use(RateLimitMiddleware)
+	router.Use(TracingMiddleware)
 	router.Use(LoggingMiddleware)
 	router.Use(AuthMiddleware)
 
