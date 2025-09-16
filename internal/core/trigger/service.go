@@ -86,4 +86,19 @@ func (s *Service) List(ctx context.Context) ([]*Trigger, error) {
 	return triggers, nil
 }
 
-// TODO: Add methods for trigger evaluation
+// GetEnabledConditionalTriggers retrieves all enabled conditional triggers
+func (s *Service) GetEnabledConditionalTriggers(ctx context.Context) ([]*Trigger, error) {
+	allTriggers, err := s.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var conditionalTriggers []*Trigger
+	for _, trigger := range allTriggers {
+		if trigger.Type == Conditional && trigger.Enabled {
+			conditionalTriggers = append(conditionalTriggers, trigger)
+		}
+	}
+
+	return conditionalTriggers, nil
+}

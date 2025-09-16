@@ -42,4 +42,23 @@ var (
 		},
 		[]string{"rule_id"},
 	)
+
+	// TriggerEvaluationTotal counts trigger condition evaluations
+	TriggerEvaluationTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "rule_engine_trigger_evaluation_total",
+			Help: "Total number of trigger condition evaluations",
+		},
+		[]string{"trigger_type", "result"}, // result: matched, not_matched, error
+	)
+
+	// TriggerEvaluationDuration measures trigger evaluation duration
+	TriggerEvaluationDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "rule_engine_trigger_evaluation_duration_seconds",
+			Help:    "Duration of trigger condition evaluations in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"trigger_type"},
+	)
 )

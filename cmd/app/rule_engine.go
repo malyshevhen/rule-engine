@@ -37,6 +37,15 @@ func (a *ruleServiceAdapter) GetByID(ctx context.Context, id uuid.UUID) (*rule.R
 	return a.ruleSvc.GetByID(ctx, id)
 }
 
+// triggerServiceAdapter adapts the trigger.Service to manager.TriggerService interface
+type triggerServiceAdapter struct {
+	triggerSvc *trigger.Service
+}
+
+func (a *triggerServiceAdapter) GetEnabledConditionalTriggers(ctx context.Context) ([]*trigger.Trigger, error) {
+	return a.triggerSvc.GetEnabledConditionalTriggers(ctx)
+}
+
 // Config holds application configuration
 type Config struct {
 	Port    string
@@ -120,6 +129,9 @@ func New() *App {
 	platformSvc := platform.NewService()
 	executorSvc := executor.NewService(contextSvc, platformSvc)
 
+	// Initialize trigger evaluator
+	triggerEval := trigger.NewEvaluator(executorSvc)
+
 	// Initialize NATS connection
 	nc, err := nats.Connect(config.NATSURL)
 	if err != nil {
@@ -133,7 +145,8 @@ func New() *App {
 
 	// Initialize trigger manager
 	ruleSvcForManager := &ruleServiceAdapter{ruleSvc: ruleSvc}
-	mgr := manager.NewManager(nc, c, ruleSvcForManager, executorSvc)
+	triggerSvcForManager := &triggerServiceAdapter{triggerSvc: triggerSvc}
+	mgr := manager.NewManager(nc, c, ruleSvcForManager, triggerSvcForManager, triggerEval, executorSvc)
 
 	// Initialize HTTP server
 	serverConfig := &api.ServerConfig{Port: config.Port}

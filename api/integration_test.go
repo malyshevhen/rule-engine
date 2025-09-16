@@ -913,3 +913,83 @@ func TestIntegration_CreateAction(t *testing.T) {
 	server.Router().ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
+
+func TestIntegration_TriggerEvaluation(t *testing.T) {
+	server, cleanup := setupIntegrationTest(t)
+	defer cleanup()
+
+	// Create a rule that will be triggered
+	ruleSvc := server.ruleSvc.(*rule.Service)
+	testRule := &rule.Rule{
+		Name:      "Trigger Evaluation Test Rule",
+		LuaScript: "return event.temperature > 25",
+		Priority:  5,
+		Enabled:   true,
+	}
+	err := ruleSvc.Create(context.Background(), testRule)
+	require.NoError(t, err)
+
+	// Create a conditional trigger with a condition script
+	triggerSvc := server.triggerSvc.(*trigger.Service)
+	testTrigger := &trigger.Trigger{
+		RuleID:          testRule.ID,
+		Type:            trigger.Conditional,
+		ConditionScript: "return event.type == 'temperature' and event.value > 20",
+		Enabled:         true,
+	}
+	err = triggerSvc.Create(context.Background(), testTrigger)
+	require.NoError(t, err)
+
+	// Test trigger evaluation directly using the evaluator
+	// Create evaluator with the same components used by the server
+	contextSvc := execCtx.NewService()
+	platformSvc := platform.NewService()
+	executorSvc := executor.NewService(contextSvc, platformSvc)
+	evaluator := trigger.NewEvaluator(executorSvc)
+
+	// Test case 1: Event that should match the trigger condition
+	eventData1 := map[string]any{
+		"type":  "temperature",
+		"value": 28.5,
+	}
+	results1 := evaluator.EvaluateTriggers(context.Background(), []*trigger.Trigger{testTrigger}, eventData1)
+	assert.Len(t, results1, 1)
+	assert.True(t, results1[0].Matched)
+	assert.Equal(t, testTrigger.ID, results1[0].TriggerID)
+	assert.Equal(t, testRule.ID, results1[0].RuleID)
+
+	// Test case 2: Event that should NOT match the trigger condition
+	eventData2 := map[string]any{
+		"type":  "humidity",
+		"value": 28.5,
+	}
+	results2 := evaluator.EvaluateTriggers(context.Background(), []*trigger.Trigger{testTrigger}, eventData2)
+	assert.Len(t, results2, 1)
+	assert.False(t, results2[0].Matched)
+
+	// Test case 3: Event with wrong value
+	eventData3 := map[string]any{
+		"type":  "temperature",
+		"value": 15.0,
+	}
+	results3 := evaluator.EvaluateTriggers(context.Background(), []*trigger.Trigger{testTrigger}, eventData3)
+	assert.Len(t, results3, 1)
+	assert.False(t, results3[0].Matched)
+
+	// Test case 4: Complex condition with multiple criteria
+	complexTrigger := &trigger.Trigger{
+		RuleID:          testRule.ID,
+		Type:            trigger.Conditional,
+		ConditionScript: "return event.device_id == 'sensor_1' and event.temperature > 25 and event.status == 'active'",
+		Enabled:         true,
+	}
+
+	eventData4 := map[string]any{
+		"device_id":   "sensor_1",
+		"temperature": 28.0,
+		"status":      "active",
+	}
+	results4 := evaluator.EvaluateTriggers(context.Background(), []*trigger.Trigger{complexTrigger}, eventData4)
+	assert.Len(t, results4, 1)
+	assert.True(t, results4[0].Matched)
+}

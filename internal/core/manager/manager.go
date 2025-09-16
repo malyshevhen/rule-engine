@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
+	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 	"github.com/malyshevhen/rule-engine/internal/metrics"
@@ -28,21 +29,35 @@ type Executor interface {
 	ExecuteScript(ctx context.Context, script string, execCtx *execCtx.ExecutionContext) *executor.ExecuteResult
 }
 
+// TriggerService interface
+type TriggerService interface {
+	GetEnabledConditionalTriggers(ctx context.Context) ([]*trigger.Trigger, error)
+}
+
+// TriggerEvaluator interface
+type TriggerEvaluator interface {
+	EvaluateTriggers(ctx context.Context, triggers []*trigger.Trigger, eventData map[string]any) []*trigger.EvaluationResult
+}
+
 // Manager handles trigger execution
 type Manager struct {
 	nc             *nats.Conn
 	cron           *cron.Cron
 	ruleSvc        RuleService
+	triggerSvc     TriggerService
+	triggerEval    TriggerEvaluator
 	executor       Executor
 	executingRules map[uuid.UUID]bool // To detect cycles in rule chaining
 }
 
 // NewManager creates a new trigger manager
-func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, executor Executor) *Manager {
+func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, triggerSvc TriggerService, triggerEval TriggerEvaluator, executor Executor) *Manager {
 	return &Manager{
 		nc:             nc,
 		cron:           cron,
 		ruleSvc:        ruleSvc,
+		triggerSvc:     triggerSvc,
+		triggerEval:    triggerEval,
 		executor:       executor,
 		executingRules: make(map[uuid.UUID]bool),
 	}
@@ -80,13 +95,42 @@ func (m *Manager) handleConditionalTrigger(ctx context.Context, msg *nats.Msg) {
 		return
 	}
 
-	// TODO: Load conditional triggers and evaluate conditions
-	// For now, stub - assume a trigger fires
 	slog.Info("Received conditional trigger event", "subject", msg.Subject, "data", eventData)
 
-	// Dummy: execute a rule
-	dummyRuleID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	m.executeRule(ctx, dummyRuleID)
+	// Load enabled conditional triggers
+	conditionalTriggers, err := m.triggerSvc.GetEnabledConditionalTriggers(ctx)
+	if err != nil {
+		slog.Error("Failed to load conditional triggers", "error", err)
+		return
+	}
+
+	if len(conditionalTriggers) == 0 {
+		slog.Debug("No enabled conditional triggers found")
+		return
+	}
+
+	// Evaluate all conditional triggers against the event
+	results := m.triggerEval.EvaluateTriggers(ctx, conditionalTriggers, eventData)
+
+	// Execute rules for triggers that matched
+	for _, result := range results {
+		if result.Matched {
+			slog.Info("Trigger condition matched, executing rule",
+				"trigger_id", result.TriggerID,
+				"rule_id", result.RuleID)
+
+			// Record that trigger fired
+			metrics.TriggerEventsTotal.WithLabelValues("conditional", "fired").Inc()
+
+			// Execute the associated rule
+			m.executeRule(ctx, result.RuleID)
+		} else if result.Error != "" {
+			slog.Error("Trigger evaluation failed",
+				"trigger_id", result.TriggerID,
+				"rule_id", result.RuleID,
+				"error", result.Error)
+		}
+	}
 }
 
 // loadScheduledTriggers loads and schedules CRON triggers
