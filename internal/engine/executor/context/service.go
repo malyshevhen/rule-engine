@@ -18,5 +18,3 @@ func (s *Service) CreateContext(ruleID, triggerID string) *ExecutionContext {
 		Data:      make(map[string]any),
 	}
 }
-
-// TODO: Add methods to populate context with device data, etc.
