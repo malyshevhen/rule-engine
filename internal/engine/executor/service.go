@@ -87,11 +87,11 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 		}
 	}
 
-	// Get all return values
+	// Get the last return value (Lua scripts typically return one value)
 	top := L.GetTop()
-	results := make([]interface{}, 0, top)
-	for i := 1; i <= top; i++ {
-		result := L.Get(i)
+	results := make([]interface{}, 0, 1)
+	if top > 0 {
+		result := L.Get(top)
 		results = append(results, luaValueToGo(result))
 	}
 
@@ -114,15 +114,8 @@ func luaValueToGo(v lua.LValue) interface{} {
 	case lua.LTString:
 		return string(v.(lua.LString))
 	case lua.LTTable:
-		// Convert table to map
-		table := v.(*lua.LTable)
-		result := make(map[string]interface{})
-		table.ForEach(func(key, value lua.LValue) {
-			if key.Type() == lua.LTString {
-				result[string(key.(lua.LString))] = luaValueToGo(value)
-			}
-		})
-		return result
+		// Avoid infinite recursion by not converting tables
+		return v.String()
 	default:
 		return v.String()
 	}
