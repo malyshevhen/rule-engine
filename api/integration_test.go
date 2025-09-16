@@ -64,9 +64,9 @@ func setupIntegrationTest(t *testing.T) (*Server, func()) {
 	triggerRepo := triggerStorage.NewRepository(pool)
 	actionRepo := actionStorage.NewRepository(pool)
 
-	// Create services
-	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo)
-	triggerSvc := trigger.NewService(triggerRepo)
+	// Create services (nil Redis client for integration tests)
+	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo, nil)
+	triggerSvc := trigger.NewService(triggerRepo, nil)
 	actionSvc := action.NewService(actionRepo)
 
 	// Create server
