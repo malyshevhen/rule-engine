@@ -38,7 +38,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 	rateLimitHandler := RateLimitMiddleware(testHandler)
 
 	t.Run("allow requests within limit", func(t *testing.T) {
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)
 			req.RemoteAddr = "127.0.0.1:12345"
 			w := httptest.NewRecorder()

@@ -33,7 +33,7 @@ func (s *Service) GetContextService() *execCtx.Service {
 // ExecuteResult represents the result of script execution
 type ExecuteResult struct {
 	Success  bool          `json:"success"`
-	Output   []interface{} `json:"output"`
+	Output   []any         `json:"output"`
 	Error    string        `json:"error,omitempty"`
 	Duration time.Duration `json:"duration"`
 }
@@ -100,7 +100,7 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 
 	// Get the last return value (Lua scripts typically return one value)
 	top := L.GetTop()
-	results := make([]interface{}, 0, 1)
+	results := make([]any, 0, 1)
 	if top > 0 {
 		result := L.Get(top)
 		results = append(results, luaValueToGo(result))
@@ -114,7 +114,7 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 }
 
 // luaValueToGo converts a Lua value to a Go interface{}
-func luaValueToGo(v lua.LValue) interface{} {
+func luaValueToGo(v lua.LValue) any {
 	switch v.Type() {
 	case lua.LTNil:
 		return nil
@@ -133,7 +133,7 @@ func luaValueToGo(v lua.LValue) interface{} {
 }
 
 // luaValueToLValue converts a Go value to a Lua LValue
-func luaValueToLValue(v interface{}) lua.LValue {
+func luaValueToLValue(v any) lua.LValue {
 	switch val := v.(type) {
 	case nil:
 		return lua.LNil
@@ -151,14 +151,14 @@ func luaValueToLValue(v interface{}) lua.LValue {
 		return lua.LNumber(val)
 	case string:
 		return lua.LString(val)
-	case []interface{}:
+	case []any:
 		// Convert slice to Lua table
 		table := &lua.LTable{}
 		for i, item := range val {
 			table.RawSetInt(i+1, luaValueToLValue(item)) // Lua is 1-indexed
 		}
 		return table
-	case map[string]interface{}:
+	case map[string]any:
 		// Convert map to Lua table
 		table := &lua.LTable{}
 		for k, v := range val {

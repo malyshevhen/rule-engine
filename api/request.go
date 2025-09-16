@@ -6,7 +6,7 @@ import (
 )
 
 // ParseJSONBody parses JSON request body into the provided interface
-func ParseJSONBody(r *http.Request, v interface{}) error {
+func ParseJSONBody(r *http.Request, v any) error {
 	defer r.Body.Close()
 	return json.NewDecoder(r.Body).Decode(v)
 }

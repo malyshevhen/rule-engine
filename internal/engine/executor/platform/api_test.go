@@ -27,7 +27,7 @@ func TestService_SendCommand(t *testing.T) {
 	service := NewService()
 
 	ctx := context.Background()
-	params := map[string]interface{}{
+	params := map[string]any{
 		"power": true,
 		"level": 75,
 	}
@@ -211,7 +211,7 @@ func TestLuaValueConversions(t *testing.T) {
 	assert.Equal(t, lua.LTNil, luaValueFromGo(L, nil).Type())
 
 	// Test table conversion
-	mapData := map[string]interface{}{"key": "value"}
+	mapData := map[string]any{"key": "value"}
 	table := luaValueFromGo(L, mapData)
 	assert.Equal(t, lua.LTTable, table.Type())
 

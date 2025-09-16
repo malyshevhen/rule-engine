@@ -68,7 +68,7 @@ func TestManager_executeRule(t *testing.T) {
 	// Mock rule execution - returns true
 	ruleResult := &execPkg.ExecuteResult{
 		Success: true,
-		Output:  []interface{}{true},
+		Output:  []any{true},
 		Error:   "",
 	}
 	mockExec.On("ExecuteScript", mock.Anything, expectedRule.LuaScript, mock.Anything).Return(ruleResult)
@@ -76,7 +76,7 @@ func TestManager_executeRule(t *testing.T) {
 	// Mock action execution
 	actionResult := &execPkg.ExecuteResult{
 		Success: true,
-		Output:  []interface{}{},
+		Output:  []any{},
 		Error:   "",
 	}
 	mockExec.On("ExecuteScript", mock.Anything, expectedRule.Actions[0].LuaScript, mock.Anything).Return(actionResult)
@@ -112,7 +112,7 @@ func TestManager_executeRule_FailedCondition(t *testing.T) {
 	// Mock rule execution - returns false
 	ruleResult := &execPkg.ExecuteResult{
 		Success: true,
-		Output:  []interface{}{false},
+		Output:  []any{false},
 		Error:   "",
 	}
 	mockExec.On("ExecuteScript", mock.Anything, expectedRule.LuaScript, mock.Anything).Return(ruleResult)

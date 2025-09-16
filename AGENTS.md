@@ -87,6 +87,7 @@ Your Go code **MUST** follow these specific guidelines to ensure quality, consis
 ### Go Conventions
 
 - Use `gofmt` for formatting (4 spaces indentation)
+- Use `go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -fix ./...` to update code to Go > 1.18 conventions
 - Package names: lowercase, single word when possible
 - Function names: PascalCase for exported, camelCase for unexported
 - Variable names: camelCase, descriptive and concise
@@ -120,4 +121,3 @@ Your Go code **MUST** follow these specific guidelines to ensure quality, consis
 - Internal packages only (no external dependencies on internal)
 - Clear separation: core business logic, storage layer, API layer
 - Use dependency injection pattern
-

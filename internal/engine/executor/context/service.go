@@ -15,7 +15,7 @@ func (s *Service) CreateContext(ruleID, triggerID string) *ExecutionContext {
 	return &ExecutionContext{
 		RuleID:    ruleID,
 		TriggerID: triggerID,
-		Data:      make(map[string]interface{}),
+		Data:      make(map[string]any),
 	}
 }
 

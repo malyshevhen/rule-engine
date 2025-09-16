@@ -54,7 +54,7 @@ func JWTMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Parse and validate token
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
@@ -91,8 +91,8 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Check for API key format: "ApiKey <key>"
-		if strings.HasPrefix(authHeader, "ApiKey ") {
-			apiKey := strings.TrimPrefix(authHeader, "ApiKey ")
+		if after, ok := strings.CutPrefix(authHeader, "ApiKey "); ok {
+			apiKey := after
 			expectedKey := os.Getenv("API_KEY")
 			if expectedKey == "" {
 				slog.Error("API_KEY environment variable not set")

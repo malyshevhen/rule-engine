@@ -17,7 +17,7 @@ func BenchmarkLuaExecution_SimpleArithmetic(b *testing.B) {
 	execContext := &execCtx.ExecutionContext{
 		RuleID:    "benchmark-rule",
 		TriggerID: "benchmark-trigger",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"x": 10,
 			"y": 20,
 		},
@@ -25,8 +25,7 @@ func BenchmarkLuaExecution_SimpleArithmetic(b *testing.B) {
 
 	script := "return x + y"
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result := executorSvc.ExecuteScript(context.Background(), script, execContext)
 		if !result.Success {
 			b.Fatalf("Script execution failed: %s", result.Error)
@@ -46,7 +45,7 @@ func BenchmarkLuaExecution_ComplexLogic(b *testing.B) {
 	execContext := &execCtx.ExecutionContext{
 		RuleID:    "benchmark-rule",
 		TriggerID: "benchmark-trigger",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"temperature": 25.5,
 			"humidity":    60,
 			"threshold":   20,
@@ -65,8 +64,7 @@ func BenchmarkLuaExecution_ComplexLogic(b *testing.B) {
 		end
 	`
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result := executorSvc.ExecuteScript(context.Background(), script, execContext)
 		if !result.Success {
 			b.Fatalf("Script execution failed: %s", result.Error)
@@ -86,7 +84,7 @@ func BenchmarkLuaExecution_PlatformAPICalls(b *testing.B) {
 	execContext := &execCtx.ExecutionContext{
 		RuleID:    "benchmark-rule",
 		TriggerID: "benchmark-trigger",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"device_id": "device123",
 		},
 	}
@@ -101,8 +99,7 @@ func BenchmarkLuaExecution_PlatformAPICalls(b *testing.B) {
 		return device_data.online
 	`
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result := executorSvc.ExecuteScript(context.Background(), script, execContext)
 		if !result.Success {
 			b.Fatalf("Script execution failed: %s", result.Error)
@@ -122,8 +119,8 @@ func BenchmarkLuaExecution_LargeScript(b *testing.B) {
 	execContext := &execCtx.ExecutionContext{
 		RuleID:    "benchmark-rule",
 		TriggerID: "benchmark-trigger",
-		Data: map[string]interface{}{
-			"values": []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		Data: map[string]any{
+			"values": []any{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 		},
 	}
 
@@ -140,14 +137,13 @@ func BenchmarkLuaExecution_LargeScript(b *testing.B) {
 		return {sum = sum, max = max_val, avg = avg}
 	`
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result := executorSvc.ExecuteScript(context.Background(), script, execContext)
 		if !result.Success {
 			b.Fatalf("Script execution failed: %s", result.Error)
 		}
 		// Verify the result structure
-		resultMap := result.Output[0].(map[string]interface{})
+		resultMap := result.Output[0].(map[string]any)
 		if resultMap["sum"] != 55 {
 			b.Fatalf("Expected sum 55, got %v", resultMap["sum"])
 		}
@@ -163,7 +159,7 @@ func BenchmarkLuaExecution_Concurrent(b *testing.B) {
 		execContext := &execCtx.ExecutionContext{
 			RuleID:    "concurrent-rule",
 			TriggerID: "concurrent-trigger",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"x": 1.5,
 				"y": 2.3,
 			},

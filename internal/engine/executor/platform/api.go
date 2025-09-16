@@ -13,10 +13,10 @@ import (
 // PlatformAPI provides functions that Lua scripts can call to interact with the IoT platform
 type PlatformAPI interface {
 	// GetDeviceState retrieves the current state of a device
-	GetDeviceState(ctx context.Context, deviceID string) (map[string]interface{}, error)
+	GetDeviceState(ctx context.Context, deviceID string) (map[string]any, error)
 
 	// SendCommand sends a command to a device
-	SendCommand(ctx context.Context, deviceID string, command string, params map[string]interface{}) error
+	SendCommand(ctx context.Context, deviceID string, command string, params map[string]any) error
 
 	// LogMessage logs a message from a Lua script
 	LogMessage(ctx context.Context, level, message string)
@@ -25,30 +25,30 @@ type PlatformAPI interface {
 	GetCurrentTime() time.Time
 
 	// StoreData stores temporary data during rule execution
-	StoreData(ctx context.Context, key string, value interface{})
+	StoreData(ctx context.Context, key string, value any)
 
 	// GetStoredData retrieves stored data
-	GetStoredData(ctx context.Context, key string) interface{}
+	GetStoredData(ctx context.Context, key string) any
 }
 
 // Service implements the PlatformAPI interface
 type Service struct {
 	// TODO: Add dependencies like device service, message bus, cache, etc.
-	dataStores map[string]map[string]interface{} // Per-rule execution storage
+	dataStores map[string]map[string]any // Per-rule execution storage
 }
 
 // NewService creates a new platform API service
 func NewService() *Service {
 	return &Service{
-		dataStores: make(map[string]map[string]interface{}),
+		dataStores: make(map[string]map[string]any),
 	}
 }
 
 // GetDeviceState retrieves the current state of a device
-func (s *Service) GetDeviceState(ctx context.Context, deviceID string) (map[string]interface{}, error) {
+func (s *Service) GetDeviceState(ctx context.Context, deviceID string) (map[string]any, error) {
 	// TODO: Implement actual device state retrieval from device service
 	// For now, return mock data
-	return map[string]interface{}{
+	return map[string]any{
 		"id":          deviceID,
 		"online":      true,
 		"last_seen":   time.Now().Unix(),
@@ -58,7 +58,7 @@ func (s *Service) GetDeviceState(ctx context.Context, deviceID string) (map[stri
 }
 
 // SendCommand sends a command to a device
-func (s *Service) SendCommand(ctx context.Context, deviceID string, command string, params map[string]interface{}) error {
+func (s *Service) SendCommand(ctx context.Context, deviceID string, command string, params map[string]any) error {
 	// TODO: Implement actual command sending via message bus
 	slog.Info("Sending command to device",
 		"device_id", deviceID,
@@ -132,7 +132,7 @@ func (s *Service) RegisterAPIFunctions(L *lua.LState, ruleID, triggerID string) 
 		}
 
 		// Convert Lua table to Go map
-		params := make(map[string]interface{})
+		params := make(map[string]any)
 		if paramsTable != nil {
 			paramsTable.ForEach(func(k, v lua.LValue) {
 				params[k.String()] = luaValueToGo(v)
@@ -181,7 +181,7 @@ func (s *Service) RegisterAPIFunctions(L *lua.LState, ruleID, triggerID string) 
 		// Use execution-specific key
 		execKey := ruleID + ":" + triggerID
 		if s.dataStores[execKey] == nil {
-			s.dataStores[execKey] = make(map[string]interface{})
+			s.dataStores[execKey] = make(map[string]any)
 		}
 		s.dataStores[execKey][key] = luaValueToGo(value)
 
@@ -207,7 +207,7 @@ func (s *Service) RegisterAPIFunctions(L *lua.LState, ruleID, triggerID string) 
 }
 
 // luaValueFromGo converts a Go value to a Lua value
-func luaValueFromGo(L *lua.LState, v interface{}) lua.LValue {
+func luaValueFromGo(L *lua.LState, v any) lua.LValue {
 	switch val := v.(type) {
 	case nil:
 		return lua.LNil
@@ -225,13 +225,13 @@ func luaValueFromGo(L *lua.LState, v interface{}) lua.LValue {
 		return lua.LNumber(val)
 	case string:
 		return lua.LString(val)
-	case map[string]interface{}:
+	case map[string]any:
 		table := L.NewTable()
 		for k, v := range val {
 			L.SetField(table, k, luaValueFromGo(L, v))
 		}
 		return table
-	case []interface{}:
+	case []any:
 		table := L.NewTable()
 		for i, v := range val {
 			table.Insert(i+1, luaValueFromGo(L, v))
@@ -247,7 +247,7 @@ func luaValueFromGo(L *lua.LState, v interface{}) lua.LValue {
 }
 
 // luaValueToGo converts a Lua value to a Go interface{}
-func luaValueToGo(v lua.LValue) interface{} {
+func luaValueToGo(v lua.LValue) any {
 	switch v.Type() {
 	case lua.LTNil:
 		return nil
@@ -260,7 +260,7 @@ func luaValueToGo(v lua.LValue) interface{} {
 	case lua.LTTable:
 		// Convert table to map
 		table := v.(*lua.LTable)
-		result := make(map[string]interface{})
+		result := make(map[string]any)
 		table.ForEach(func(k, v lua.LValue) {
 			result[k.String()] = luaValueToGo(v)
 		})

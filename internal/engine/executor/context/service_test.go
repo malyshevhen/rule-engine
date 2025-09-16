@@ -25,7 +25,7 @@ func TestExecutionContext_Structure(t *testing.T) {
 	ctx := &ExecutionContext{
 		RuleID:    "rule-123",
 		TriggerID: "trigger-456",
-		Data:      make(map[string]interface{}),
+		Data:      make(map[string]any),
 	}
 
 	// Test that we can add data to the context

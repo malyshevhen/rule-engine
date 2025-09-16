@@ -69,7 +69,7 @@ func (m *Manager) handleConditionalTrigger(ctx context.Context, msg *nats.Msg) {
 	metrics.TriggerEventsTotal.WithLabelValues("conditional", "processed").Inc()
 
 	// Parse event data
-	var eventData map[string]interface{}
+	var eventData map[string]any
 	if err := json.Unmarshal(msg.Data, &eventData); err != nil {
 		slog.Error("Failed to parse event data", "error", err)
 		return
