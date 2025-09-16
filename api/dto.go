@@ -64,3 +64,8 @@ type CreateActionRequest struct {
 	LuaScript string `json:"lua_script" validate:"required"`
 	Enabled   *bool  `json:"enabled,omitempty"`
 }
+
+// APIErrorResponse represents an error response for API documentation
+type APIErrorResponse struct {
+	Error string `json:"error" example:"Error message"`
+}

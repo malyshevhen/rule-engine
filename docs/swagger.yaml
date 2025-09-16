@@ -1,0 +1,29 @@
+basePath: /api/v1
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: A robust rule engine microservice for IoT automation. Allows users
+    to create and manage custom automation rules with Lua script execution in a secure
+    sandboxed environment.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Rule Engine API
+  version: "1.0"
+paths: {}
+securityDefinitions:
+  ApiKeyAuth:
+    description: 'API key authentication. Format: "ApiKey <your-api-key>"'
+    in: header
+    name: Authorization
+    type: apiKey
+  BearerAuth:
+    description: 'JWT Bearer token authentication. Format: "Bearer <your-jwt-token>"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
