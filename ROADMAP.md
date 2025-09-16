@@ -14,6 +14,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - Trigger system with NATS event processing and CRON scheduling
 - Structured JSON logging throughout the application
 - Prometheus metrics for monitoring rule executions, trigger events, and performance
+- Security enhancements: JWT/API key auth, input sanitization, rate limiting, secure secrets
 
 ## Phase 1: Core Infrastructure Setup
 
@@ -106,10 +107,10 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 ### 5.2 Security Enhancements
 
-- [ ] Add JWT/API key authentication
-- [ ] Implement input sanitization
-- [ ] Add rate limiting
-- [ ] Secure secret management (environment variables)
+- [x] Add JWT/API key authentication
+- [x] Implement input sanitization
+- [x] Add rate limiting
+- [x] Secure secret management (environment variables)
 
 ## Phase 6: Testing and Quality Assurance
 

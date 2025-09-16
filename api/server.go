@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -32,6 +33,7 @@ func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.
 	router := mux.NewRouter()
 
 	// Add middleware
+	router.Use(RateLimitMiddleware)
 	router.Use(LoggingMiddleware)
 	router.Use(AuthMiddleware)
 
@@ -99,6 +101,27 @@ func (s *Server) CreateRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sanitize and validate inputs
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		ErrorResponse(w, http.StatusBadRequest, "Rule name cannot be empty")
+		return
+	}
+	if len(req.Name) > 255 {
+		ErrorResponse(w, http.StatusBadRequest, "Rule name too long (max 255 characters)")
+		return
+	}
+
+	req.LuaScript = strings.TrimSpace(req.LuaScript)
+	if req.LuaScript == "" {
+		ErrorResponse(w, http.StatusBadRequest, "Lua script cannot be empty")
+		return
+	}
+	if len(req.LuaScript) > 10000 {
+		ErrorResponse(w, http.StatusBadRequest, "Lua script too long (max 10000 characters)")
+		return
+	}
+
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
@@ -149,6 +172,27 @@ func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sanitize and validate inputs
+	req.Type = strings.TrimSpace(req.Type)
+	if req.Type == "" {
+		ErrorResponse(w, http.StatusBadRequest, "Trigger type cannot be empty")
+		return
+	}
+	if req.Type != "conditional" && req.Type != "scheduled" {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid trigger type (must be 'conditional' or 'scheduled')")
+		return
+	}
+
+	req.ConditionScript = strings.TrimSpace(req.ConditionScript)
+	if req.ConditionScript == "" {
+		ErrorResponse(w, http.StatusBadRequest, "Condition script cannot be empty")
+		return
+	}
+	if len(req.ConditionScript) > 5000 {
+		ErrorResponse(w, http.StatusBadRequest, "Condition script too long (max 5000 characters)")
+		return
+	}
+
 	enabled := true
 	if req.Enabled != nil {
 		enabled = *req.Enabled
@@ -182,6 +226,17 @@ func (s *Server) CreateAction(w http.ResponseWriter, r *http.Request) {
 	var req CreateActionRequest
 	if err := ParseJSONBody(r, &req); err != nil {
 		ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Sanitize and validate inputs
+	req.LuaScript = strings.TrimSpace(req.LuaScript)
+	if req.LuaScript == "" {
+		ErrorResponse(w, http.StatusBadRequest, "Lua script cannot be empty")
+		return
+	}
+	if len(req.LuaScript) > 10000 {
+		ErrorResponse(w, http.StatusBadRequest, "Lua script too long (max 10000 characters)")
 		return
 	}
 

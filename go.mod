@@ -3,6 +3,7 @@ module github.com/malyshevhen/rule-engine
 go 1.24.0
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -11,6 +12,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/yuin/gopher-lua v1.1.1
+	golang.org/x/time v0.13.0
 )
 
 require (
