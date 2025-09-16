@@ -181,13 +181,19 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 - [x] Add alerting for failed executions
 - [ ] Implement execution analytics dashboard
-  - **Tools & Frameworks**: Prometheus metrics + custom API endpoints returning JSON data for dashboard consumption
+  - **Tools & Frameworks**:
+    - **Backend**: Go (existing) + Gin HTTP framework (existing)
+    - **Frontend**: Vanilla HTML/CSS/JavaScript + Chart.js for visualizations
+    - **Data Processing**: Prometheus client library (existing) + custom aggregation logic
+    - **Styling**: Tailwind CSS or Bootstrap for responsive design
   - **Implementation Plan**:
     - Add new API endpoints under `/api/v1/analytics/` for aggregated metrics
     - Create analytics service to aggregate rule execution data from Prometheus metrics
     - Return time-series data for rule executions, success rates, latency percentiles
     - Support date range filtering and rule-specific analytics
     - Add caching layer for expensive aggregations
+    - Build responsive HTML dashboard served by Go application at `/dashboard`
+    - Include real-time metrics, historical trends, and rule performance charts
 - [ ] Add audit logging for rule changes
   - **Tools & Frameworks**: PostgreSQL for storage + structured logging with slog
   - **Implementation Plan**:
