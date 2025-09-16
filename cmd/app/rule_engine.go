@@ -21,6 +21,7 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/engine/executor/platform"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
+	redisClient "github.com/malyshevhen/rule-engine/internal/storage/redis"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 	"github.com/malyshevhen/rule-engine/pkg/tracing"
@@ -48,15 +49,17 @@ func (a *triggerServiceAdapter) GetEnabledConditionalTriggers(ctx context.Contex
 
 // Config holds application configuration
 type Config struct {
-	Port    string
-	DBURL   string
-	NATSURL string
+	Port     string
+	DBURL    string
+	NATSURL  string
+	RedisURL string
 }
 
 // App represents the rule engine application
 type App struct {
 	config  Config
 	db      *pgxpool.Pool
+	redis   *redisClient.Client
 	server  *api.Server
 	manager *manager.Manager
 	nc      *nats.Conn
@@ -77,10 +80,15 @@ func loadConfig() Config {
 	if natsURL == "" {
 		natsURL = "nats://localhost:4222"
 	}
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		redisURL = "localhost:6379"
+	}
 	return Config{
-		Port:    port,
-		DBURL:   dbURL,
-		NATSURL: natsURL,
+		Port:     port,
+		DBURL:    dbURL,
+		NATSURL:  natsURL,
+		RedisURL: redisURL,
 	}
 }
 
@@ -119,9 +127,23 @@ func New() *App {
 	triggerRepo := triggerStorage.NewRepository(pool)
 	actionRepo := actionStorage.NewRepository(pool)
 
+	// Initialize Redis client
+	redisConfig := &redisClient.Config{
+		Addr: config.RedisURL,
+	}
+	redisCli := redisClient.NewClient(redisConfig)
+
+	// Test Redis connection
+	if err := redisCli.Ping(ctx); err != nil {
+		slog.Warn("Failed to connect to Redis, caching will be disabled", "error", err)
+		redisCli = nil
+	} else {
+		slog.Info("Connected to Redis")
+	}
+
 	// Initialize services
-	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo)
-	triggerSvc := trigger.NewService(triggerRepo)
+	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo, redisCli)
+	triggerSvc := trigger.NewService(triggerRepo, redisCli)
 	actionSvc := action.NewService(actionRepo)
 
 	// Initialize executor components
@@ -155,6 +177,7 @@ func New() *App {
 	return &App{
 		config:  config,
 		db:      pool,
+		redis:   redisCli,
 		server:  server,
 		manager: mgr,
 		nc:      nc,

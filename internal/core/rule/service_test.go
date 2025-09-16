@@ -64,7 +64,7 @@ func (m *mockRuleRepository) Delete(ctx context.Context, id uuid.UUID) error {
 
 func TestService_Create(t *testing.T) {
 	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil)
+	svc := NewService(mockRepo, nil, nil, nil)
 
 	rule := &Rule{
 		Name:      "Test Rule",
@@ -82,7 +82,7 @@ func TestService_Create(t *testing.T) {
 
 func TestService_GetByID(t *testing.T) {
 	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil)
+	svc := NewService(mockRepo, nil, nil, nil)
 
 	ruleID := uuid.New()
 	expectedRule := &ruleStorage.Rule{
@@ -113,7 +113,7 @@ func TestService_GetByID(t *testing.T) {
 
 func TestService_GetByID_Error(t *testing.T) {
 	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil)
+	svc := NewService(mockRepo, nil, nil, nil)
 
 	ruleID := uuid.New()
 
@@ -128,7 +128,7 @@ func TestService_GetByID_Error(t *testing.T) {
 
 func TestService_List(t *testing.T) {
 	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil)
+	svc := NewService(mockRepo, nil, nil, nil)
 
 	expectedRules := []*ruleStorage.Rule{
 		{
@@ -152,7 +152,7 @@ func TestService_List(t *testing.T) {
 
 func TestService_Update(t *testing.T) {
 	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil)
+	svc := NewService(mockRepo, nil, nil, nil)
 
 	rule := &Rule{
 		ID:        uuid.New(),
@@ -171,7 +171,7 @@ func TestService_Update(t *testing.T) {
 
 func TestService_Delete(t *testing.T) {
 	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil)
+	svc := NewService(mockRepo, nil, nil, nil)
 
 	ruleID := uuid.New()
 

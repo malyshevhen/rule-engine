@@ -2,11 +2,15 @@ package rule
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
+	redisClient "github.com/malyshevhen/rule-engine/internal/storage/redis"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
@@ -29,14 +33,16 @@ type Service struct {
 	ruleRepo    RuleRepository
 	triggerRepo *triggerStorage.Repository
 	actionRepo  *actionStorage.Repository
+	redis       *redisClient.Client
 }
 
 // NewService creates a new rule service
-func NewService(ruleRepo RuleRepository, triggerRepo *triggerStorage.Repository, actionRepo *actionStorage.Repository) *Service {
+func NewService(ruleRepo RuleRepository, triggerRepo *triggerStorage.Repository, actionRepo *actionStorage.Repository, redis *redisClient.Client) *Service {
 	return &Service{
 		ruleRepo:    ruleRepo,
 		triggerRepo: triggerRepo,
 		actionRepo:  actionRepo,
+		redis:       redis,
 	}
 }
 
@@ -56,11 +62,27 @@ func (s *Service) Create(ctx context.Context, rule *Rule) error {
 	rule.ID = storageRule.ID
 	rule.CreatedAt = storageRule.CreatedAt
 	rule.UpdatedAt = storageRule.UpdatedAt
+
+	// Invalidate caches
+	s.invalidateRuleCaches(ctx)
+
 	return nil
 }
 
 // GetByID retrieves a rule with its triggers and actions
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
+	cacheKey := fmt.Sprintf("rule:%s", id.String())
+
+	// Try to get from cache first
+	if s.redis != nil {
+		if cached, err := s.redis.Get(ctx, cacheKey); err == nil {
+			var rule Rule
+			if err := json.Unmarshal([]byte(cached), &rule); err == nil {
+				return &rule, nil
+			}
+		}
+	}
+
 	// Get the rule with associations using optimized JOIN queries
 	ruleStorage, triggersStorage, actionsStorage, err := s.ruleRepo.GetByIDWithAssociations(ctx, id)
 	if err != nil {
@@ -108,11 +130,30 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 		Actions:   actions,
 	}
 
+	// Cache the result
+	if s.redis != nil {
+		if data, err := json.Marshal(rule); err == nil {
+			s.redis.Set(ctx, cacheKey, string(data), 5*time.Minute)
+		}
+	}
+
 	return rule, nil
 }
 
 // List retrieves rules with pagination
 func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, error) {
+	cacheKey := fmt.Sprintf("rules:list:%d:%d", limit, offset)
+
+	// Try to get from cache first
+	if s.redis != nil {
+		if cached, err := s.redis.Get(ctx, cacheKey); err == nil {
+			var rules []*Rule
+			if err := json.Unmarshal([]byte(cached), &rules); err == nil {
+				return rules, nil
+			}
+		}
+	}
+
 	rules, err := s.ruleRepo.List(ctx, limit, offset)
 	if err != nil {
 		return nil, err
@@ -129,6 +170,13 @@ func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, err
 			Enabled:   rule.Enabled,
 			CreatedAt: rule.CreatedAt,
 			UpdatedAt: rule.UpdatedAt,
+		}
+	}
+
+	// Cache the result
+	if s.redis != nil {
+		if data, err := json.Marshal(domainRules); err == nil {
+			s.redis.Set(ctx, cacheKey, string(data), 2*time.Minute)
 		}
 	}
 
@@ -149,10 +197,48 @@ func (s *Service) Update(ctx context.Context, rule *Rule) error {
 		Priority:  rule.Priority,
 		Enabled:   rule.Enabled,
 	}
-	return s.ruleRepo.Update(ctx, storageRule)
+	err := s.ruleRepo.Update(ctx, storageRule)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate caches
+	s.invalidateRuleCaches(ctx)
+
+	return nil
 }
 
 // Delete deletes a rule by ID
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.ruleRepo.Delete(ctx, id)
+	err := s.ruleRepo.Delete(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate caches
+	s.invalidateRuleCaches(ctx)
+
+	return nil
+}
+
+// invalidateRuleCaches clears all rule-related caches
+func (s *Service) invalidateRuleCaches(ctx context.Context) {
+	if s.redis == nil {
+		return
+	}
+
+	// Delete all rule caches (this is a simple approach; in production, you might want more granular invalidation)
+	keys, err := s.redis.Keys(ctx, "rule:*")
+	if err == nil {
+		for _, key := range keys {
+			s.redis.Del(ctx, key)
+		}
+	}
+
+	keys, err = s.redis.Keys(ctx, "rules:*")
+	if err == nil {
+		for _, key := range keys {
+			s.redis.Del(ctx, key)
+		}
+	}
 }

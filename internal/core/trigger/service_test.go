@@ -32,7 +32,7 @@ func (m *mockTriggerRepository) List(ctx context.Context) ([]*triggerStorage.Tri
 
 func TestService_Create(t *testing.T) {
 	mockRepo := &mockTriggerRepository{}
-	service := NewService(mockRepo)
+	service := NewService(mockRepo, nil)
 
 	ruleID := uuid.New()
 	trigger := &Trigger{
@@ -55,7 +55,7 @@ func TestService_Create(t *testing.T) {
 
 func TestService_Create_Error(t *testing.T) {
 	mockRepo := &mockTriggerRepository{}
-	service := NewService(mockRepo)
+	service := NewService(mockRepo, nil)
 
 	trigger := &Trigger{
 		RuleID:          uuid.New(),
@@ -74,7 +74,7 @@ func TestService_Create_Error(t *testing.T) {
 
 func TestService_GetByID(t *testing.T) {
 	mockRepo := &mockTriggerRepository{}
-	service := NewService(mockRepo)
+	service := NewService(mockRepo, nil)
 
 	triggerID := uuid.New()
 	expectedTrigger := &triggerStorage.Trigger{
@@ -101,7 +101,7 @@ func TestService_GetByID(t *testing.T) {
 
 func TestService_GetByID_Error(t *testing.T) {
 	mockRepo := &mockTriggerRepository{}
-	service := NewService(mockRepo)
+	service := NewService(mockRepo, nil)
 
 	triggerID := uuid.New()
 

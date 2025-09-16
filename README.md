@@ -10,7 +10,7 @@ A robust, scalable rule engine microservice for IoT automation built with Go. Th
 - **RESTful API**: Complete REST API with OpenAPI/Swagger documentation
 - **Authentication**: JWT and API key authentication
 - **Observability**: Structured logging, Prometheus metrics, and health checks
-- **Performance**: Comprehensive performance testing and optimization
+- **Performance**: Comprehensive performance testing and optimization with Redis caching
 - **Container Ready**: Production-ready Docker containerization
 
 ## Architecture
@@ -342,6 +342,7 @@ The service is configured via environment variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | Required |
+| `REDIS_URL` | Redis connection string for caching | `localhost:6379` |
 | `API_KEY` | API key for authentication | Required |
 | `JWT_SECRET` | Secret for JWT token signing | Required |
 | `PORT` | HTTP server port | `8080` |
@@ -458,6 +459,7 @@ The service is optimized for high-throughput IoT workloads:
 
 - **Concurrent Processing**: Handles thousands of concurrent requests
 - **Efficient Lua Execution**: Fast script execution with caching
+- **Redis Caching**: High-performance caching for rule and trigger data with automatic invalidation
 - **Database Optimization**: Indexed queries and connection pooling
 - **Load Testing**: Comprehensive performance test suite
 

@@ -2,8 +2,11 @@ package trigger
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
+	redisClient "github.com/malyshevhen/rule-engine/internal/storage/redis"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
 
@@ -16,12 +19,13 @@ type TriggerRepository interface {
 
 // Service handles business logic for triggers
 type Service struct {
-	repo TriggerRepository
+	repo  TriggerRepository
+	redis *redisClient.Client
 }
 
 // NewService creates a new trigger service
-func NewService(repo TriggerRepository) *Service {
-	return &Service{repo: repo}
+func NewService(repo TriggerRepository, redis *redisClient.Client) *Service {
+	return &Service{repo: repo, redis: redis}
 }
 
 // Create creates a new trigger
@@ -40,6 +44,10 @@ func (s *Service) Create(ctx context.Context, trigger *Trigger) error {
 	trigger.ID = storageTrigger.ID
 	trigger.CreatedAt = storageTrigger.CreatedAt
 	trigger.UpdatedAt = storageTrigger.UpdatedAt
+
+	// Invalidate caches
+	s.invalidateTriggerCaches(ctx)
+
 	return nil
 }
 
@@ -88,6 +96,18 @@ func (s *Service) List(ctx context.Context) ([]*Trigger, error) {
 
 // GetEnabledConditionalTriggers retrieves all enabled conditional triggers
 func (s *Service) GetEnabledConditionalTriggers(ctx context.Context) ([]*Trigger, error) {
+	cacheKey := "triggers:enabled_conditional"
+
+	// Try to get from cache first
+	if s.redis != nil {
+		if cached, err := s.redis.Get(ctx, cacheKey); err == nil {
+			var triggers []*Trigger
+			if err := json.Unmarshal([]byte(cached), &triggers); err == nil {
+				return triggers, nil
+			}
+		}
+	}
+
 	allTriggers, err := s.List(ctx)
 	if err != nil {
 		return nil, err
@@ -100,5 +120,27 @@ func (s *Service) GetEnabledConditionalTriggers(ctx context.Context) ([]*Trigger
 		}
 	}
 
+	// Cache the result
+	if s.redis != nil {
+		if data, err := json.Marshal(conditionalTriggers); err == nil {
+			s.redis.Set(ctx, cacheKey, string(data), 1*time.Minute)
+		}
+	}
+
 	return conditionalTriggers, nil
+}
+
+// invalidateTriggerCaches clears all trigger-related caches
+func (s *Service) invalidateTriggerCaches(ctx context.Context) {
+	if s.redis == nil {
+		return
+	}
+
+	// Delete trigger caches
+	keys, err := s.redis.Keys(ctx, "triggers:*")
+	if err == nil {
+		for _, key := range keys {
+			s.redis.Del(ctx, key)
+		}
+	}
 }
