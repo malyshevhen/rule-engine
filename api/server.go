@@ -529,6 +529,7 @@ func (s *Server) UpdateRule(w http.ResponseWriter, r *http.Request) {
 //	@Param			id	path		string	true	"Rule ID"
 //	@Success		204	"No Content"
 //	@Failure		400	{object}	APIErrorResponse
+//	@Failure		404	{object}	APIErrorResponse
 //	@Failure		500	{object}	APIErrorResponse
 //	@Router			/rules/{id} [delete]
 func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {

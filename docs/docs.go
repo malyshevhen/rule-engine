@@ -144,6 +144,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/analytics/dashboard": {
+            "get": {
+                "description": "Get aggregated analytics data for the dashboard",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "analytics"
+                ],
+                "summary": "Get analytics dashboard data",
+                "parameters": [
+                    {
+                        "enum": [
+                            "1h",
+                            "24h",
+                            "7d",
+                            "30d"
+                        ],
+                        "type": "string",
+                        "description": "Time range (1h, 24h, 7d, 30d)",
+                        "name": "timeRange",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/analytics.DashboardData"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Get the health status of the service",
@@ -377,6 +420,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/api.APIErrorResponse"
                         }
                     },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/api.APIErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -508,6 +557,106 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "analytics.DashboardData": {
+            "type": "object",
+            "properties": {
+                "execution_trend": {
+                    "$ref": "#/definitions/analytics.TimeSeriesData"
+                },
+                "latency_trend": {
+                    "$ref": "#/definitions/analytics.TimeSeriesData"
+                },
+                "overall_stats": {
+                    "$ref": "#/definitions/analytics.ExecutionStats"
+                },
+                "rule_stats": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/analytics.RuleStats"
+                    }
+                },
+                "success_rate_trend": {
+                    "$ref": "#/definitions/analytics.TimeSeriesData"
+                },
+                "time_range": {
+                    "type": "string"
+                }
+            }
+        },
+        "analytics.ExecutionStats": {
+            "type": "object",
+            "properties": {
+                "average_latency_ms": {
+                    "type": "number"
+                },
+                "failed_executions": {
+                    "type": "integer"
+                },
+                "success_rate": {
+                    "type": "number"
+                },
+                "successful_executions": {
+                    "type": "integer"
+                },
+                "total_executions": {
+                    "type": "integer"
+                }
+            }
+        },
+        "analytics.RuleStats": {
+            "type": "object",
+            "properties": {
+                "average_latency_ms": {
+                    "type": "number"
+                },
+                "failed_executions": {
+                    "type": "integer"
+                },
+                "last_executed": {
+                    "type": "string"
+                },
+                "rule_id": {
+                    "type": "string"
+                },
+                "rule_name": {
+                    "type": "string"
+                },
+                "success_rate": {
+                    "type": "number"
+                },
+                "successful_executions": {
+                    "type": "integer"
+                },
+                "total_executions": {
+                    "type": "integer"
+                }
+            }
+        },
+        "analytics.TimeSeriesData": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/analytics.TimeSeriesPoint"
+                    }
+                },
+                "metric": {
+                    "type": "string"
+                }
+            }
+        },
+        "analytics.TimeSeriesPoint": {
+            "type": "object",
+            "properties": {
+                "timestamp": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
         "api.APIErrorResponse": {
             "type": "object",
             "properties": {
@@ -571,6 +720,10 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Temperature Alert Rule"
+                },
+                "priority": {
+                    "type": "integer",
+                    "example": 0
                 }
             }
         },
@@ -628,6 +781,9 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
+                "priority": {
+                    "type": "integer"
+                },
                 "triggers": {
                     "type": "array",
                     "items": {
@@ -676,6 +832,10 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Updated Rule Name"
+                },
+                "priority": {
+                    "type": "integer",
+                    "example": 5
                 }
             }
         }

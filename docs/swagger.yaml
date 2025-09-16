@@ -1,5 +1,70 @@
 basePath: /api/v1
 definitions:
+  analytics.DashboardData:
+    properties:
+      execution_trend:
+        $ref: '#/definitions/analytics.TimeSeriesData'
+      latency_trend:
+        $ref: '#/definitions/analytics.TimeSeriesData'
+      overall_stats:
+        $ref: '#/definitions/analytics.ExecutionStats'
+      rule_stats:
+        items:
+          $ref: '#/definitions/analytics.RuleStats'
+        type: array
+      success_rate_trend:
+        $ref: '#/definitions/analytics.TimeSeriesData'
+      time_range:
+        type: string
+    type: object
+  analytics.ExecutionStats:
+    properties:
+      average_latency_ms:
+        type: number
+      failed_executions:
+        type: integer
+      success_rate:
+        type: number
+      successful_executions:
+        type: integer
+      total_executions:
+        type: integer
+    type: object
+  analytics.RuleStats:
+    properties:
+      average_latency_ms:
+        type: number
+      failed_executions:
+        type: integer
+      last_executed:
+        type: string
+      rule_id:
+        type: string
+      rule_name:
+        type: string
+      success_rate:
+        type: number
+      successful_executions:
+        type: integer
+      total_executions:
+        type: integer
+    type: object
+  analytics.TimeSeriesData:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/analytics.TimeSeriesPoint'
+        type: array
+      metric:
+        type: string
+    type: object
+  analytics.TimeSeriesPoint:
+    properties:
+      timestamp:
+        type: string
+      value:
+        type: number
+    type: object
   api.APIErrorResponse:
     properties:
       error:
@@ -41,6 +106,9 @@ definitions:
       name:
         example: Temperature Alert Rule
         type: string
+      priority:
+        example: 0
+        type: integer
     required:
     - lua_script
     - name
@@ -83,6 +151,8 @@ definitions:
         type: string
       name:
         type: string
+      priority:
+        type: integer
       triggers:
         items:
           $ref: '#/definitions/api.TriggerDTO'
@@ -105,83 +175,21 @@ definitions:
       updated_at:
         type: string
     type: object
-   api.UpdateRuleRequest:
-     properties:
-       enabled:
-         example: false
-         type: boolean
-       lua_script:
-         example: if event.temperature > 30 then return true end
-         type: string
-       name:
-         example: Updated Rule Name
-         type: string
-     type: object
-   analytics.DashboardData:
-     properties:
-       execution_trend:
-         $ref: '#/definitions/analytics.TimeSeriesData'
-       latency_trend:
-         $ref: '#/definitions/analytics.TimeSeriesData'
-       overall_stats:
-         $ref: '#/definitions/analytics.ExecutionStats'
-       rule_stats:
-         items:
-           $ref: '#/definitions/analytics.RuleStats'
-         type: array
-       success_rate_trend:
-         $ref: '#/definitions/analytics.TimeSeriesData'
-       time_range:
-         type: string
-     type: object
-   analytics.ExecutionStats:
-     properties:
-       average_latency_ms:
-         type: number
-       failed_executions:
-         type: integer
-       successful_executions:
-         type: integer
-       success_rate:
-         type: number
-       total_executions:
-         type: integer
-     type: object
-   analytics.RuleStats:
-     properties:
-       average_latency_ms:
-         type: number
-       failed_executions:
-         type: integer
-       last_executed:
-         type: string
-       rule_id:
-         type: string
-       rule_name:
-         type: string
-       successful_executions:
-         type: integer
-       success_rate:
-         type: number
-       total_executions:
-         type: integer
-     type: object
-   analytics.TimeSeriesData:
-     properties:
-       data:
-         items:
-           $ref: '#/definitions/analytics.TimeSeriesPoint'
-         type: array
-       metric:
-         type: string
-     type: object
-   analytics.TimeSeriesPoint:
-     properties:
-       timestamp:
-         type: string
-       value:
-         type: number
-     type: object
+  api.UpdateRuleRequest:
+    properties:
+      enabled:
+        example: false
+        type: boolean
+      lua_script:
+        example: if event.temperature > 30 then return true end
+        type: string
+      name:
+        example: Updated Rule Name
+        type: string
+      priority:
+        example: 5
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -277,6 +285,35 @@ paths:
       summary: Get action by ID
       tags:
       - actions
+  /analytics/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Get aggregated analytics data for the dashboard
+      parameters:
+      - description: Time range (1h, 24h, 7d, 30d)
+        enum:
+        - 1h
+        - 24h
+        - 7d
+        - 30d
+        in: query
+        name: timeRange
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/analytics.DashboardData'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Get analytics dashboard data
+      tags:
+      - analytics
   /health:
     get:
       consumes:
@@ -362,6 +399,10 @@ paths:
           description: No Content
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/api.APIErrorResponse'
         "500":
@@ -513,38 +554,9 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/api.APIErrorResponse'
-       summary: Get trigger by ID
-       tags:
-       - triggers
-   /analytics/dashboard:
-     get:
-       consumes:
-       - application/json
-       description: Get aggregated analytics data for the dashboard
-       parameters:
-       - description: Time range (1h, 24h, 7d, 30d)
-         enum:
-         - 1h
-         - 24h
-         - 7d
-         - 30d
-         in: query
-         name: timeRange
-         type: string
-       produces:
-       - application/json
-       responses:
-         "200":
-           description: OK
-           schema:
-             $ref: '#/definitions/analytics.DashboardData'
-         "500":
-           description: Internal Server Error
-           schema:
-             $ref: '#/definitions/api.APIErrorResponse'
-       summary: Get analytics dashboard data
-       tags:
-       - analytics
+      summary: Get trigger by ID
+      tags:
+      - triggers
 securityDefinitions:
   ApiKeyAuth:
     description: 'API key authentication. Format: "ApiKey <your-api-key>"'
