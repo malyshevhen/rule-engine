@@ -94,4 +94,37 @@ func (r *Repository) GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) (
 	return actions, nil
 }
 
-// TODO: add rule repository
+// List retrieves all rules
+func (r *Repository) List(ctx context.Context) ([]*Rule, error) {
+	query := `SELECT id, name, lua_script, enabled, created_at, updated_at FROM rules ORDER BY created_at DESC`
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rules []*Rule
+	for rows.Next() {
+		var rule Rule
+		err := rows.Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, &rule)
+	}
+	return rules, nil
+}
+
+// Update updates an existing rule
+func (r *Repository) Update(ctx context.Context, rule *Rule) error {
+	query := `UPDATE rules SET name = $1, lua_script = $2, enabled = $3, updated_at = NOW() WHERE id = $4`
+	_, err := r.db.Query(ctx, query, rule.Name, rule.LuaScript, rule.Enabled, rule.ID)
+	return err
+}
+
+// Delete deletes a rule by ID
+func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
+	query := `DELETE FROM rules WHERE id = $1`
+	_, err := r.db.Query(ctx, query, id)
+	return err
+}

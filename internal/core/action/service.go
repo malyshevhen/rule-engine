@@ -32,4 +32,22 @@ func (s *Service) Create(ctx context.Context, action *Action) error {
 	return s.repo.Create(ctx, storageAction)
 }
 
+// GetByID retrieves an action by its ID
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
+	storageAction, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	action := &Action{
+		ID:        storageAction.ID,
+		LuaScript: storageAction.LuaScript,
+		Enabled:   storageAction.Enabled,
+		CreatedAt: storageAction.CreatedAt,
+		UpdatedAt: storageAction.UpdatedAt,
+	}
+
+	return action, nil
+}
+
 // TODO: Add methods for action execution

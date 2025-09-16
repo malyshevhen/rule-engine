@@ -44,6 +44,13 @@ type CreateRuleRequest struct {
 	Enabled   *bool  `json:"enabled,omitempty"`
 }
 
+// UpdateRuleRequest represents a request to update a rule
+type UpdateRuleRequest struct {
+	Name      *string `json:"name,omitempty"`
+	LuaScript *string `json:"lua_script,omitempty"`
+	Enabled   *bool   `json:"enabled,omitempty"`
+}
+
 // CreateTriggerRequest represents a request to create a trigger
 type CreateTriggerRequest struct {
 	RuleID          uuid.UUID `json:"rule_id" validate:"required"`

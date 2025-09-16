@@ -32,6 +32,21 @@ func (m *mockRuleService) GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule
 	return args.Get(0).(*rule.Rule), args.Error(1)
 }
 
+func (m *mockRuleService) List(ctx context.Context) ([]*rule.Rule, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*rule.Rule), args.Error(1)
+}
+
+func (m *mockRuleService) Update(ctx context.Context, rule *rule.Rule) error {
+	args := m.Called(ctx, rule)
+	return args.Error(0)
+}
+
+func (m *mockRuleService) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 // mockTriggerService is a mock implementation of TriggerService
 type mockTriggerService struct {
 	mock.Mock
@@ -42,6 +57,11 @@ func (m *mockTriggerService) Create(ctx context.Context, trigger *trigger.Trigge
 	return args.Error(0)
 }
 
+func (m *mockTriggerService) GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*trigger.Trigger), args.Error(1)
+}
+
 // mockActionService is a mock implementation of ActionService
 type mockActionService struct {
 	mock.Mock
@@ -50,6 +70,11 @@ type mockActionService struct {
 func (m *mockActionService) Create(ctx context.Context, action *action.Action) error {
 	args := m.Called(ctx, action)
 	return args.Error(0)
+}
+
+func (m *mockActionService) GetByID(ctx context.Context, id uuid.UUID) (*action.Action, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*action.Action), args.Error(1)
 }
 
 func TestServer_CreateRule(t *testing.T) {

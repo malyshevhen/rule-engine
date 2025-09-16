@@ -17,16 +17,21 @@ import (
 type RuleService interface {
 	Create(ctx context.Context, rule *rule.Rule) error
 	GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule, error)
+	List(ctx context.Context) ([]*rule.Rule, error)
+	Update(ctx context.Context, rule *rule.Rule) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // TriggerService interface
 type TriggerService interface {
 	Create(ctx context.Context, trigger *trigger.Trigger) error
+	GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error)
 }
 
 // ActionService interface
 type ActionService interface {
 	Create(ctx context.Context, action *action.Action) error
+	GetByID(ctx context.Context, id uuid.UUID) (*action.Action, error)
 }
 
 // ServerConfig holds server configuration
@@ -158,8 +163,13 @@ func (s *Server) CreateRule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ListRules(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement list
-	SuccessResponse(w, []rule.Rule{})
+	rules, err := s.ruleSvc.List(r.Context())
+	if err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to list rules")
+		return
+	}
+
+	SuccessResponse(w, rules)
 }
 func (s *Server) GetRule(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -178,8 +188,82 @@ func (s *Server) GetRule(w http.ResponseWriter, r *http.Request) {
 
 	SuccessResponse(w, rule)
 }
-func (s *Server) UpdateRule(w http.ResponseWriter, r *http.Request) {}
-func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {}
+func (s *Server) UpdateRule(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid rule ID")
+		return
+	}
+
+	var req UpdateRuleRequest
+	if err := ParseJSONBody(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Get existing rule
+	existingRule, err := s.ruleSvc.GetByID(r.Context(), id)
+	if err != nil {
+		ErrorResponse(w, http.StatusNotFound, "Rule not found")
+		return
+	}
+
+	// Apply updates
+	if req.Name != nil {
+		name := strings.TrimSpace(*req.Name)
+		if name == "" {
+			ErrorResponse(w, http.StatusBadRequest, "Rule name cannot be empty")
+			return
+		}
+		if len(name) > 255 {
+			ErrorResponse(w, http.StatusBadRequest, "Rule name too long (max 255 characters)")
+			return
+		}
+		existingRule.Name = name
+	}
+
+	if req.LuaScript != nil {
+		script := strings.TrimSpace(*req.LuaScript)
+		if script == "" {
+			ErrorResponse(w, http.StatusBadRequest, "Lua script cannot be empty")
+			return
+		}
+		if len(script) > 10000 {
+			ErrorResponse(w, http.StatusBadRequest, "Lua script too long (max 10000 characters)")
+			return
+		}
+		existingRule.LuaScript = script
+	}
+
+	if req.Enabled != nil {
+		existingRule.Enabled = *req.Enabled
+	}
+
+	if err := s.ruleSvc.Update(r.Context(), existingRule); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to update rule")
+		return
+	}
+
+	SuccessResponse(w, existingRule)
+}
+func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid rule ID")
+		return
+	}
+
+	if err := s.ruleSvc.Delete(r.Context(), id); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to delete rule")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
 
 func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 	var req CreateTriggerRequest
@@ -230,12 +314,26 @@ func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ListTriggers(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement list
+	// TODO: Implement list functionality in trigger service
+	// For now, return empty slice
 	SuccessResponse(w, []trigger.Trigger{})
 }
 func (s *Server) GetTrigger(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement GetByID in trigger service
-	ErrorResponse(w, http.StatusNotImplemented, "Get trigger not implemented")
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid trigger ID")
+		return
+	}
+
+	trigger, err := s.triggerSvc.GetByID(r.Context(), id)
+	if err != nil {
+		ErrorResponse(w, http.StatusNotFound, "Trigger not found")
+		return
+	}
+
+	SuccessResponse(w, trigger)
 }
 
 func (s *Server) CreateAction(w http.ResponseWriter, r *http.Request) {
@@ -275,10 +373,24 @@ func (s *Server) CreateAction(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) ListActions(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement list
+	// TODO: Implement list functionality in action service
+	// For now, return empty slice
 	SuccessResponse(w, []action.Action{})
 }
 func (s *Server) GetAction(w http.ResponseWriter, r *http.Request) {
-	// TODO: Implement GetByID in action service
-	ErrorResponse(w, http.StatusNotImplemented, "Get action not implemented")
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid action ID")
+		return
+	}
+
+	action, err := s.actionSvc.GetByID(r.Context(), id)
+	if err != nil {
+		ErrorResponse(w, http.StatusNotFound, "Action not found")
+		return
+	}
+
+	SuccessResponse(w, action)
 }

@@ -66,3 +66,45 @@ func TestService_Create_Error(t *testing.T) {
 	assert.Error(t, err)
 	mockRepo.AssertExpectations(t)
 }
+
+func TestService_GetByID(t *testing.T) {
+	mockRepo := &mockTriggerRepository{}
+	service := NewService(mockRepo)
+
+	triggerID := uuid.New()
+	expectedTrigger := &triggerStorage.Trigger{
+		ID:              triggerID,
+		RuleID:          uuid.New(),
+		Type:            triggerStorage.TriggerType("conditional"),
+		ConditionScript: "event.temperature > 25",
+		Enabled:         true,
+	}
+
+	mockRepo.On("GetByID", mock.Anything, triggerID).Return(expectedTrigger, nil)
+
+	trigger, err := service.GetByID(context.Background(), triggerID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, trigger)
+	assert.Equal(t, triggerID, trigger.ID)
+	assert.Equal(t, TriggerType("conditional"), trigger.Type)
+	assert.Equal(t, "event.temperature > 25", trigger.ConditionScript)
+	assert.True(t, trigger.Enabled)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestService_GetByID_Error(t *testing.T) {
+	mockRepo := &mockTriggerRepository{}
+	service := NewService(mockRepo)
+
+	triggerID := uuid.New()
+
+	mockRepo.On("GetByID", mock.Anything, triggerID).Return((*triggerStorage.Trigger)(nil), assert.AnError)
+
+	trigger, err := service.GetByID(context.Background(), triggerID)
+
+	assert.Error(t, err)
+	assert.Nil(t, trigger)
+	mockRepo.AssertExpectations(t)
+}

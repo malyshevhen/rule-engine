@@ -60,3 +60,42 @@ func TestService_Create_Error(t *testing.T) {
 	assert.Error(t, err)
 	mockRepo.AssertExpectations(t)
 }
+
+func TestService_GetByID(t *testing.T) {
+	mockRepo := &mockActionRepository{}
+	service := NewService(mockRepo)
+
+	actionID := uuid.New()
+	expectedAction := &actionStorage.Action{
+		ID:        actionID,
+		LuaScript: "print('action executed')",
+		Enabled:   true,
+	}
+
+	mockRepo.On("GetByID", mock.Anything, actionID).Return(expectedAction, nil)
+
+	action, err := service.GetByID(context.Background(), actionID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, action)
+	assert.Equal(t, actionID, action.ID)
+	assert.Equal(t, "print('action executed')", action.LuaScript)
+	assert.True(t, action.Enabled)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestService_GetByID_Error(t *testing.T) {
+	mockRepo := &mockActionRepository{}
+	service := NewService(mockRepo)
+
+	actionID := uuid.New()
+
+	mockRepo.On("GetByID", mock.Anything, actionID).Return((*actionStorage.Action)(nil), assert.AnError)
+
+	action, err := service.GetByID(context.Background(), actionID)
+
+	assert.Error(t, err)
+	assert.Nil(t, action)
+	mockRepo.AssertExpectations(t)
+}

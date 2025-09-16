@@ -34,4 +34,24 @@ func (s *Service) Create(ctx context.Context, trigger *Trigger) error {
 	return s.repo.Create(ctx, storageTrigger)
 }
 
+// GetByID retrieves a trigger by its ID
+func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error) {
+	storageTrigger, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	trigger := &Trigger{
+		ID:              storageTrigger.ID,
+		RuleID:          storageTrigger.RuleID,
+		Type:            TriggerType(storageTrigger.Type),
+		ConditionScript: storageTrigger.ConditionScript,
+		Enabled:         storageTrigger.Enabled,
+		CreatedAt:       storageTrigger.CreatedAt,
+		UpdatedAt:       storageTrigger.UpdatedAt,
+	}
+
+	return trigger, nil
+}
+
 // TODO: Add methods for trigger evaluation

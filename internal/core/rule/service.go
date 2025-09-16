@@ -15,6 +15,9 @@ import (
 type RuleRepository interface {
 	Create(ctx context.Context, rule *ruleStorage.Rule) error
 	GetByID(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, error)
+	List(ctx context.Context) ([]*ruleStorage.Rule, error)
+	Update(ctx context.Context, rule *ruleStorage.Rule) error
+	Delete(ctx context.Context, id uuid.UUID) error
 	GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*triggerStorage.Trigger, error)
 	GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*actionStorage.Action, error)
 }
@@ -100,4 +103,45 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 	}
 
 	return rule, nil
+}
+
+// List retrieves all rules (TODO: add pagination and filtering)
+func (s *Service) List(ctx context.Context) ([]*Rule, error) {
+	// TODO: Implement list functionality in storage layer
+	// For now, call repository but expect it to fail
+	rules, err := s.ruleRepo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert storage models to domain models
+	domainRules := make([]*Rule, len(rules))
+	for i, rule := range rules {
+		domainRules[i] = &Rule{
+			ID:        rule.ID,
+			Name:      rule.Name,
+			LuaScript: rule.LuaScript,
+			Enabled:   rule.Enabled,
+			CreatedAt: rule.CreatedAt,
+			UpdatedAt: rule.UpdatedAt,
+		}
+	}
+
+	return domainRules, nil
+}
+
+// Update updates an existing rule
+func (s *Service) Update(ctx context.Context, rule *Rule) error {
+	storageRule := &ruleStorage.Rule{
+		ID:        rule.ID,
+		Name:      rule.Name,
+		LuaScript: rule.LuaScript,
+		Enabled:   rule.Enabled,
+	}
+	return s.ruleRepo.Update(ctx, storageRule)
+}
+
+// Delete deletes a rule by ID
+func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	return s.ruleRepo.Delete(ctx, id)
 }

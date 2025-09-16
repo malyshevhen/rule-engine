@@ -37,6 +37,21 @@ func (m *mockRuleRepository) GetActionsByRuleID(ctx context.Context, ruleID uuid
 	return args.Get(0).([]*actionStorage.Action), args.Error(1)
 }
 
+func (m *mockRuleRepository) List(ctx context.Context) ([]*ruleStorage.Rule, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*ruleStorage.Rule), args.Error(1)
+}
+
+func (m *mockRuleRepository) Update(ctx context.Context, rule *ruleStorage.Rule) error {
+	args := m.Called(ctx, rule)
+	return args.Error(0)
+}
+
+func (m *mockRuleRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
 func TestService_Create(t *testing.T) {
 	mockRepo := &mockRuleRepository{}
 	svc := NewService(mockRepo, nil, nil)
@@ -100,5 +115,62 @@ func TestService_GetByID_Error(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, rule)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestService_List(t *testing.T) {
+	mockRepo := &mockRuleRepository{}
+	svc := NewService(mockRepo, nil, nil)
+
+	expectedRules := []*ruleStorage.Rule{
+		{
+			ID:        uuid.New(),
+			Name:      "Rule 1",
+			LuaScript: "return true",
+			Enabled:   true,
+		},
+	}
+
+	mockRepo.On("List", mock.Anything).Return(expectedRules, nil)
+
+	rules, err := svc.List(context.Background())
+
+	assert.NoError(t, err)
+	assert.Len(t, rules, 1)
+	assert.Equal(t, "Rule 1", rules[0].Name)
+
+	mockRepo.AssertExpectations(t)
+}
+
+func TestService_Update(t *testing.T) {
+	mockRepo := &mockRuleRepository{}
+	svc := NewService(mockRepo, nil, nil)
+
+	rule := &Rule{
+		ID:        uuid.New(),
+		Name:      "Updated Rule",
+		LuaScript: "return true",
+		Enabled:   true,
+	}
+
+	mockRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	err := svc.Update(context.Background(), rule)
+
+	assert.NoError(t, err)
+	mockRepo.AssertExpectations(t)
+}
+
+func TestService_Delete(t *testing.T) {
+	mockRepo := &mockRuleRepository{}
+	svc := NewService(mockRepo, nil, nil)
+
+	ruleID := uuid.New()
+
+	mockRepo.On("Delete", mock.Anything, ruleID).Return(nil)
+
+	err := svc.Delete(context.Background(), ruleID)
+
+	assert.NoError(t, err)
 	mockRepo.AssertExpectations(t)
 }
