@@ -2,13 +2,17 @@ package db
 
 import (
 	"context"
+	"embed"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/pgx/v5"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 )
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
 
 // NewPostgresPool creates a new PostgreSQL connection pool
 func NewPostgresPool(ctx context.Context, connString string) (*pgxpool.Pool, error) {
@@ -32,7 +36,13 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		return err
 	}
 
-	m, err := migrate.NewWithDatabaseInstance("file:///home/evhen/projects/rule-engine/internal/storage/db/migrations", "pgx5", driver)
+	// Create iofs source driver for embedded migrations
+	sourceDriver, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "pgx5", driver)
 	if err != nil {
 		return err
 	}
