@@ -106,7 +106,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 - [x] Implement structured logging (JSON format) using `slog`
 - [x] Add Prometheus metrics (execution counts, latency, error rates)
-- [ ] Integrate OpenTelemetry for distributed tracing
+- [x] Integrate OpenTelemetry for distributed tracing
 
 ### 5.2 Security Enhancements
 
