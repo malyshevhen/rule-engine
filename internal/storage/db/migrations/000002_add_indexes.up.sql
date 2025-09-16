@@ -14,9 +14,9 @@ CREATE INDEX idx_actions_enabled ON actions (enabled);
 
 -- Execution logs indexes for monitoring and analytics
 CREATE INDEX idx_execution_logs_rule_id ON execution_logs (rule_id);
-CREATE INDEX idx_execution_logs_triggered_at ON execution_logs (triggered_at DESC);
-CREATE INDEX idx_execution_logs_status ON execution_logs (execution_status);
+CREATE INDEX idx_exec_logs_triggered_at ON execution_logs (triggered_at DESC);
+CREATE INDEX idx_exec_status ON execution_logs (execution_status);
 
--- Junction table indexes (already have primary keys, but these help with lookups)
+-- Junction table indexes for better query performance
 CREATE INDEX idx_rule_triggers_trigger_id ON rule_triggers (trigger_id);
 CREATE INDEX idx_rule_actions_action_id ON rule_actions (action_id);
