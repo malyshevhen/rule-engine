@@ -16,6 +16,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - Structured JSON logging throughout the application
 - Prometheus metrics for monitoring rule executions, trigger events, and performance
 - Security enhancements: JWT/API key auth, input sanitization, rate limiting, secure secrets
+- Redis caching layer for high-performance rule and trigger data retrieval
 - Comprehensive unit test suite with 80-100% coverage across all components
 - Complete integration test suite with end-to-end API testing and database fixtures
 
@@ -170,7 +171,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 ### 8.2 Performance Optimizations
 
-- [ ] Add caching layer (Redis)
+- [x] Add caching layer (Redis)
 - [ ] Implement rule execution queuing
 - [ ] Add horizontal scaling support
 
