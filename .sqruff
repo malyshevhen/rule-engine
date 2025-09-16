@@ -1,0 +1,19 @@
+[sqruff]
+dialect = postgres
+exclude_rules = AM01,AM02
+rules = all
+
+[sqruff:indentation]
+indent_unit = space
+tab_space_size = 4
+indented_joins = True
+
+[sqruff:layout:type:alias_expression]
+spacing_before = align
+align_within = select_clause
+align_scope = bracketed
+
+[sqruff:layout:type:data_type]
+spacing_before = align
+align_within = create_table_statement
+align_scope = statement
