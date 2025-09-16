@@ -62,6 +62,9 @@ tidy: ## Clean and update Go module dependencies
 sql-lint: ## Lint SQL migration files
 	sqruff lint internal/storage/db/migrations/
 
+docs: ## Generate OpenAPI/Swagger documentation
+	swag init -g cmd/main.go -o docs/
+
 quality: format vet tidy sql-lint ## Run all code quality checks
 
 # Docker commands
