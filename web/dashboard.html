@@ -315,7 +315,11 @@
         // Fetch dashboard data
         async function fetchDashboardData() {
             try {
-                const response = await fetch(`/api/v1/analytics/dashboard?timeRange=${currentTimeRange}`);
+                const response = await fetch(`/api/v1/analytics/dashboard?timeRange=${currentTimeRange}`, {
+                    headers: {
+                        'Authorization': 'ApiKey dev-api-key-12345'
+                    }
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
