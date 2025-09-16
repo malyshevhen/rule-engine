@@ -94,4 +94,22 @@ var (
 			Buckets: prometheus.DefBuckets,
 		},
 	)
+
+	// AlertsTotal counts total alerts sent
+	AlertsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "rule_engine_alerts_total",
+			Help: "Total number of alerts sent",
+		},
+		[]string{"alert_type", "severity"},
+	)
+
+	// AlertSendErrorsTotal counts alert sending errors
+	AlertSendErrorsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "rule_engine_alert_send_errors_total",
+			Help: "Total number of alert sending errors",
+		},
+		[]string{"alert_type"},
+	)
 )

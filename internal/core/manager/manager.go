@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/internal/core/queue"
@@ -42,6 +43,11 @@ type TriggerEvaluator interface {
 	EvaluateTriggers(ctx context.Context, triggers []*trigger.Trigger, eventData map[string]any) []*trigger.EvaluationResult
 }
 
+// AlertingService interface for sending alerts
+type AlertingService interface {
+	SendAlert(ctx context.Context, alertType, severity, title, message string, details map[string]interface{}) error
+}
+
 // Manager handles trigger execution
 type Manager struct {
 	nc             *nats.Conn
@@ -50,12 +56,13 @@ type Manager struct {
 	triggerSvc     TriggerService
 	triggerEval    TriggerEvaluator
 	executor       Executor
+	alertingSvc    AlertingService
 	queue          queue.Queue
 	executingRules map[uuid.UUID]bool // To detect cycles in rule chaining
 }
 
 // NewManager creates a new trigger manager
-func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, triggerSvc TriggerService, triggerEval TriggerEvaluator, executor Executor, queue queue.Queue) *Manager {
+func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, triggerSvc TriggerService, triggerEval TriggerEvaluator, executor Executor, alertingSvc AlertingService, queue queue.Queue) *Manager {
 	return &Manager{
 		nc:             nc,
 		cron:           cron,
@@ -63,6 +70,7 @@ func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, triggerSvc 
 		triggerSvc:     triggerSvc,
 		triggerEval:    triggerEval,
 		executor:       executor,
+		alertingSvc:    alertingSvc,
 		queue:          queue,
 		executingRules: make(map[uuid.UUID]bool),
 	}
@@ -284,6 +292,23 @@ func (m *Manager) executeRuleSynchronous(ctx context.Context, ruleID uuid.UUID, 
 	if result.Error != "" {
 		span.RecordError(fmt.Errorf("rule execution failed: %s", result.Error))
 		slog.Error("Rule execution failed", "rule_id", ruleID, "error", result.Error)
+
+		// Send alert for rule execution failure
+		if m.alertingSvc != nil {
+			details := map[string]interface{}{
+				"rule_id":    ruleID.String(),
+				"rule_name":  rule.Name,
+				"trigger_id": triggerID.String(),
+				"error":      result.Error,
+				"timestamp":  time.Now().Format(time.RFC3339),
+			}
+			if err := m.alertingSvc.SendAlert(ctx, "rule_execution_failure", "high",
+				fmt.Sprintf("Rule execution failed: %s", rule.Name),
+				fmt.Sprintf("Rule '%s' failed to execute: %s", rule.Name, result.Error),
+				details); err != nil {
+				slog.Error("Failed to send rule execution failure alert", "error", err)
+			}
+		}
 		return
 	}
 

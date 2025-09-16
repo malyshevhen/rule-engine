@@ -6,12 +6,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/malyshevhen/rule-engine/api"
+	"github.com/malyshevhen/rule-engine/internal/alerting"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/manager"
 	"github.com/malyshevhen/rule-engine/internal/core/queue"
@@ -58,22 +60,26 @@ func (a *triggerServiceAdapter) GetEnabledScheduledTriggers(ctx context.Context)
 
 // Config holds application configuration
 type Config struct {
-	Port     string
-	DBURL    string
-	NATSURL  string
-	RedisURL string
+	Port               string
+	DBURL              string
+	NATSURL            string
+	RedisURL           string
+	AlertingEnabled    bool
+	AlertWebhookURL    string
+	AlertRetryAttempts int
 }
 
 // App represents the rule engine application
 type App struct {
-	config     Config
-	db         *pgxpool.Pool
-	redis      *redisClient.Client
-	server     *api.Server
-	manager    *manager.Manager
-	workerPool *queue.WorkerPool
-	nc         *nats.Conn
-	cron       *cron.Cron
+	config      Config
+	db          *pgxpool.Pool
+	redis       *redisClient.Client
+	server      *api.Server
+	manager     *manager.Manager
+	workerPool  *queue.WorkerPool
+	alertingSvc *alerting.Service
+	nc          *nats.Conn
+	cron        *cron.Cron
 }
 
 // loadConfig loads configuration from environment variables
@@ -94,11 +100,25 @@ func loadConfig() Config {
 	if redisURL == "" {
 		redisURL = "localhost:6379"
 	}
+
+	// Alerting configuration
+	alertingEnabled := os.Getenv("ALERTING_ENABLED") == "true"
+	alertWebhookURL := os.Getenv("ALERT_WEBHOOK_URL")
+	alertRetryAttempts := 3 // default
+	if retryStr := os.Getenv("ALERT_RETRY_ATTEMPTS"); retryStr != "" {
+		if retry, err := strconv.Atoi(retryStr); err == nil && retry > 0 {
+			alertRetryAttempts = retry
+		}
+	}
+
 	return Config{
-		Port:     port,
-		DBURL:    dbURL,
-		NATSURL:  natsURL,
-		RedisURL: redisURL,
+		Port:               port,
+		DBURL:              dbURL,
+		NATSURL:            natsURL,
+		RedisURL:           redisURL,
+		AlertingEnabled:    alertingEnabled,
+		AlertWebhookURL:    alertWebhookURL,
+		AlertRetryAttempts: alertRetryAttempts,
 	}
 }
 
@@ -177,6 +197,14 @@ func New() *App {
 	workerPool := queue.NewWorkerPool(execQueue, ruleSvc, executorSvc, 5)
 	workerPool.Start(ctx)
 
+	// Initialize alerting service
+	alertingConfig := alerting.Config{
+		Enabled:       config.AlertingEnabled,
+		WebhookURL:    config.AlertWebhookURL,
+		RetryAttempts: config.AlertRetryAttempts,
+	}
+	alertingSvc := alerting.NewService(alertingConfig)
+
 	// Initialize NATS connection
 	nc, err := nats.Connect(config.NATSURL)
 	if err != nil {
@@ -191,21 +219,22 @@ func New() *App {
 	// Initialize trigger manager
 	ruleSvcForManager := &ruleServiceAdapter{ruleSvc: ruleSvc}
 	triggerSvcForManager := &triggerServiceAdapter{triggerSvc: triggerSvc}
-	mgr := manager.NewManager(nc, c, ruleSvcForManager, triggerSvcForManager, triggerEval, executorSvc, execQueue)
+	mgr := manager.NewManager(nc, c, ruleSvcForManager, triggerSvcForManager, triggerEval, executorSvc, alertingSvc, execQueue)
 
 	// Initialize HTTP server
 	serverConfig := &api.ServerConfig{Port: config.Port}
 	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc)
 
 	return &App{
-		config:     config,
-		db:         pool,
-		redis:      redisCli,
-		server:     server,
-		manager:    mgr,
-		workerPool: workerPool,
-		nc:         nc,
-		cron:       c,
+		config:      config,
+		db:          pool,
+		redis:       redisCli,
+		server:      server,
+		manager:     mgr,
+		workerPool:  workerPool,
+		alertingSvc: alertingSvc,
+		nc:          nc,
+		cron:        c,
 	}
 }
 
