@@ -34,7 +34,9 @@ func TestStartSpan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitTracing failed: %v", err)
 	}
-	defer ShutdownTracing(context.Background())
+	defer func() {
+		_ = ShutdownTracing(context.Background())
+	}()
 
 	ctx := context.Background()
 	newCtx, span := StartSpan(ctx, "test-span")
@@ -56,7 +58,9 @@ func TestStartSpanFromContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InitTracing failed: %v", err)
 	}
-	defer ShutdownTracing(context.Background())
+	defer func() {
+		_ = ShutdownTracing(context.Background())
+	}()
 
 	ctx := context.Background()
 	newCtx, span := StartSpanFromContext(ctx, "test-span")
