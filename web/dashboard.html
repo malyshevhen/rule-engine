@@ -325,25 +325,30 @@
         // Fetch dashboard data
         async function fetchDashboardData() {
             try {
+                console.log('Fetching dashboard data for timeRange:', currentTimeRange);
                 const response = await fetch(`/api/v1/analytics/dashboard?timeRange=${currentTimeRange}`, {
                     headers: {
                         'Authorization': 'ApiKey dev-api-key-12345'
                     }
                 });
+                console.log('Response status:', response.status);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const data = await response.json();
+                console.log('Received data:', data);
                 updateDashboard(data);
                 hideError();
             } catch (error) {
+                console.error('Error fetching dashboard data:', error);
                 showError(`Failed to fetch dashboard data: ${error.message}`);
             }
         }
 
         // Update dashboard with new data
         function updateDashboard(data) {
+            console.log('Updating dashboard with data:', data);
             // Update stats
             document.getElementById('total-executions').textContent = data.overall_stats.total_executions.toLocaleString();
             document.getElementById('success-rate').textContent = data.overall_stats.success_rate.toFixed(1) + '%';
@@ -392,6 +397,7 @@
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard initialized');
             initCharts();
             fetchDashboardData();
 
