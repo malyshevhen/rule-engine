@@ -257,6 +257,10 @@ func (a *App) Run() error {
 	}
 	slog.Info("Trigger manager started")
 
+	// Start rate limiter cleanup
+	api.StartRateLimiterCleanup()
+	slog.Info("Rate limiter cleanup started")
+
 	// Start server in a goroutine
 	go func() {
 		if err := a.server.Start(); err != nil && err != http.ErrServerClosed {
@@ -285,6 +289,10 @@ func (a *App) Run() error {
 	a.cron.Stop()
 	a.nc.Close()
 	a.db.Close()
+
+	// Stop rate limiter cleanup
+	api.StopRateLimiterCleanup()
+	slog.Info("Rate limiter cleanup stopped")
 
 	// Shutdown tracing
 	if err := tracing.ShutdownTracing(shutdownCtx); err != nil {

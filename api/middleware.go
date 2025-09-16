@@ -15,11 +15,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func init() {
-	// Start background cleanup of unused rate limiters
-	go cleanupLimiters()
-}
-
 var (
 	// Rate limiter: 100 requests per minute per IP using token bucket algorithm
 	limiters   = make(map[string]*limiterEntry)
@@ -28,6 +23,9 @@ var (
 	burstLimit = 100                      // Allow bursts of up to 100 requests for testing
 	// Allow disabling rate limiting for performance tests
 	rateLimitingEnabled = true
+	// Control cleanup goroutine
+	cleanupEnabled = false
+	cleanupDone    = make(chan struct{})
 )
 
 type limiterEntry struct {
@@ -193,14 +191,35 @@ func cleanupLimiters() {
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		limitersMu.Lock()
-		for ip, entry := range limiters {
-			if time.Since(entry.lastUsed) > 1*time.Hour {
-				delete(limiters, ip)
+	for {
+		select {
+		case <-ticker.C:
+			limitersMu.Lock()
+			for ip, entry := range limiters {
+				if time.Since(entry.lastUsed) > 1*time.Hour {
+					delete(limiters, ip)
+				}
 			}
+			limitersMu.Unlock()
+		case <-cleanupDone:
+			return
 		}
-		limitersMu.Unlock()
+	}
+}
+
+// StartRateLimiterCleanup starts the background cleanup of unused rate limiters
+func StartRateLimiterCleanup() {
+	if !cleanupEnabled {
+		cleanupEnabled = true
+		go cleanupLimiters()
+	}
+}
+
+// StopRateLimiterCleanup stops the background cleanup of unused rate limiters
+func StopRateLimiterCleanup() {
+	if cleanupEnabled {
+		cleanupEnabled = false
+		close(cleanupDone)
 	}
 }
 
