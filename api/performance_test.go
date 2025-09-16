@@ -22,7 +22,6 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
-	"github.com/malyshevhen/rule-engine/internal/storage/redis"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 	"github.com/stretchr/testify/require"
@@ -67,26 +66,22 @@ func setupPerformanceTest(t *testing.T) (*Server, func()) {
 	originalAPIKey := os.Getenv("API_KEY")
 	os.Setenv("API_KEY", testAPIKey)
 
-	// Get database connection from environment
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable"
-	}
-
-	// Connect to database
+	// Setup test containers
 	ctx := context.Background()
-	pool, err := db.NewPostgresPool(ctx, dbURL)
-	require.NoError(t, err)
+	tc, cleanupContainers := SetupTestContainers(ctx, t)
+
+	// Wait for services to be ready
+	tc.WaitForServices(ctx, t)
+
+	// Setup database pool
+	pool := tc.SetupDatabasePool(ctx, t)
 
 	// Run migrations
-	err = db.RunMigrations(pool)
+	err := db.RunMigrations(pool)
 	require.NoError(t, err)
 
-	// Create Redis client
-	redisConfig := &redis.Config{
-		Addr: "localhost:6379",
-	}
-	redisClient := redis.NewClient(redisConfig)
+	// Setup Redis client
+	redisClient := tc.GetRedisClient(ctx, t)
 
 	// Create repositories
 	ruleRepo := ruleStorage.NewRepository(pool)
@@ -111,6 +106,7 @@ func setupPerformanceTest(t *testing.T) (*Server, func()) {
 		EnableRateLimiting() // Re-enable rate limiting
 		redisClient.Close()
 		pool.Close()
+		cleanupContainers()
 		if originalAPIKey != "" {
 			os.Setenv("API_KEY", originalAPIKey)
 		} else {

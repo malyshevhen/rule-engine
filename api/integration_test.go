@@ -39,29 +39,31 @@ func setupIntegrationTest(t *testing.T) (*Server, func()) {
 	originalAPIKey := os.Getenv("API_KEY")
 	os.Setenv("API_KEY", testAPIKey)
 
-	// Get database connection from environment
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		dbURL = "postgres://postgres:password@localhost:5433/rule_engine_test?sslmode=disable"
-	}
-
-	// Connect to database
+	// Setup test containers
 	ctx := context.Background()
-	pool, err := db.NewPostgresPool(ctx, dbURL)
-	require.NoError(t, err)
+	tc, cleanupContainers := SetupTestContainers(ctx, t)
+
+	// Wait for services to be ready
+	tc.WaitForServices(ctx, t)
+
+	// Setup database pool
+	pool := tc.SetupDatabasePool(ctx, t)
 
 	// Run migrations
-	err = db.RunMigrations(pool)
+	err := db.RunMigrations(pool)
 	require.NoError(t, err)
+
+	// Setup Redis client
+	redisClient := tc.GetRedisClient(ctx, t)
 
 	// Create repositories
 	ruleRepo := ruleStorage.NewRepository(pool)
 	triggerRepo := triggerStorage.NewRepository(pool)
 	actionRepo := actionStorage.NewRepository(pool)
 
-	// Create services (nil Redis client for integration tests)
-	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo, nil)
-	triggerSvc := trigger.NewService(triggerRepo, nil)
+	// Create services
+	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo, redisClient)
+	triggerSvc := trigger.NewService(triggerRepo, redisClient)
 	actionSvc := action.NewService(actionRepo)
 	analyticsSvc := analytics.NewService()
 
@@ -71,7 +73,9 @@ func setupIntegrationTest(t *testing.T) (*Server, func()) {
 
 	// Return cleanup function
 	cleanup := func() {
+		redisClient.Close()
 		pool.Close()
+		cleanupContainers()
 		if originalAPIKey != "" {
 			os.Setenv("API_KEY", originalAPIKey)
 		} else {
