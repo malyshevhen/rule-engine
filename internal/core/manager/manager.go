@@ -32,7 +32,9 @@ type Executor interface {
 
 // TriggerService interface
 type TriggerService interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error)
 	GetEnabledConditionalTriggers(ctx context.Context) ([]*trigger.Trigger, error)
+	GetEnabledScheduledTriggers(ctx context.Context) ([]*trigger.Trigger, error)
 }
 
 // TriggerEvaluator interface
@@ -138,14 +140,42 @@ func (m *Manager) handleConditionalTrigger(ctx context.Context, msg *nats.Msg) {
 
 // loadScheduledTriggers loads and schedules CRON triggers
 func (m *Manager) loadScheduledTriggers(ctx context.Context) error {
-	// TODO: Load all enabled CRON triggers from DB
-	// For each, parse condition_script as cron expression, add job
+	// Load all enabled scheduled triggers
+	scheduledTriggers, err := m.triggerSvc.GetEnabledScheduledTriggers(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to load scheduled triggers: %w", err)
+	}
 
-	// Example: add a test cron job
-	_, err := m.cron.AddFunc("@every 1m", func() {
-		m.handleScheduledTrigger(ctx, uuid.New()) // dummy trigger ID
-	})
-	return err
+	slog.Info("Loading scheduled triggers", "count", len(scheduledTriggers))
+
+	// Schedule each trigger
+	for _, trigger := range scheduledTriggers {
+		// The condition_script contains the CRON expression for scheduled triggers
+		cronExpr := trigger.ConditionScript
+		if cronExpr == "" {
+			slog.Warn("Scheduled trigger has empty CRON expression, skipping", "trigger_id", trigger.ID)
+			continue
+		}
+
+		// Add the CRON job
+		_, err := m.cron.AddFunc(cronExpr, func() {
+			m.handleScheduledTrigger(ctx, trigger.ID)
+		})
+		if err != nil {
+			slog.Error("Failed to schedule CRON trigger",
+				"trigger_id", trigger.ID,
+				"cron_expr", cronExpr,
+				"error", err)
+			continue
+		}
+
+		slog.Info("Scheduled CRON trigger",
+			"trigger_id", trigger.ID,
+			"rule_id", trigger.RuleID,
+			"cron_expr", cronExpr)
+	}
+
+	return nil
 }
 
 // handleScheduledTrigger processes scheduled triggers
@@ -155,9 +185,23 @@ func (m *Manager) handleScheduledTrigger(ctx context.Context, triggerID uuid.UUI
 
 	slog.Info("Executing scheduled trigger", "trigger_id", triggerID)
 
-	// TODO: Get trigger, get rule ID, execute rule
-	dummyRuleID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
-	m.executeRuleInternal(ctx, dummyRuleID, nil, triggerID, true)
+	// Get the trigger to find the associated rule
+	trigger, err := m.triggerSvc.GetByID(ctx, triggerID)
+	if err != nil {
+		slog.Error("Failed to get scheduled trigger", "trigger_id", triggerID, "error", err)
+		return
+	}
+
+	if !trigger.Enabled {
+		slog.Warn("Scheduled trigger is disabled, skipping", "trigger_id", triggerID)
+		return
+	}
+
+	// Record that trigger fired
+	metrics.TriggerEventsTotal.WithLabelValues("scheduled", "fired").Inc()
+
+	// Execute the associated rule
+	m.executeRuleInternal(ctx, trigger.RuleID, nil, triggerID, true)
 }
 
 // executeRule executes a rule's logic (queues by default)

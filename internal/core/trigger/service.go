@@ -130,6 +130,42 @@ func (s *Service) GetEnabledConditionalTriggers(ctx context.Context) ([]*Trigger
 	return conditionalTriggers, nil
 }
 
+// GetEnabledScheduledTriggers retrieves all enabled scheduled (CRON) triggers
+func (s *Service) GetEnabledScheduledTriggers(ctx context.Context) ([]*Trigger, error) {
+	cacheKey := "triggers:enabled_scheduled"
+
+	// Try to get from cache first
+	if s.redis != nil {
+		if cached, err := s.redis.Get(ctx, cacheKey); err == nil {
+			var triggers []*Trigger
+			if err := json.Unmarshal([]byte(cached), &triggers); err == nil {
+				return triggers, nil
+			}
+		}
+	}
+
+	allTriggers, err := s.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var scheduledTriggers []*Trigger
+	for _, trigger := range allTriggers {
+		if trigger.Type == Cron && trigger.Enabled {
+			scheduledTriggers = append(scheduledTriggers, trigger)
+		}
+	}
+
+	// Cache the result
+	if s.redis != nil {
+		if data, err := json.Marshal(scheduledTriggers); err == nil {
+			s.redis.Set(ctx, cacheKey, string(data), 1*time.Minute)
+		}
+	}
+
+	return scheduledTriggers, nil
+}
+
 // invalidateTriggerCaches clears all trigger-related caches
 func (s *Service) invalidateTriggerCaches(ctx context.Context) {
 	if s.redis == nil {

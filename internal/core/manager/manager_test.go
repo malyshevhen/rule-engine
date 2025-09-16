@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
+	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	execPkg "github.com/malyshevhen/rule-engine/internal/engine/executor"
 	ctxPkg "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 	"github.com/stretchr/testify/mock"
@@ -36,6 +37,26 @@ func (m *mockExecutor) GetContextService() *ctxPkg.Service {
 func (m *mockExecutor) ExecuteScript(ctx context.Context, script string, executionCtx *ctxPkg.ExecutionContext) *execPkg.ExecuteResult {
 	args := m.Called(ctx, script, executionCtx)
 	return args.Get(0).(*execPkg.ExecuteResult)
+}
+
+// mockTriggerService is a mock implementation of TriggerService
+type mockTriggerService struct {
+	mock.Mock
+}
+
+func (m *mockTriggerService) GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error) {
+	args := m.Called(ctx, id)
+	return args.Get(0).(*trigger.Trigger), args.Error(1)
+}
+
+func (m *mockTriggerService) GetEnabledConditionalTriggers(ctx context.Context) ([]*trigger.Trigger, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*trigger.Trigger), args.Error(1)
+}
+
+func (m *mockTriggerService) GetEnabledScheduledTriggers(ctx context.Context) ([]*trigger.Trigger, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]*trigger.Trigger), args.Error(1)
 }
 
 func TestManager_executeRule(t *testing.T) {
@@ -248,4 +269,99 @@ func TestManager_executeRule_MultipleActions(t *testing.T) {
 	mockRuleSvc.AssertExpectations(t)
 	mockExec.AssertExpectations(t)
 	mockExec.AssertNumberOfCalls(t, "ExecuteScript", 3) // rule + 2 actions
+}
+
+func TestManager_handleScheduledTrigger(t *testing.T) {
+	mockRuleSvc := &mockRuleService{}
+	mockTriggerSvc := &mockTriggerService{}
+	mockExec := &mockExecutor{}
+
+	mgr := &Manager{
+		ruleSvc:        mockRuleSvc,
+		triggerSvc:     mockTriggerSvc,
+		executor:       mockExec,
+		executingRules: make(map[uuid.UUID]bool),
+	}
+
+	triggerID := uuid.New()
+	ruleID := uuid.New()
+
+	// Mock trigger
+	expectedTrigger := &trigger.Trigger{
+		ID:              triggerID,
+		RuleID:          ruleID,
+		Type:            trigger.Cron,
+		ConditionScript: "@every 1m",
+		Enabled:         true,
+	}
+
+	// Mock rule
+	expectedRule := &rule.Rule{
+		ID:        ruleID,
+		Name:      "Scheduled Rule",
+		LuaScript: "return true",
+		Enabled:   true,
+		Actions:   []action.Action{},
+	}
+
+	mockTriggerSvc.On("GetByID", mock.Anything, triggerID).Return(expectedTrigger, nil)
+	mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return(expectedRule, nil)
+
+	mockExec.On("GetContextService").Return(ctxPkg.NewService())
+
+	// Mock rule execution - returns true
+	ruleResult := &execPkg.ExecuteResult{
+		Success: true,
+		Output:  []any{true},
+		Error:   "",
+	}
+	mockExec.On("ExecuteScript", mock.Anything, expectedRule.LuaScript, mock.Anything).Return(ruleResult)
+
+	mgr.handleScheduledTrigger(context.Background(), triggerID)
+
+	mockTriggerSvc.AssertExpectations(t)
+	mockRuleSvc.AssertExpectations(t)
+	mockExec.AssertExpectations(t)
+}
+
+func TestManager_handleScheduledTrigger_TriggerNotFound(t *testing.T) {
+	mockTriggerSvc := &mockTriggerService{}
+
+	mgr := &Manager{
+		triggerSvc: mockTriggerSvc,
+	}
+
+	triggerID := uuid.New()
+
+	mockTriggerSvc.On("GetByID", mock.Anything, triggerID).Return((*trigger.Trigger)(nil), errors.New("trigger not found"))
+
+	mgr.handleScheduledTrigger(context.Background(), triggerID)
+
+	mockTriggerSvc.AssertExpectations(t)
+}
+
+func TestManager_handleScheduledTrigger_DisabledTrigger(t *testing.T) {
+	mockTriggerSvc := &mockTriggerService{}
+
+	mgr := &Manager{
+		triggerSvc: mockTriggerSvc,
+	}
+
+	triggerID := uuid.New()
+
+	// Mock disabled trigger
+	disabledTrigger := &trigger.Trigger{
+		ID:              triggerID,
+		RuleID:          uuid.New(),
+		Type:            trigger.Cron,
+		ConditionScript: "@every 1m",
+		Enabled:         false, // Disabled
+	}
+
+	mockTriggerSvc.On("GetByID", mock.Anything, triggerID).Return(disabledTrigger, nil)
+
+	mgr.handleScheduledTrigger(context.Background(), triggerID)
+
+	mockTriggerSvc.AssertExpectations(t)
+	// Should not attempt to get or execute the rule
 }

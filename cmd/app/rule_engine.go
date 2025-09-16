@@ -44,8 +44,16 @@ type triggerServiceAdapter struct {
 	triggerSvc *trigger.Service
 }
 
+func (a *triggerServiceAdapter) GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error) {
+	return a.triggerSvc.GetByID(ctx, id)
+}
+
 func (a *triggerServiceAdapter) GetEnabledConditionalTriggers(ctx context.Context) ([]*trigger.Trigger, error) {
 	return a.triggerSvc.GetEnabledConditionalTriggers(ctx)
+}
+
+func (a *triggerServiceAdapter) GetEnabledScheduledTriggers(ctx context.Context) ([]*trigger.Trigger, error) {
+	return a.triggerSvc.GetEnabledScheduledTriggers(ctx)
 }
 
 // Config holds application configuration
