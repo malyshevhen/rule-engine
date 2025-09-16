@@ -13,6 +13,22 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// RuleService interface
+type RuleService interface {
+	Create(ctx context.Context, rule *rule.Rule) error
+	GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule, error)
+}
+
+// TriggerService interface
+type TriggerService interface {
+	Create(ctx context.Context, trigger *trigger.Trigger) error
+}
+
+// ActionService interface
+type ActionService interface {
+	Create(ctx context.Context, action *action.Action) error
+}
+
 // ServerConfig holds server configuration
 type ServerConfig struct {
 	Port string
@@ -23,9 +39,9 @@ type Server struct {
 	config     *ServerConfig
 	router     *mux.Router
 	server     *http.Server
-	ruleSvc    *rule.Service
-	triggerSvc *trigger.Service
-	actionSvc  *action.Service
+	ruleSvc    RuleService
+	triggerSvc TriggerService
+	actionSvc  ActionService
 }
 
 // NewServer creates a new HTTP server

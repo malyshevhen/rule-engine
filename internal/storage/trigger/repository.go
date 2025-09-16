@@ -4,16 +4,22 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 )
+
+// Pool interface for database operations
+type Pool interface {
+	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+}
 
 // Repository handles database operations for triggers
 type Repository struct {
-	db *pgxpool.Pool
+	db Pool
 }
 
 // NewRepository creates a new trigger repository
-func NewRepository(db *pgxpool.Pool) *Repository {
+func NewRepository(db Pool) *Repository {
 	return &Repository{db: db}
 }
 
