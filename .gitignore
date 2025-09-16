@@ -16,3 +16,6 @@ rule-engine
 # IDE files
 .idea
 .vscode
+
+# opencode temp dir
+opencodetmp
