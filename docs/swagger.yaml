@@ -1,4 +1,122 @@
 basePath: /api/v1
+definitions:
+  api.APIErrorResponse:
+    properties:
+      error:
+        example: Error message
+        type: string
+    type: object
+  api.ActionDTO:
+    properties:
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      lua_script:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  api.CreateActionRequest:
+    properties:
+      enabled:
+        example: true
+        type: boolean
+      lua_script:
+        example: log_message('info', 'Temperature alert triggered')
+        type: string
+    required:
+    - lua_script
+    type: object
+  api.CreateRuleRequest:
+    properties:
+      enabled:
+        example: true
+        type: boolean
+      lua_script:
+        example: if event.temperature > 25 then return true end
+        type: string
+      name:
+        example: Temperature Alert Rule
+        type: string
+    required:
+    - lua_script
+    - name
+    type: object
+  api.CreateTriggerRequest:
+    properties:
+      condition_script:
+        example: if event.device_id == 'sensor_1' then return true end
+        type: string
+      enabled:
+        example: true
+        type: boolean
+      rule_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      type:
+        enum:
+        - CONDITIONAL
+        - CRON
+        example: CONDITIONAL
+        type: string
+    required:
+    - condition_script
+    - rule_id
+    - type
+    type: object
+  api.RuleDTO:
+    properties:
+      actions:
+        items:
+          $ref: '#/definitions/api.ActionDTO'
+        type: array
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      lua_script:
+        type: string
+      name:
+        type: string
+      triggers:
+        items:
+          $ref: '#/definitions/api.TriggerDTO'
+        type: array
+      updated_at:
+        type: string
+    type: object
+  api.TriggerDTO:
+    properties:
+      condition_script:
+        type: string
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  api.UpdateRuleRequest:
+    properties:
+      enabled:
+        example: false
+        type: boolean
+      lua_script:
+        example: if event.temperature > 30 then return true end
+        type: string
+      name:
+        example: Updated Rule Name
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -14,7 +132,325 @@ info:
   termsOfService: http://swagger.io/terms/
   title: Rule Engine API
   version: "1.0"
-paths: {}
+paths:
+  /actions:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all actions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.ActionDTO'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: List all actions
+      tags:
+      - actions
+    post:
+      consumes:
+      - application/json
+      description: Create a new action for rule execution
+      parameters:
+      - description: Action data
+        in: body
+        name: action
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ActionDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Create a new action
+      tags:
+      - actions
+  /actions/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific action by its ID
+      parameters:
+      - description: Action ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ActionDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Get action by ID
+      tags:
+      - actions
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Get the health status of the service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - system
+  /rules:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all automation rules
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.RuleDTO'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: List all rules
+      tags:
+      - rules
+    post:
+      consumes:
+      - application/json
+      description: Create a new automation rule with Lua script
+      parameters:
+      - description: Rule data
+        in: body
+        name: rule
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.RuleDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Create a new rule
+      tags:
+      - rules
+  /rules/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete an automation rule by its ID
+      parameters:
+      - description: Rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Delete rule
+      tags:
+      - rules
+    get:
+      consumes:
+      - application/json
+      description: Get a specific automation rule by its ID
+      parameters:
+      - description: Rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.RuleDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Get rule by ID
+      tags:
+      - rules
+    put:
+      consumes:
+      - application/json
+      description: Update an existing automation rule
+      parameters:
+      - description: Rule ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated rule data
+        in: body
+        name: rule
+        required: true
+        schema:
+          $ref: '#/definitions/api.UpdateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.RuleDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Update rule
+      tags:
+      - rules
+  /triggers:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all triggers
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.TriggerDTO'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: List all triggers
+      tags:
+      - triggers
+    post:
+      consumes:
+      - application/json
+      description: Create a new trigger for rule execution
+      parameters:
+      - description: Trigger data
+        in: body
+        name: trigger
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateTriggerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.TriggerDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Create a new trigger
+      tags:
+      - triggers
+  /triggers/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific trigger by its ID
+      parameters:
+      - description: Trigger ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.TriggerDTO'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Get trigger by ID
+      tags:
+      - triggers
 securityDefinitions:
   ApiKeyAuth:
     description: 'API key authentication. Format: "ApiKey <your-api-key>"'

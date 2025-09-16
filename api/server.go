@@ -113,6 +113,9 @@ func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc *rule.Service, trig
 
 // setupRoutes registers all API routes
 func (s *Server) setupRoutes() {
+	// Health check endpoint
+	s.router.HandleFunc("/health", s.HealthCheck).Methods("GET")
+
 	// Metrics endpoint
 	s.router.Handle("/metrics", promhttp.Handler())
 
@@ -151,7 +154,31 @@ func (s *Server) Router() *mux.Router {
 	return s.router
 }
 
-// TODO: Implement handler methods
+// HealthCheck godoc
+//
+//	@Summary		Health check
+//	@Description	Get the health status of the service
+//	@Tags			system
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	map[string]string
+//	@Router			/health [get]
+func (s *Server) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	SuccessResponse(w, map[string]string{"status": "healthy"})
+}
+
+// CreateRule godoc
+//
+//	@Summary		Create a new rule
+//	@Description	Create a new automation rule with Lua script
+//	@Tags			rules
+//	@Accept			json
+//	@Produce		json
+//	@Param			rule	body		CreateRuleRequest	true	"Rule data"
+//	@Success		200		{object}	RuleDTO
+//	@Failure		400		{object}	APIErrorResponse
+//	@Failure		500		{object}	APIErrorResponse
+//	@Router			/rules [post]
 func (s *Server) CreateRule(w http.ResponseWriter, r *http.Request) {
 	var req CreateRuleRequest
 	if err := ParseJSONBody(r, &req); err != nil {
@@ -199,6 +226,16 @@ func (s *Server) CreateRule(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, rule)
 }
 
+// ListRules godoc
+//
+//	@Summary		List all rules
+//	@Description	Get a list of all automation rules
+//	@Tags			rules
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		RuleDTO
+//	@Failure		500	{object}	APIErrorResponse
+//	@Router			/rules [get]
 func (s *Server) ListRules(w http.ResponseWriter, r *http.Request) {
 	rules, err := s.ruleSvc.ListAll(r.Context())
 	if err != nil {
@@ -208,6 +245,19 @@ func (s *Server) ListRules(w http.ResponseWriter, r *http.Request) {
 
 	SuccessResponse(w, rules)
 }
+
+// GetRule godoc
+//
+//	@Summary		Get rule by ID
+//	@Description	Get a specific automation rule by its ID
+//	@Tags			rules
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Rule ID"
+//	@Success		200	{object}	RuleDTO
+//	@Failure		400	{object}	APIErrorResponse
+//	@Failure		404	{object}	APIErrorResponse
+//	@Router			/rules/{id} [get]
 func (s *Server) GetRule(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -225,6 +275,21 @@ func (s *Server) GetRule(w http.ResponseWriter, r *http.Request) {
 
 	SuccessResponse(w, rule)
 }
+
+// UpdateRule godoc
+//
+//	@Summary		Update rule
+//	@Description	Update an existing automation rule
+//	@Tags			rules
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string				true	"Rule ID"
+//	@Param			rule	body		UpdateRuleRequest	true	"Updated rule data"
+//	@Success		200		{object}	RuleDTO
+//	@Failure		400		{object}	APIErrorResponse
+//	@Failure		404		{object}	APIErrorResponse
+//	@Failure		500		{object}	APIErrorResponse
+//	@Router			/rules/{id} [put]
 func (s *Server) UpdateRule(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -285,6 +350,19 @@ func (s *Server) UpdateRule(w http.ResponseWriter, r *http.Request) {
 
 	SuccessResponse(w, existingRule)
 }
+
+// DeleteRule godoc
+//
+//	@Summary		Delete rule
+//	@Description	Delete an automation rule by its ID
+//	@Tags			rules
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Rule ID"
+//	@Success		204	"No Content"
+//	@Failure		400	{object}	APIErrorResponse
+//	@Failure		500	{object}	APIErrorResponse
+//	@Router			/rules/{id} [delete]
 func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -302,6 +380,18 @@ func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// CreateTrigger godoc
+//
+//	@Summary		Create a new trigger
+//	@Description	Create a new trigger for rule execution
+//	@Tags			triggers
+//	@Accept			json
+//	@Produce		json
+//	@Param			trigger	body		CreateTriggerRequest	true	"Trigger data"
+//	@Success		200		{object}	TriggerDTO
+//	@Failure		400		{object}	APIErrorResponse
+//	@Failure		500		{object}	APIErrorResponse
+//	@Router			/triggers [post]
 func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 	var req CreateTriggerRequest
 	if err := ParseJSONBody(r, &req); err != nil {
@@ -350,6 +440,16 @@ func (s *Server) CreateTrigger(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, trigger)
 }
 
+// ListTriggers godoc
+//
+//	@Summary		List all triggers
+//	@Description	Get a list of all triggers
+//	@Tags			triggers
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		TriggerDTO
+//	@Failure		500	{object}	APIErrorResponse
+//	@Router			/triggers [get]
 func (s *Server) ListTriggers(w http.ResponseWriter, r *http.Request) {
 	triggers, err := s.triggerSvc.List(r.Context())
 	if err != nil {
@@ -359,6 +459,19 @@ func (s *Server) ListTriggers(w http.ResponseWriter, r *http.Request) {
 
 	SuccessResponse(w, triggers)
 }
+
+// GetTrigger godoc
+//
+//	@Summary		Get trigger by ID
+//	@Description	Get a specific trigger by its ID
+//	@Tags			triggers
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Trigger ID"
+//	@Success		200	{object}	TriggerDTO
+//	@Failure		400	{object}	APIErrorResponse
+//	@Failure		404	{object}	APIErrorResponse
+//	@Router			/triggers/{id} [get]
 func (s *Server) GetTrigger(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
@@ -377,6 +490,18 @@ func (s *Server) GetTrigger(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, trigger)
 }
 
+// CreateAction godoc
+//
+//	@Summary		Create a new action
+//	@Description	Create a new action for rule execution
+//	@Tags			actions
+//	@Accept			json
+//	@Produce		json
+//	@Param			action	body		CreateActionRequest	true	"Action data"
+//	@Success		200		{object}	ActionDTO
+//	@Failure		400		{object}	APIErrorResponse
+//	@Failure		500		{object}	APIErrorResponse
+//	@Router			/actions [post]
 func (s *Server) CreateAction(w http.ResponseWriter, r *http.Request) {
 	var req CreateActionRequest
 	if err := ParseJSONBody(r, &req); err != nil {
@@ -413,6 +538,16 @@ func (s *Server) CreateAction(w http.ResponseWriter, r *http.Request) {
 	SuccessResponse(w, action)
 }
 
+// ListActions godoc
+//
+//	@Summary		List all actions
+//	@Description	Get a list of all actions
+//	@Tags			actions
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}		ActionDTO
+//	@Failure		500	{object}	APIErrorResponse
+//	@Router			/actions [get]
 func (s *Server) ListActions(w http.ResponseWriter, r *http.Request) {
 	actions, err := s.actionSvc.List(r.Context())
 	if err != nil {
@@ -422,6 +557,19 @@ func (s *Server) ListActions(w http.ResponseWriter, r *http.Request) {
 
 	SuccessResponse(w, actions)
 }
+
+// GetAction godoc
+//
+//	@Summary		Get action by ID
+//	@Description	Get a specific action by its ID
+//	@Tags			actions
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"Action ID"
+//	@Success		200	{object}	ActionDTO
+//	@Failure		400	{object}	APIErrorResponse
+//	@Failure		404	{object}	APIErrorResponse
+//	@Router			/actions/{id} [get]
 func (s *Server) GetAction(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
