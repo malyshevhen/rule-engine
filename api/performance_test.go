@@ -62,12 +62,6 @@ func setupPerformanceTest(t *testing.T) (*Server, func()) {
 		t.Skip("Skipping performance test")
 	}
 
-	// Change to project root directory for migrations
-	originalWd, err := os.Getwd()
-	require.NoError(t, err)
-	err = os.Chdir("../../") // Go up two levels from api/ to project root
-	require.NoError(t, err)
-
 	// Set test API key for authentication
 	testAPIKey := "test-api-key-performance"
 	originalAPIKey := os.Getenv("API_KEY")
@@ -122,7 +116,6 @@ func setupPerformanceTest(t *testing.T) (*Server, func()) {
 		} else {
 			os.Unsetenv("API_KEY")
 		}
-		os.Chdir(originalWd) // Restore original working directory
 	}
 
 	return server, cleanup
@@ -399,15 +392,6 @@ func TestPerformance_ActionsAPI_LoadTest(t *testing.T) {
 // BenchmarkDatabaseQueries benchmarks database query performance
 func BenchmarkDatabaseQueries(b *testing.B) {
 	// Setup test database
-	originalWd, err := os.Getwd()
-	if err != nil {
-		b.Fatal(err)
-	}
-	err = os.Chdir("../../")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.Chdir(originalWd)
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {

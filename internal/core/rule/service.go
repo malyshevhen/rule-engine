@@ -64,7 +64,7 @@ func (s *Service) Create(ctx context.Context, rule *Rule) error {
 	rule.UpdatedAt = storageRule.UpdatedAt
 
 	// Invalidate caches
-	s.invalidateRuleCaches(ctx)
+	s.invalidateRuleCaches(ctx, rule.ID)
 
 	return nil
 }
@@ -203,7 +203,7 @@ func (s *Service) Update(ctx context.Context, rule *Rule) error {
 	}
 
 	// Invalidate caches
-	s.invalidateRuleCaches(ctx)
+	s.invalidateRuleCaches(ctx, rule.ID)
 
 	return nil
 }
@@ -215,30 +215,21 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
-	// Invalidate caches
-	s.invalidateRuleCaches(ctx)
+	// Invalidate caches for this specific rule
+	s.invalidateRuleCaches(ctx, id)
 
 	return nil
 }
 
-// invalidateRuleCaches clears all rule-related caches
-func (s *Service) invalidateRuleCaches(ctx context.Context) {
+// invalidateRuleCaches clears rule-related caches for a specific rule
+func (s *Service) invalidateRuleCaches(ctx context.Context, ruleID uuid.UUID) {
 	if s.redis == nil {
 		return
 	}
 
-	// Delete all rule caches (this is a simple approach; in production, you might want more granular invalidation)
-	keys, err := s.redis.Keys(ctx, "rule:*")
-	if err == nil {
-		for _, key := range keys {
-			s.redis.Del(ctx, key)
-		}
-	}
+	// Delete specific rule cache and list caches
+	ruleKey := fmt.Sprintf("rule:%s", ruleID.String())
+	rulesListKey := "rules:list"
 
-	keys, err = s.redis.Keys(ctx, "rules:*")
-	if err == nil {
-		for _, key := range keys {
-			s.redis.Del(ctx, key)
-		}
-	}
+	s.redis.Del(ctx, ruleKey, rulesListKey)
 }

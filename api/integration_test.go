@@ -34,12 +34,6 @@ func setupIntegrationTest(t *testing.T) (*Server, func()) {
 		t.Skip("Skipping integration test")
 	}
 
-	// Change to project root directory for migrations
-	originalWd, err := os.Getwd()
-	require.NoError(t, err)
-	err = os.Chdir("../../") // Go up two levels from api/ to project root
-	require.NoError(t, err)
-
 	// Set test API key for authentication
 	testAPIKey := "test-api-key-integration"
 	originalAPIKey := os.Getenv("API_KEY")
@@ -83,7 +77,6 @@ func setupIntegrationTest(t *testing.T) (*Server, func()) {
 		} else {
 			os.Unsetenv("API_KEY")
 		}
-		os.Chdir(originalWd) // Restore original working directory
 	}
 
 	return server, cleanup
@@ -754,7 +747,7 @@ func TestIntegration_ErrorHandling_RuleNotFound(t *testing.T) {
 	deleteW := httptest.NewRecorder()
 
 	server.Router().ServeHTTP(deleteW, deleteReq)
-	assert.Equal(t, http.StatusInternalServerError, deleteW.Code) // Delete doesn't return 404, just internal error
+	assert.Equal(t, http.StatusNotFound, deleteW.Code) // Delete should return 404 for non-existent resource
 }
 
 func TestIntegration_ErrorHandling_InvalidTriggerCreation(t *testing.T) {

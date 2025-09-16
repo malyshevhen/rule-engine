@@ -48,36 +48,55 @@ type AnalyticsService interface {
 	GetDashboardData(ctx context.Context, timeRange string) (*analytics.DashboardData, error)
 }
 
-// Server represents the HTTP server
-type Server struct {
-	config       *ServerConfig
-	router       *mux.Router
-	server       *http.Server
-	ruleSvc      RuleService
-	triggerSvc   TriggerService
-	actionSvc    ActionService
-	analyticsSvc AnalyticsService
+// ServerOption is a functional option for configuring the server
+type ServerOption func(*Server)
+
+// WithRateLimiting enables or disables rate limiting
+func WithRateLimiting(enabled bool) ServerOption {
+	return func(s *Server) {
+		s.rateLimitingEnabled = enabled
+	}
 }
 
-// NewServer creates a new HTTP server
-func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service, analyticsSvc AnalyticsService) *Server {
+// Server represents the HTTP server
+type Server struct {
+	config              *ServerConfig
+	router              *mux.Router
+	server              *http.Server
+	ruleSvc             RuleService
+	triggerSvc          TriggerService
+	actionSvc           ActionService
+	analyticsSvc        AnalyticsService
+	rateLimitingEnabled bool
+}
+
+// NewServer creates a new HTTP server with optional configuration
+func NewServer(config *ServerConfig, ruleSvc RuleService, triggerSvc TriggerService, actionSvc ActionService, analyticsSvc AnalyticsService, opts ...ServerOption) *Server {
 	router := mux.NewRouter()
 
-	// Add middleware to main router
-	router.Use(RateLimitMiddleware)
+	s := &Server{
+		config:              config,
+		router:              router,
+		ruleSvc:             ruleSvc,
+		triggerSvc:          triggerSvc,
+		actionSvc:           actionSvc,
+		analyticsSvc:        analyticsSvc,
+		rateLimitingEnabled: true, // Default to enabled
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	// Add middleware based on configuration
+	if s.rateLimitingEnabled {
+		router.Use(RateLimitMiddleware)
+	}
 	router.Use(TracingMiddleware)
 	router.Use(LoggingMiddleware)
 
 	// TODO: Setup CORS
-
-	s := &Server{
-		config:       config,
-		router:       router,
-		ruleSvc:      ruleSvc,
-		triggerSvc:   triggerSvc,
-		actionSvc:    actionSvc,
-		analyticsSvc: analyticsSvc,
-	}
 
 	s.setupRoutes()
 
@@ -91,33 +110,8 @@ func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.
 }
 
 // NewServerWithoutRateLimit creates a new HTTP server without rate limiting (for performance testing)
-func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service, analyticsSvc AnalyticsService) *Server {
-	router := mux.NewRouter()
-
-	// Add middleware (excluding rate limiting)
-	router.Use(LoggingMiddleware)
-	router.Use(AuthMiddleware)
-
-	// TODO: Setup CORS
-
-	s := &Server{
-		config:       config,
-		router:       router,
-		ruleSvc:      ruleSvc,
-		triggerSvc:   triggerSvc,
-		actionSvc:    actionSvc,
-		analyticsSvc: analyticsSvc,
-	}
-
-	s.setupRoutes()
-
-	addr := ":" + config.Port
-	s.server = &http.Server{
-		Addr:    addr,
-		Handler: router,
-	}
-
-	return s
+func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc RuleService, triggerSvc TriggerService, actionSvc ActionService, analyticsSvc AnalyticsService) *Server {
+	return NewServer(config, ruleSvc, triggerSvc, actionSvc, analyticsSvc, WithRateLimiting(false))
 }
 
 // setupRoutes registers all API routes
@@ -547,6 +541,10 @@ func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.ruleSvc.Delete(r.Context(), id); err != nil {
+		if err.Error() == "rule not found" {
+			ErrorResponse(w, http.StatusNotFound, "Rule not found")
+			return
+		}
 		ErrorResponse(w, http.StatusInternalServerError, "Failed to delete rule")
 		return
 	}

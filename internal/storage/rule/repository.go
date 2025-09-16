@@ -2,6 +2,7 @@ package rule
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -190,7 +191,15 @@ func (r *Repository) Update(ctx context.Context, rule *Rule) error {
 
 // Delete deletes a rule by ID
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM rules WHERE id = $1`
-	_, err := r.db.Query(ctx, query, id)
-	return err
+	query := `DELETE FROM rules WHERE id = $1 RETURNING id`
+	row := r.db.QueryRow(ctx, query, id)
+	var deletedID uuid.UUID
+	err := row.Scan(&deletedID)
+	if err != nil {
+		if err.Error() == "no rows in result set" {
+			return fmt.Errorf("rule not found")
+		}
+		return err
+	}
+	return nil
 }

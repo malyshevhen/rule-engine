@@ -16,9 +16,9 @@ import (
 
 var (
 	// Simple rate limiter: 100 requests per minute per IP
-	requestCounts = make(map[string]int)
-	lastResets    = make(map[string]time.Time)
-	rateLimitMu   sync.Mutex
+	// Using sync.Map for better concurrency
+	requestCounts sync.Map // map[string]int
+	lastResets    sync.Map // map[string]time.Time
 	maxRequests   = 100
 	window        = time.Minute
 	// Allow disabling rate limiting for performance tests
@@ -146,23 +146,35 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 		ip := r.RemoteAddr
 		// Simple IP extraction, in production use proper IP extraction
 
-		rateLimitMu.Lock()
 		now := time.Now()
-		lastReset, exists := lastResets[ip]
-		if !exists || now.Sub(lastReset) >= window {
-			requestCounts[ip] = 0
-			lastResets[ip] = now
+
+		// Get or initialize rate limit data for this IP
+		lastResetVal, _ := lastResets.Load(ip)
+		var lastReset time.Time
+		if lastResetVal != nil {
+			lastReset = lastResetVal.(time.Time)
 		}
 
-		count := requestCounts[ip]
+		countVal, _ := requestCounts.Load(ip)
+		var count int
+		if countVal != nil {
+			count = countVal.(int)
+		}
+
+		// Reset counter if window has passed
+		if lastReset.IsZero() || now.Sub(lastReset) >= window {
+			count = 0
+			lastResets.Store(ip, now)
+		}
+
+		// Check rate limit
 		if count >= maxRequests {
-			rateLimitMu.Unlock()
 			ErrorResponse(w, http.StatusTooManyRequests, "Rate limit exceeded")
 			return
 		}
 
-		requestCounts[ip] = count + 1
-		rateLimitMu.Unlock()
+		// Increment counter
+		requestCounts.Store(ip, count+1)
 
 		next.ServeHTTP(w, r)
 	})
@@ -170,15 +182,11 @@ func RateLimitMiddleware(next http.Handler) http.Handler {
 
 // DisableRateLimiting disables rate limiting (for performance testing)
 func DisableRateLimiting() {
-	rateLimitMu.Lock()
-	defer rateLimitMu.Unlock()
 	rateLimitingEnabled = false
 }
 
 // EnableRateLimiting enables rate limiting
 func EnableRateLimiting() {
-	rateLimitMu.Lock()
-	defer rateLimitMu.Unlock()
 	rateLimitingEnabled = true
 }
 

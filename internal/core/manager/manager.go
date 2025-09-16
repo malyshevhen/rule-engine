@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,6 +60,7 @@ type Manager struct {
 	alertingSvc    AlertingService
 	queue          queue.Queue
 	executingRules map[uuid.UUID]bool // To detect cycles in rule chaining
+	rulesMutex     sync.RWMutex       // Protects executingRules map from concurrent access
 }
 
 // NewManager creates a new trigger manager
@@ -256,12 +258,24 @@ func (m *Manager) executeRuleSynchronous(ctx context.Context, ruleID uuid.UUID, 
 	)
 
 	// Check for cycles in rule chaining
-	if m.executingRules[ruleID] {
+	m.rulesMutex.RLock()
+	isExecuting := m.executingRules[ruleID]
+	m.rulesMutex.RUnlock()
+
+	if isExecuting {
 		slog.Warn("Cycle detected in rule execution, skipping", "rule_id", ruleID)
 		return
 	}
+
+	m.rulesMutex.Lock()
 	m.executingRules[ruleID] = true
-	defer func() { delete(m.executingRules, ruleID) }()
+	m.rulesMutex.Unlock()
+
+	defer func() {
+		m.rulesMutex.Lock()
+		delete(m.executingRules, ruleID)
+		m.rulesMutex.Unlock()
+	}()
 
 	rule, err := m.ruleSvc.GetByID(ctx, ruleID)
 	if err != nil {

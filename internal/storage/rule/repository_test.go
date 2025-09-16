@@ -234,13 +234,34 @@ func TestRepository_Delete(t *testing.T) {
 
 	id := uuid.New()
 
-	pool.ExpectQuery(`DELETE FROM rules WHERE id = \$1`).
+	pool.ExpectQuery(`DELETE FROM rules WHERE id = \$1 RETURNING id`).
 		WithArgs(id).
-		WillReturnRows(pgxmock.NewRows([]string{}))
+		WillReturnRows(pgxmock.NewRows([]string{"id"}).AddRow(id))
 
 	err = repo.Delete(context.Background(), id)
 
 	assert.NoError(t, err)
+
+	assert.NoError(t, pool.ExpectationsWereMet())
+}
+
+func TestRepository_Delete_NotFound(t *testing.T) {
+	pool, err := pgxmock.NewPool()
+	require.NoError(t, err)
+	defer pool.Close()
+
+	repo := NewRepository(pool)
+
+	id := uuid.New()
+
+	pool.ExpectQuery(`DELETE FROM rules WHERE id = \$1 RETURNING id`).
+		WithArgs(id).
+		WillReturnRows(pgxmock.NewRows([]string{"id"}))
+
+	err = repo.Delete(context.Background(), id)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "rule not found")
 
 	assert.NoError(t, pool.ExpectationsWereMet())
 }
