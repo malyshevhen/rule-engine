@@ -63,11 +63,10 @@ type Server struct {
 func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service, analyticsSvc AnalyticsService) *Server {
 	router := mux.NewRouter()
 
-	// Add middleware
+	// Add middleware to main router
 	router.Use(RateLimitMiddleware)
 	router.Use(TracingMiddleware)
 	router.Use(LoggingMiddleware)
-	router.Use(AuthMiddleware)
 
 	// TODO: Setup CORS
 
@@ -123,13 +122,14 @@ func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc *rule.Service, trig
 
 // setupRoutes registers all API routes
 func (s *Server) setupRoutes() {
-	// Health check endpoint
+	// Public routes (no authentication required)
 	s.router.HandleFunc("/health", s.HealthCheck).Methods("GET")
-
-	// Metrics endpoint
+	s.router.HandleFunc("/dashboard", s.ServeDashboard).Methods("GET")
 	s.router.Handle("/metrics", promhttp.Handler())
 
+	// Protected API routes (require authentication)
 	api := s.router.PathPrefix("/api/v1").Subrouter()
+	api.Use(AuthMiddleware)
 
 	// Rules routes
 	api.HandleFunc("/rules", s.CreateRule).Methods("POST")
@@ -150,9 +150,6 @@ func (s *Server) setupRoutes() {
 
 	// Analytics routes
 	api.HandleFunc("/analytics/dashboard", s.GetDashboardData).Methods("GET")
-
-	// Dashboard route (serves static HTML)
-	s.router.HandleFunc("/dashboard", s.ServeDashboard).Methods("GET")
 }
 
 // Start starts the HTTP server
