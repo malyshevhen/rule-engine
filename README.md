@@ -7,6 +7,7 @@ A robust, scalable rule engine microservice for IoT automation built with Go. Th
 - **Rule Management**: Full CRUD operations for automation rules
 - **Secure Lua Execution**: Sandboxed Lua script execution with platform API bindings
 - **Trigger System**: Support for conditional and scheduled triggers
+- **Analytics Dashboard**: Real-time metrics visualization with historical trends and rule performance insights
 - **RESTful API**: Complete REST API with OpenAPI/Swagger documentation
 - **Authentication**: JWT and API key authentication
 - **Observability**: Structured logging, Prometheus metrics, and health checks
@@ -33,40 +34,62 @@ The service follows a clean architecture with clear separation of concerns:
 ### Local Development Setup
 
 1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd rule-engine
-   ```
+    ```bash
+    git clone <repository-url>
+    cd rule-engine
+    ```
 
 2. **Start PostgreSQL database**
-   ```bash
-   docker run -d \
-     --name rule-engine-db \
-     -e POSTGRES_DB=rule_engine \
-     -e POSTGRES_USER=postgres \
-     -e POSTGRES_PASSWORD=password \
-     -p 5433:5432 \
-     postgres:15-alpine
-   ```
+    ```bash
+    make db-up
+    # Or manually:
+    docker run -d \
+      --name rule-engine-db \
+      -e POSTGRES_DB=rule_engine \
+      -e POSTGRES_USER=postgres \
+      -e POSTGRES_PASSWORD=password \
+      -p 5433:5432 \
+      postgres:15-alpine
+    ```
 
-3. **Set environment variables**
-   ```bash
-   export DATABASE_URL="postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable"
-   export API_KEY="your-api-key-here"
-   export JWT_SECRET="your-jwt-secret-here"
-   ```
+3. **Run the full development environment**
+    ```bash
+    make dev
+    ```
+    This will:
+    - Start the database (if not already running)
+    - Run database migrations
+    - Start the service with default development configuration
 
-4. **Run database migrations**
-   ```bash
-   go run cmd/main.go migrate
-   ```
+    **Alternative manual setup:**
 
-5. **Start the service**
-   ```bash
-   go run cmd/main.go
-   ```
+    Set environment variables:
+    ```bash
+    export DATABASE_URL="postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable"
+    export API_KEY="your-api-key-here"
+    export JWT_SECRET="your-jwt-secret-here"
+    ```
+
+    Run database migrations:
+    ```bash
+    make migrate
+    # Or: go run cmd/main.go migrate
+    ```
+
+    Start the service:
+    ```bash
+    make run-local
+    # Or: go run cmd/main.go
+    ```
 
 The service will be available at `http://localhost:8080`
+
+**Access Points:**
+- **API**: `http://localhost:8080/api/v1/`
+- **API Documentation**: `http://localhost:8080/swagger/`
+- **Analytics Dashboard**: `http://localhost:8080/dashboard`
+- **Health Check**: `http://localhost:8080/health`
+- **Metrics**: `http://localhost:8080/metrics`
 
 ### Docker Deployment
 
@@ -87,6 +110,67 @@ The service will be available at `http://localhost:8080`
 Access the interactive API documentation at:
 ```
 http://localhost:8080/swagger/
+```
+
+### Analytics Dashboard
+
+The service includes a built-in analytics dashboard for monitoring rule execution metrics and performance:
+
+**Dashboard URL:**
+```
+http://localhost:8080/dashboard
+```
+
+**Features:**
+- Real-time execution statistics (total, successful, failed executions)
+- Success rate and average latency metrics
+- Historical trend charts for executions, success rates, and latency
+- Rule-specific performance analytics
+- Time range filtering (1 hour, 24 hours, 7 days, 30 days)
+- Auto-refreshing data with 30-second intervals
+
+**API Endpoint:**
+- `GET /api/v1/analytics/dashboard?timeRange=24h` - Returns JSON data for dashboard metrics
+
+**Dashboard Data Structure:**
+```json
+{
+  "overall_stats": {
+    "total_executions": 1250,
+    "successful_executions": 1187,
+    "failed_executions": 63,
+    "success_rate": 94.96,
+    "average_latency_ms": 45.2
+  },
+  "rule_stats": [
+    {
+      "rule_id": "rule-uuid",
+      "rule_name": "Temperature Alert",
+      "total_executions": 450,
+      "successful_executions": 432,
+      "failed_executions": 18,
+      "success_rate": 96.0,
+      "average_latency_ms": 42.1,
+      "last_executed": "2024-01-01T12:00:00Z"
+    }
+  ],
+  "execution_trend": {
+    "metric": "executions_per_hour",
+    "data": [
+      {"timestamp": "2024-01-01T10:00:00Z", "value": 25},
+      {"timestamp": "2024-01-01T11:00:00Z", "value": 30}
+    ]
+  },
+  "success_rate_trend": {
+    "metric": "success_rate_percent",
+    "data": [...]
+  },
+  "latency_trend": {
+    "metric": "average_latency_ms",
+    "data": [...]
+  },
+  "time_range": "24h"
+}
 ```
 
 ### Authentication
@@ -124,6 +208,11 @@ The API supports two authentication methods:
 - `POST /api/v1/actions` - Create a new action
 - `GET /api/v1/actions` - List all actions
 - `GET /api/v1/actions/{id}` - Get action by ID
+
+#### Analytics
+
+- `GET /api/v1/analytics/dashboard` - Get analytics dashboard data
+- `GET /dashboard` - Analytics dashboard web interface
 
 #### System
 
@@ -350,14 +439,53 @@ The service is configured via environment variables:
 
 ## Development
 
+### Makefile Commands
+
+The project includes a comprehensive Makefile for development tasks:
+
+```bash
+# Quick development setup
+make dev                    # Start full development environment (DB + migrations + app)
+make run-local             # Run app with default development config
+make dashboard             # Open analytics dashboard in browser
+
+# Database operations
+make db-up                 # Start local PostgreSQL database
+make db-down               # Stop local database
+make migrate               # Run database migrations
+
+# Testing
+make test                  # Run all unit tests
+make test-integration      # Run integration tests
+make test-race             # Run tests with race detection
+make test-verbose          # Run tests with verbose output
+
+# Code quality
+make format                # Format code with gofmt
+make vet                   # Vet code for potential issues
+make lint                  # Run linter (golangci-lint)
+make quality               # Run all code quality checks
+
+# Docker operations
+make docker-build          # Build Docker container
+make docker-compose-up     # Start services with Docker Compose
+
+# Utility
+make health                # Check application health
+make metrics               # Show application metrics
+make clean                 # Clean build artifacts
+```
+
 ### Running Tests
 
 ```bash
 # Unit tests
-go test ./...
+make test
+# Or: go test ./...
 
 # Integration tests
-go test -tags=integration ./...
+make test-integration
+# Or: go test -tags=integration ./...
 
 # Performance tests
 go test -tags=performance ./api
@@ -366,21 +494,21 @@ go test -tags=performance ./api
 ### Code Quality
 
 ```bash
-# Format code
-go fmt ./...
+# Run all quality checks
+make quality
 
-# Vet code
-go vet ./...
-
-# Run linter
-golangci-lint run
+# Individual checks
+make format    # Format code
+make vet       # Vet code
+make lint      # Run linter
 ```
 
 ### Database Migrations
 
 ```bash
 # Run migrations
-go run cmd/main.go migrate
+make migrate
+# Or: go run cmd/main.go migrate
 
 # Create new migration
 # Add SQL files to internal/storage/db/migrations/
