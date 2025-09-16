@@ -7,24 +7,34 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
-	"github.com/malyshevhen/rule-engine/internal/storage/rule"
+	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
 
 // Service handles business logic for rules
 type Service struct {
-	ruleRepo    *rule.Repository
+	ruleRepo    *ruleStorage.Repository
 	triggerRepo *triggerStorage.Repository
 	actionRepo  *actionStorage.Repository
 }
 
 // NewService creates a new rule service
-func NewService(ruleRepo *rule.Repository, triggerRepo *triggerStorage.Repository, actionRepo *actionStorage.Repository) *Service {
+func NewService(ruleRepo *ruleStorage.Repository, triggerRepo *triggerStorage.Repository, actionRepo *actionStorage.Repository) *Service {
 	return &Service{
 		ruleRepo:    ruleRepo,
 		triggerRepo: triggerRepo,
 		actionRepo:  actionRepo,
 	}
+}
+
+// Create creates a new rule
+func (s *Service) Create(ctx context.Context, rule *Rule) error {
+	storageRule := &ruleStorage.Rule{
+		Name:      rule.Name,
+		LuaScript: rule.LuaScript,
+		Enabled:   rule.Enabled,
+	}
+	return s.ruleRepo.Create(ctx, storageRule)
 }
 
 // GetByID retrieves a rule with its triggers and actions

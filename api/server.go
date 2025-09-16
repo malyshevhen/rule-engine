@@ -4,7 +4,11 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/malyshevhen/rule-engine/internal/core/action"
+	"github.com/malyshevhen/rule-engine/internal/core/rule"
+	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 )
 
 // ServerConfig holds server configuration
@@ -14,13 +18,16 @@ type ServerConfig struct {
 
 // Server represents the HTTP server
 type Server struct {
-	config *ServerConfig
-	router *mux.Router
-	server *http.Server
+	config     *ServerConfig
+	router     *mux.Router
+	server     *http.Server
+	ruleSvc    *rule.Service
+	triggerSvc *trigger.Service
+	actionSvc  *action.Service
 }
 
 // NewServer creates a new HTTP server
-func NewServer(config *ServerConfig) *Server {
+func NewServer(config *ServerConfig, ruleSvc *rule.Service, triggerSvc *trigger.Service, actionSvc *action.Service) *Server {
 	router := mux.NewRouter()
 
 	// Add middleware
@@ -30,8 +37,11 @@ func NewServer(config *ServerConfig) *Server {
 	// TODO: Setup CORS
 
 	s := &Server{
-		config: config,
-		router: router,
+		config:     config,
+		router:     router,
+		ruleSvc:    ruleSvc,
+		triggerSvc: triggerSvc,
+		actionSvc:  actionSvc,
 	}
 
 	s.setupRoutes()
@@ -78,9 +88,53 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // TODO: Implement handler methods
-func (s *Server) CreateRule(w http.ResponseWriter, r *http.Request) {}
-func (s *Server) ListRules(w http.ResponseWriter, r *http.Request)  {}
-func (s *Server) GetRule(w http.ResponseWriter, r *http.Request)    {}
+func (s *Server) CreateRule(w http.ResponseWriter, r *http.Request) {
+	var req CreateRuleRequest
+	if err := ParseJSONBody(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	rule := &rule.Rule{
+		Name:      req.Name,
+		LuaScript: req.LuaScript,
+		Enabled:   enabled,
+	}
+
+	if err := s.ruleSvc.Create(r.Context(), rule); err != nil {
+		ErrorResponse(w, http.StatusInternalServerError, "Failed to create rule")
+		return
+	}
+
+	SuccessResponse(w, rule)
+}
+
+func (s *Server) ListRules(w http.ResponseWriter, r *http.Request) {
+	// TODO: Implement list
+	SuccessResponse(w, []rule.Rule{})
+}
+func (s *Server) GetRule(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid rule ID")
+		return
+	}
+
+	rule, err := s.ruleSvc.GetByID(r.Context(), id)
+	if err != nil {
+		ErrorResponse(w, http.StatusNotFound, "Rule not found")
+		return
+	}
+
+	SuccessResponse(w, rule)
+}
 func (s *Server) UpdateRule(w http.ResponseWriter, r *http.Request) {}
 func (s *Server) DeleteRule(w http.ResponseWriter, r *http.Request) {}
 

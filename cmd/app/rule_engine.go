@@ -11,7 +11,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/malyshevhen/rule-engine/api"
+	"github.com/malyshevhen/rule-engine/internal/core/action"
+	"github.com/malyshevhen/rule-engine/internal/core/rule"
+	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
+	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
+	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 )
@@ -76,9 +82,15 @@ func New() *App {
 	}
 	slog.Info("Database migrations completed")
 
-	// Initialize HTTP server
-	serverConfig := &api.ServerConfig{Port: config.Port}
-	server := api.NewServer(serverConfig)
+	// Initialize repositories
+	ruleRepo := ruleStorage.NewRepository(pool)
+	triggerRepo := triggerStorage.NewRepository(pool)
+	actionRepo := actionStorage.NewRepository(pool)
+
+	// Initialize services
+	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo)
+	triggerSvc := trigger.NewService(triggerRepo)
+	actionSvc := action.NewService(actionRepo)
 
 	// Initialize NATS connection
 	nc, err := nats.Connect(config.NATSURL)
@@ -90,6 +102,10 @@ func New() *App {
 
 	// Initialize cron scheduler
 	c := cron.New()
+
+	// Initialize HTTP server
+	serverConfig := &api.ServerConfig{Port: config.Port}
+	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc)
 
 	return &App{
 		config: config,
