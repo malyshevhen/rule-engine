@@ -17,6 +17,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - Prometheus metrics for monitoring rule executions, trigger events, and performance
 - Security enhancements: JWT/API key auth, input sanitization, rate limiting, secure secrets
 - Redis caching layer for high-performance rule and trigger data retrieval
+- Asynchronous rule execution queuing with persistence and horizontal scaling
 - Comprehensive unit test suite with 80-100% coverage across all components
 - Complete integration test suite with end-to-end API testing and database fixtures
 
@@ -174,7 +175,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - [x] Add caching layer (Redis)
 - [x] Implement rule execution queuing
 - [x] Implement queue persistence to survive restarts
-- [ ] Add horizontal scaling support
+- [x] Add horizontal scaling support
 
 ### 8.3 Monitoring and Alerting
 
