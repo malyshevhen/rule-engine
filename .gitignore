@@ -21,3 +21,6 @@ main
 # opencode temp dir
 opencodetmp
 
+# Generated API clients (regenerate with make clients)
+clients/
+
