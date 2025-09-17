@@ -195,14 +195,26 @@ This roadmap outlines the step-by-step development plan for building a robust, s
     - Add caching layer for expensive aggregations
     - Build responsive HTML dashboard served by Go application at `/dashboard`
     - Include real-time metrics, historical trends, and rule performance charts
-- [ ] Add audit logging for rule changes
-  - **Tools & Frameworks**: PostgreSQL for storage + structured logging with slog
-  - **Implementation Plan**:
-    - Create audit_log table with fields: id, entity_type, entity_id, action, user_id, old_values, new_values, timestamp
-    - Add audit logging middleware to intercept rule/trigger/action CRUD operations
-    - Store full before/after snapshots of changed entities
-    - Add API endpoints to query audit logs with filtering and pagination
-    - Implement audit log retention policy (configurable cleanup)
+
+### 8.4 SDKs and Integration
+
+- [ ] Add automated RESTful client generation for Go, Pythona(optional), based on OpenAPI spec
+
+## Phase 9: End-to-End Testing
+
+### 9.1 Integration Testing
+
+- [ ] Set up test infrastructure with Testcontainers
+- [ ] Implement simple device simulator for testing
+- [ ] Set up Hoverfly for external API mocking (like endpoint data service)
+- [ ] Add end-to-end tests for rule execution, triggering, and data persistence
+- [ ] Test Lua script execution with mocked platform API
+- [ ] Test rule chaining and dependencies
+- [ ] Test rule execution queuing
+- [ ] Test rule execution with multiple triggers
+- [ ] Test rule execution with complex conditions
+- [ ] Test rule execution with scheduled triggers
+- [ ] Test rule execution with rule dependencies
 
 ## Success Criteria
 
@@ -214,4 +226,4 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - [x] Production-ready deployment configuration
 - [ ] Complete observability stack
 - [ ] Performance benchmarks met
-
+- [ ] Cover all features with end-to-end tests
