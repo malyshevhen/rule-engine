@@ -1,0 +1,47 @@
+{
+  "data": {
+    "pairs": [
+      {
+        "request": {
+          "method": [
+            {
+              "matcher": "exact",
+              "value": "POST"
+            }
+          ],
+          "path": [
+            {
+              "matcher": "exact",
+              "value": "/api/webhook"
+            }
+          ],
+          "body": [
+            {
+              "matcher": "exact",
+              "value": ""
+            }
+          ]
+        },
+        "response": {
+          "status": 200,
+          "body": "{\"status\": \"success\", \"message\": \"Webhook received\"}",
+          "encodedBody": false,
+          "headers": {
+            "Content-Type": ["application/json"]
+          },
+          "templated": false
+        }
+      }
+    ],
+    "globalActions": {
+      "delays": [],
+      "delaysLogNormal": []
+    }
+  },
+  "meta": {
+    "schemaVersion": "v5",
+    "hoverflyVersion": "v1.4.0",
+    "timeExported": "2024-01-01T00:00:00Z"
+  }
+}
+

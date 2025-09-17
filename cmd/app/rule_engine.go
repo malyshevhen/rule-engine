@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -91,7 +92,24 @@ func loadConfig() Config {
 	}
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://user:password@localhost:5432/rule_engine?sslmode=disable"
+		// Try to build DATABASE_URL from individual environment variables
+		dbHost := os.Getenv("DB_HOST")
+		dbPort := os.Getenv("DB_PORT")
+		dbName := os.Getenv("DB_NAME")
+		dbUser := os.Getenv("DB_USER")
+		dbPassword := os.Getenv("DB_PASSWORD")
+		dbSSLMode := os.Getenv("DB_SSL_MODE")
+
+		if dbHost != "" && dbPort != "" && dbName != "" && dbUser != "" && dbPassword != "" {
+			dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
+			if dbSSLMode != "" {
+				dbURL += "?sslmode=" + dbSSLMode
+			} else {
+				dbURL += "?sslmode=disable"
+			}
+		} else {
+			dbURL = "postgres://user:password@localhost:5432/rule_engine?sslmode=disable"
+		}
 	}
 	natsURL := os.Getenv("NATS_URL")
 	if natsURL == "" {

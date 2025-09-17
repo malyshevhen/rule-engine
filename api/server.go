@@ -320,11 +320,13 @@ func (s *Server) ServeDashboard(w http.ResponseWriter, r *http.Request) {
 //	@Description	Get the health status of the service
 //	@Tags			system
 //	@Accept			json
-//	@Produce		json
-//	@Success		200	{object}	map[string]string
+//	@Produce		text
+//	@Success		200	{string}	string	"healthy"
 //	@Router			/health [get]
 func (s *Server) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	SuccessResponse(w, map[string]string{"status": "healthy"})
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("healthy"))
 }
 
 // CreateRule godoc

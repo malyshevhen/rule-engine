@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"strings"
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
@@ -88,6 +91,35 @@ func (s *Service) LogMessage(ctx context.Context, level, message string) {
 // GetCurrentTime returns the current timestamp
 func (s *Service) GetCurrentTime() time.Time {
 	return time.Now()
+}
+
+// MakeHTTPRequest makes an HTTP request
+func (s *Service) MakeHTTPRequest(ctx context.Context, method, url string, headers map[string]string, body string) (map[string]any, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	var bodyReader io.Reader
+	if body != "" {
+		bodyReader = strings.NewReader(body)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"status": resp.StatusCode,
+		"body":   string(respBody),
+	}, nil
 }
 
 // RegisterAPIFunctions registers platform API functions in the Lua state
@@ -203,6 +235,67 @@ func (s *Service) RegisterAPIFunctions(L *lua.LState, ruleID, triggerID string) 
 
 		L.Push(lua.LNil)
 		return 1
+	}))
+
+	// http_get(url, headers_table)
+	L.SetGlobal("http_get", L.NewFunction(func(L *lua.LState) int {
+		url := L.ToString(1)
+		headersTable := L.ToTable(2)
+
+		headers := make(map[string]string)
+		if headersTable != nil {
+			headersTable.ForEach(func(k, v lua.LValue) {
+				headers[k.String()] = v.String()
+			})
+		}
+
+		ctx := context.Background()
+		result, err := s.MakeHTTPRequest(ctx, "GET", url, headers, "")
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+
+		table := L.NewTable()
+		for k, v := range result {
+			L.SetField(table, k, luaValueFromGo(L, v))
+		}
+
+		L.Push(table)
+		L.Push(lua.LNil)
+		return 2
+	}))
+
+	// http_post(url, headers_table, body)
+	L.SetGlobal("http_post", L.NewFunction(func(L *lua.LState) int {
+		url := L.ToString(1)
+		headersTable := L.ToTable(2)
+		body := L.ToString(3)
+
+		headers := make(map[string]string)
+		if headersTable != nil {
+			headersTable.ForEach(func(k, v lua.LValue) {
+				headers[k.String()] = v.String()
+			})
+		}
+
+		ctx := context.Background()
+		result, err := s.MakeHTTPRequest(ctx, "POST", url, headers, body)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+
+		table := L.NewTable()
+		for k, v := range result {
+			L.SetField(table, k, luaValueFromGo(L, v))
+		}
+
+		L.Push(table)
+		L.Push(lua.LNil)
+		return 2
 	}))
 }
 
