@@ -178,7 +178,119 @@ http://localhost:8080/dashboard
 }
 ```
 
+## Generated API Clients
+
+The Rule Engine provides automatically generated REST API clients for Go and Python based on the OpenAPI specification.
+
+### Client Generation
+
+To generate the latest API clients:
+
+```bash
+# Generate both Go and Python clients
+./scripts/generate-clients.sh all
+
+# Generate only Go client
+./scripts/generate-clients.sh go
+
+# Generate only Python client
+./scripts/generate-clients.sh python
+```
+
+### Go Client
+
+The Go client is generated using OpenAPI Generator and provides type-safe access to all API endpoints.
+
+**Installation:**
+```bash
+# The client is generated in clients/go/
+# Add it as a dependency in your project
+go get github.com/malyshevhen/rule-engine/clients/go
+```
+
+**Usage Example:**
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    ruleengine "github.com/malyshevhen/rule-engine/clients/go"
+)
+
+func main() {
+    config := ruleengine.NewConfiguration()
+    config.Host = "localhost:8080"
+    config.Scheme = "http"
+    config.AddDefaultHeader("Authorization", "ApiKey your-api-key")
+
+    client := ruleengine.NewAPIClient(config)
+    ctx := context.Background()
+
+    // Create a rule
+    createReq := ruleengine.ApiCreateRuleRequest{
+        Name:      "Temperature Alert",
+        LuaScript: "if event.temperature > 25 then return true end",
+        Priority:  &[]int32{0}[0],
+        Enabled:   &[]bool{true}[0],
+    }
+
+    rule, _, err := client.RulesAPI.RulesPost(ctx).ApiCreateRuleRequest(createReq).Execute()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    log.Printf("Created rule: %s", *rule.Name)
+}
+```
+
+See `examples/go/main.go` for a complete usage example.
+
+### Python Client
+
+The Python client is generated using OpenAPI Generator and provides a Pythonic interface to the API.
+
+**Installation:**
+```bash
+# Install the generated client
+pip install ./clients/python
+
+# Or install dependencies manually
+pip install -r clients/python/requirements.txt
+```
+
+**Usage Example:**
+```python
+from rule_engine_client import ApiClient, Configuration
+from rule_engine_client.api import RulesApi
+from rule_engine_client.models import ApiCreateRuleRequest
+
+# Configure client
+config = Configuration()
+config.host = "http://localhost:8080/api/v1"
+config.api_key['Authorization'] = 'ApiKey your-api-key'
+
+client = ApiClient(config)
+rules_api = RulesApi(client)
+
+# Create a rule
+create_request = ApiCreateRuleRequest(
+    name="Temperature Alert Rule",
+    lua_script="if event.temperature > 25 then return true end",
+    priority=0,
+    enabled=True
+)
+
+rule = rules_api.rules_post(create_request)
+print(f"Created rule: {rule.name} (ID: {rule.id})")
+```
+
+See `examples/python/example_usage.py` for a complete usage example.
+
 ### Authentication
+
+Both clients support the same authentication methods as the REST API:
 
 The API supports two authentication methods:
 

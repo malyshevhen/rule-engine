@@ -13,7 +13,7 @@ help: ## Show this help message
 	@echo "  make dashboard       Open analytics dashboard"
 	@echo ""
 	@echo "🔧 Development Commands:"
-	@grep -E '^(run|run-local|migrate|dev-|test|lint|format|vet|tidy|quality):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@grep -E '^(run|run-local|migrate|dev-|test|lint|format|vet|tidy|quality|clients):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🐳 Docker Commands:"
 	@grep -E '^(docker-|dev-):.*?## .*$$' $(MAKEFILE_LIST) | grep -v "dev-up\|dev-down\|dev-logs\|dev-restart" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
@@ -97,6 +97,15 @@ sql-lint: ## Lint SQL migration files
 
 docs: ## Generate OpenAPI/Swagger documentation
 	swag init -g cmd/main.go -o docs/
+
+clients: ## Generate API clients for Go and Python
+	./scripts/generate-clients.sh all
+
+clients-go: ## Generate Go API client only
+	./scripts/generate-clients.sh go
+
+clients-python: ## Generate Python API client only
+	./scripts/generate-clients.sh python
 
 quality: format vet tidy sql-lint ## Run all code quality checks
 
