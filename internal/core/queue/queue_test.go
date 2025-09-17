@@ -17,7 +17,7 @@ func TestInMemoryQueue_EnqueueDequeue(t *testing.T) {
 	req := &ExecutionRequest{
 		RuleID:    uuid.New(),
 		TriggerID: uuid.New(),
-		EventData: map[string]interface{}{"test": "data"},
+		EventData: map[string]any{"test": "data"},
 	}
 
 	err := q.Enqueue(ctx, req)

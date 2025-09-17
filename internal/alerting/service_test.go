@@ -55,7 +55,7 @@ func TestService_SendAlert_Success(t *testing.T) {
 	}
 	svc := NewService(config)
 
-	err := svc.SendAlert(context.Background(), "test_type", "low", "Test Title", "Test Message", map[string]interface{}{
+	err := svc.SendAlert(context.Background(), "test_type", "low", "Test Title", "Test Message", map[string]any{
 		"key": "value",
 	})
 
@@ -76,7 +76,7 @@ func TestService_SendAlert_WithDetails(t *testing.T) {
 	}
 	svc := NewService(config)
 
-	details := map[string]interface{}{
+	details := map[string]any{
 		"rule_id":   "test-rule-id",
 		"error":     "test error",
 		"timestamp": "2023-01-01T00:00:00Z",

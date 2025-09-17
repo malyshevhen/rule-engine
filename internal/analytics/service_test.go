@@ -186,8 +186,7 @@ func TestService_getLatencyTrend(t *testing.T) {
 func BenchmarkService_GetDashboardData(b *testing.B) {
 	service := NewService()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := service.GetDashboardData(context.Background(), "24h")
 		if err != nil {
 			b.Fatal(err)

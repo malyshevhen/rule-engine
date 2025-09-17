@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 	"time"
 
@@ -175,9 +176,7 @@ func (wp *WorkerPool) processRequest(ctx context.Context, req *ExecutionRequest,
 
 	// Add event data to context if available
 	if req.EventData != nil {
-		for key, value := range req.EventData {
-			execCtx.Data[key] = value
-		}
+		maps.Copy(execCtx.Data, req.EventData)
 	}
 
 	// Execute rule script

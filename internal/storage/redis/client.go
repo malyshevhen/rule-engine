@@ -48,7 +48,7 @@ func (c *Client) Get(ctx context.Context, key string) (string, error) {
 }
 
 // Set sets a value in Redis with optional expiration
-func (c *Client) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+func (c *Client) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
 	return c.client.Set(ctx, key, value, expiration).Err()
 }
 

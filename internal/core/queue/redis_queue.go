@@ -99,7 +99,7 @@ func (q *RedisQueue) Dequeue(ctx context.Context) (*ExecutionRequest, error) {
 
 	// Try to find an available item that we can lock
 	maxAttempts := 10 // Limit attempts to avoid infinite loops
-	for attempt := 0; attempt < maxAttempts; attempt++ {
+	for range maxAttempts {
 		// Peek at the first item without removing it
 		result := q.client.GetClient().ZRangeWithScores(ctx, q.queueKey, 0, 0)
 		if result.Err() != nil {
@@ -270,7 +270,7 @@ func (q *RedisQueue) SendHeartbeat(ctx context.Context) error {
 	}
 
 	q.lastHeartbeat = time.Now()
-	heartbeatData := map[string]interface{}{
+	heartbeatData := map[string]any{
 		"instance_id": q.instanceID,
 		"heartbeat":   q.lastHeartbeat.Unix(),
 		"queue_size":  q.Size(),

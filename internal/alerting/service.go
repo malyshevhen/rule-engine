@@ -25,13 +25,13 @@ const (
 
 // Alert represents an alert notification
 type Alert struct {
-	ID        uuid.UUID              `json:"id"`
-	Type      AlertType              `json:"type"`
-	Severity  string                 `json:"severity"` // "low", "medium", "high", "critical"
-	Title     string                 `json:"title"`
-	Message   string                 `json:"message"`
-	Details   map[string]interface{} `json:"details,omitempty"`
-	Timestamp time.Time              `json:"timestamp"`
+	ID        uuid.UUID      `json:"id"`
+	Type      AlertType      `json:"type"`
+	Severity  string         `json:"severity"` // "low", "medium", "high", "critical"
+	Title     string         `json:"title"`
+	Message   string         `json:"message"`
+	Details   map[string]any `json:"details,omitempty"`
+	Timestamp time.Time      `json:"timestamp"`
 }
 
 // Config holds alerting configuration
@@ -70,7 +70,7 @@ func NewService(config Config) *Service {
 }
 
 // SendAlert sends an alert notification via webhook
-func (s *Service) SendAlert(ctx context.Context, alertType string, severity, title, message string, details map[string]interface{}) error {
+func (s *Service) SendAlert(ctx context.Context, alertType string, severity, title, message string, details map[string]any) error {
 	if !s.config.Enabled || s.config.WebhookURL == "" {
 		slog.Debug("Alerting disabled or no webhook URL configured", "type", alertType, "severity", severity)
 		return nil

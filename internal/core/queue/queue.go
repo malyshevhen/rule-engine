@@ -18,11 +18,11 @@ var (
 
 // ExecutionRequest represents a rule execution request
 type ExecutionRequest struct {
-	ID        uuid.UUID              `json:"id"`
-	RuleID    uuid.UUID              `json:"rule_id"`
-	TriggerID uuid.UUID              `json:"trigger_id"`
-	EventData map[string]interface{} `json:"event_data,omitempty"`
-	QueuedAt  time.Time              `json:"queued_at"`
+	ID        uuid.UUID      `json:"id"`
+	RuleID    uuid.UUID      `json:"rule_id"`
+	TriggerID uuid.UUID      `json:"trigger_id"`
+	EventData map[string]any `json:"event_data,omitempty"`
+	QueuedAt  time.Time      `json:"queued_at"`
 }
 
 // Queue interface for rule execution queuing

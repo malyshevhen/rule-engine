@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"sync"
 	"time"
 
@@ -46,7 +47,7 @@ type TriggerEvaluator interface {
 
 // AlertingService interface for sending alerts
 type AlertingService interface {
-	SendAlert(ctx context.Context, alertType, severity, title, message string, details map[string]interface{}) error
+	SendAlert(ctx context.Context, alertType, severity, title, message string, details map[string]any) error
 }
 
 // Manager handles trigger execution
@@ -64,7 +65,16 @@ type Manager struct {
 }
 
 // NewManager creates a new trigger manager
-func NewManager(nc *nats.Conn, cron *cron.Cron, ruleSvc RuleService, triggerSvc TriggerService, triggerEval TriggerEvaluator, executor Executor, alertingSvc AlertingService, queue queue.Queue) *Manager {
+func NewManager(
+	nc *nats.Conn,
+	cron *cron.Cron,
+	ruleSvc RuleService,
+	triggerSvc TriggerService,
+	triggerEval TriggerEvaluator,
+	executor Executor,
+	alertingSvc AlertingService,
+	queue queue.Queue,
+) *Manager {
 	return &Manager{
 		nc:             nc,
 		cron:           cron,
@@ -225,7 +235,7 @@ func (m *Manager) executeRuleSync(ctx context.Context, ruleID uuid.UUID) {
 }
 
 // executeRuleInternal executes a rule's logic with queuing option
-func (m *Manager) executeRuleInternal(ctx context.Context, ruleID uuid.UUID, eventData map[string]interface{}, triggerID uuid.UUID, allowQueue bool) {
+func (m *Manager) executeRuleInternal(ctx context.Context, ruleID uuid.UUID, eventData map[string]any, triggerID uuid.UUID, allowQueue bool) {
 	// If queuing is allowed and we have a queue, enqueue the request
 	if allowQueue && m.queue != nil {
 		req := &queue.ExecutionRequest{
@@ -249,7 +259,7 @@ func (m *Manager) executeRuleInternal(ctx context.Context, ruleID uuid.UUID, eve
 }
 
 // executeRuleSynchronous executes a rule synchronously
-func (m *Manager) executeRuleSynchronous(ctx context.Context, ruleID uuid.UUID, eventData map[string]interface{}, triggerID uuid.UUID) {
+func (m *Manager) executeRuleSynchronous(ctx context.Context, ruleID uuid.UUID, eventData map[string]any, triggerID uuid.UUID) {
 	ctx, span := tracing.StartSpan(ctx, "manager.execute_rule_sync")
 	defer span.End()
 
@@ -293,9 +303,7 @@ func (m *Manager) executeRuleSynchronous(ctx context.Context, ruleID uuid.UUID, 
 
 	// Add event data to context if available
 	if eventData != nil {
-		for key, value := range eventData {
-			execCtx.Data[key] = value
-		}
+		maps.Copy(execCtx.Data, eventData)
 	}
 
 	// Execute rule script
@@ -309,7 +317,7 @@ func (m *Manager) executeRuleSynchronous(ctx context.Context, ruleID uuid.UUID, 
 
 		// Send alert for rule execution failure
 		if m.alertingSvc != nil {
-			details := map[string]interface{}{
+			details := map[string]any{
 				"rule_id":    ruleID.String(),
 				"rule_name":  rule.Name,
 				"trigger_id": triggerID.String(),
@@ -363,7 +371,7 @@ func (m *Manager) executeRuleSynchronous(ctx context.Context, ruleID uuid.UUID, 
 				slog.Info("Lua action executed", "action_id", action.ID)
 			}
 		case "execute_rule":
-			var params map[string]interface{}
+			var params map[string]any
 			if err := json.Unmarshal([]byte(action.Params), &params); err != nil {
 				actionSpan.RecordError(fmt.Errorf("failed to parse execute_rule params: %w", err))
 				slog.Error("Failed to parse execute_rule params", "action_id", action.ID, "error", err)
