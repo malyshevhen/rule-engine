@@ -129,20 +129,26 @@ func (q *RedisQueue) Dequeue(ctx context.Context) (*ExecutionRequest, error) {
 		// Use ZREM to remove the specific item (in case another instance removed it)
 		removed, err := q.client.GetClient().ZRem(ctx, q.queueKey, requestID).Result()
 		if err != nil {
-			q.releaseLock(ctx, requestID) // Release lock on error
+			if relErr := q.releaseLock(ctx, requestID); relErr != nil {
+				slog.Warn("Failed to release lock on error", "request_id", requestID, "error", relErr)
+			}
 			return nil, fmt.Errorf("failed to remove item from queue: %w", err)
 		}
 
 		if removed == 0 {
 			// Item was already processed by another instance
-			q.releaseLock(ctx, requestID)
+			if err := q.releaseLock(ctx, requestID); err != nil {
+				slog.Warn("Failed to release lock for already processed item", "request_id", requestID, "error", err)
+			}
 			continue
 		}
 
 		// Get the actual request data
 		data, err := q.client.Get(ctx, fmt.Sprintf("queue:item:%s", requestID))
 		if err != nil {
-			q.releaseLock(ctx, requestID)
+			if relErr := q.releaseLock(ctx, requestID); relErr != nil {
+				slog.Warn("Failed to release lock on data get error", "request_id", requestID, "error", relErr)
+			}
 			// If we can't get the data, log error but continue (item might have expired)
 			slog.Error("Failed to get queued request data", "request_id", requestID, "error", err)
 			continue
@@ -150,15 +156,21 @@ func (q *RedisQueue) Dequeue(ctx context.Context) (*ExecutionRequest, error) {
 
 		var req ExecutionRequest
 		if err := json.Unmarshal([]byte(data), &req); err != nil {
-			q.releaseLock(ctx, requestID)
+			if relErr := q.releaseLock(ctx, requestID); relErr != nil {
+				slog.Warn("Failed to release lock on unmarshal error", "request_id", requestID, "error", relErr)
+			}
 			slog.Error("Failed to unmarshal queued request", "request_id", requestID, "error", err)
 			// Clean up corrupted data
-			q.client.Del(ctx, fmt.Sprintf("queue:item:%s", requestID))
+			if delErr := q.client.Del(ctx, fmt.Sprintf("queue:item:%s", requestID)); delErr != nil {
+				slog.Warn("Failed to delete corrupted queue item", "request_id", requestID, "error", delErr)
+			}
 			continue
 		}
 
 		// Clean up the stored data
-		q.client.Del(ctx, fmt.Sprintf("queue:item:%s", requestID))
+		if err := q.client.Del(ctx, fmt.Sprintf("queue:item:%s", requestID)); err != nil {
+			slog.Warn("Failed to delete processed queue item", "request_id", requestID, "error", err)
+		}
 
 		slog.Debug("Dequeued rule execution request", "request_id", req.ID, "rule_id", req.RuleID, "instance_id", q.instanceID)
 		return &req, nil

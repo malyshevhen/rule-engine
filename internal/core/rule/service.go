@@ -135,7 +135,9 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 	// Cache the result
 	if s.redis != nil {
 		if data, err := json.Marshal(rule); err == nil {
-			s.redis.Set(ctx, cacheKey, string(data), 5*time.Minute)
+			if err := s.redis.Set(ctx, cacheKey, string(data), 5*time.Minute); err != nil {
+				slog.Warn("Failed to cache rule", "error", err)
+			}
 		}
 	}
 
@@ -187,7 +189,9 @@ func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, err
 	// Cache the result
 	if s.redis != nil {
 		if data, err := json.Marshal(domainRules); err == nil {
-			s.redis.Set(ctx, cacheKey, string(data), 2*time.Minute)
+			if err := s.redis.Set(ctx, cacheKey, string(data), 2*time.Minute); err != nil {
+				slog.Warn("Failed to cache rules list", "error", err)
+			}
 		}
 	}
 
@@ -240,7 +244,9 @@ func (s *Service) invalidateRuleCaches(ctx context.Context, ruleID uuid.UUID) {
 
 	// Delete specific rule cache
 	ruleKey := fmt.Sprintf("rule:%s", ruleID.String())
-	s.redis.Del(ctx, ruleKey)
+	if err := s.redis.Del(ctx, ruleKey); err != nil {
+		slog.Warn("Failed to delete rule cache", "rule_id", ruleID, "error", err)
+	}
 
 	// Invalidate list caches by incrementing the version
 	// This will make all existing list cache keys stale

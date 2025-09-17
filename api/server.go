@@ -311,7 +311,7 @@ func (s *Server) ServeDashboard(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(html))
+	_, _ = w.Write([]byte(html))
 }
 
 // HealthCheck godoc
@@ -326,7 +326,7 @@ func (s *Server) ServeDashboard(w http.ResponseWriter, r *http.Request) {
 func (s *Server) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("healthy"))
+	_, _ = w.Write([]byte("healthy"))
 }
 
 // CreateRule godoc

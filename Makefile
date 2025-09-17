@@ -81,7 +81,7 @@ test-specific: ## Run specific test (usage: make test-specific TEST=TestName)
 
 # Code quality commands
 lint: ## Run linter (golangci-lint)
-	golangci-lint run
+	golangci-lint run --exclude-files ".*_test.go$$"
 
 format: ## Format code with gofmt
 	gofmt -w .

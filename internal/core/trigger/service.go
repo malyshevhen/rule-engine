@@ -3,6 +3,7 @@ package trigger
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -123,7 +124,9 @@ func (s *Service) GetEnabledConditionalTriggers(ctx context.Context) ([]*Trigger
 	// Cache the result
 	if s.redis != nil {
 		if data, err := json.Marshal(conditionalTriggers); err == nil {
-			s.redis.Set(ctx, cacheKey, string(data), 1*time.Minute)
+			if err := s.redis.Set(ctx, cacheKey, string(data), 1*time.Minute); err != nil {
+				slog.Warn("Failed to cache conditional triggers", "error", err)
+			}
 		}
 	}
 
@@ -159,7 +162,9 @@ func (s *Service) GetEnabledScheduledTriggers(ctx context.Context) ([]*Trigger, 
 	// Cache the result
 	if s.redis != nil {
 		if data, err := json.Marshal(scheduledTriggers); err == nil {
-			s.redis.Set(ctx, cacheKey, string(data), 1*time.Minute)
+			if err := s.redis.Set(ctx, cacheKey, string(data), 1*time.Minute); err != nil {
+				slog.Warn("Failed to cache scheduled triggers", "error", err)
+			}
 		}
 	}
 
@@ -176,7 +181,9 @@ func (s *Service) invalidateTriggerCaches(ctx context.Context) {
 	keys, err := s.redis.Keys(ctx, "triggers:*")
 	if err == nil {
 		for _, key := range keys {
-			s.redis.Del(ctx, key)
+			if err := s.redis.Del(ctx, key); err != nil {
+				slog.Warn("Failed to delete trigger cache", "key", key, "error", err)
+			}
 		}
 	}
 }

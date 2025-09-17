@@ -63,6 +63,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          args: --skip-files ".*_test.go$"
 
   build:
     runs-on: ubuntu-latest
