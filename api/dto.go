@@ -6,21 +6,21 @@ import (
 	"github.com/google/uuid"
 )
 
-// RuleDTO represents a rule for API responses
-type RuleDTO struct {
-	ID        uuid.UUID    `json:"id"`
-	Name      string       `json:"name"`
-	LuaScript string       `json:"lua_script"`
-	Priority  int          `json:"priority"`
-	Enabled   bool         `json:"enabled"`
-	Triggers  []TriggerDTO `json:"triggers"`
-	Actions   []ActionDTO  `json:"actions"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt time.Time    `json:"updated_at"`
+// RuleInfo represents a rule for API responses
+type RuleInfo struct {
+	ID        uuid.UUID     `json:"id"`
+	Name      string        `json:"name"`
+	LuaScript string        `json:"lua_script"`
+	Priority  int           `json:"priority"`
+	Enabled   bool          `json:"enabled"`
+	Triggers  []TriggerInfo `json:"triggers"`
+	Actions   []ActionInfo  `json:"actions"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
 }
 
-// TriggerDTO represents a trigger for API responses
-type TriggerDTO struct {
+// TriggerInfo represents a trigger for API responses
+type TriggerInfo struct {
 	ID              uuid.UUID `json:"id"`
 	RuleID          uuid.UUID `json:"rule_id"`
 	Type            string    `json:"type"`
@@ -30,8 +30,8 @@ type TriggerDTO struct {
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-// ActionDTO represents an action for API responses
-type ActionDTO struct {
+// ActionInfo represents an action for API responses
+type ActionInfo struct {
 	ID        uuid.UUID `json:"id"`
 	LuaScript string    `json:"lua_script"`
 	Enabled   bool      `json:"enabled"`
@@ -71,8 +71,8 @@ type CreateActionRequest struct {
 
 // EvaluateScriptRequest represents a request to evaluate a Lua script
 type EvaluateScriptRequest struct {
-	Script  string                 `json:"script" validate:"required" example:"return 2 + 2"`
-	Context map[string]interface{} `json:"context,omitempty"`
+	Script  string         `json:"script" validate:"required" example:"return 2 + 2"`
+	Context map[string]any `json:"context,omitempty"`
 }
 
 // EvaluateScriptResponse represents the result of script evaluation

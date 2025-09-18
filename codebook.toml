@@ -2,11 +2,13 @@ words = [
     "ansic",
     "cron",
     "funcs",
+    "getenv",
     "healthcheck",
     "hoverfly",
     "milli",
     "sandboxed",
     "sandboxing",
+    "subrouter",
     "testcontainers",
     "unsetenv",
 ]

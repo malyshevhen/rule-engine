@@ -22,8 +22,8 @@ var (
 	rateLimitingEnabled = true
 )
 
-// LoggingMiddleware logs HTTP requests
-func LoggingMiddleware(next http.Handler) http.Handler {
+// loggingMiddleware logs HTTP requests
+func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
@@ -36,8 +36,8 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// TracingMiddleware adds distributed tracing to HTTP requests
-func TracingMiddleware(next http.Handler) http.Handler {
+// tracingMiddleware adds distributed tracing to HTTP requests
+func tracingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := tracing.StartSpan(r.Context(), "http.request")
 		defer span.End()
@@ -56,8 +56,8 @@ func TracingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// JWTMiddleware validates JWT tokens for authentication
-func JWTMiddleware(next http.Handler) http.Handler {
+// jwtMiddleware validates JWT tokens for authentication
+func jwtMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -100,8 +100,8 @@ func JWTMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// APIKeyMiddleware validates API key authentication
-func APIKeyMiddleware(next http.Handler) http.Handler {
+// apiKeyMiddleware validates API key authentication
+func apiKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -128,12 +128,12 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 		}
 
 		// If not API key, try JWT
-		JWTMiddleware(next).ServeHTTP(w, r)
+		jwtMiddleware(next).ServeHTTP(w, r)
 	})
 }
 
-// RateLimitMiddleware limits requests per IP (100 per minute) using Redis-backed rate limiting
-func RateLimitMiddleware(next http.Handler) http.Handler {
+// rateLimitMiddleware limits requests per IP (100 per minute) using Redis-backed rate limiting
+func rateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !rateLimitingEnabled || redisRateLimiter == nil {
 			next.ServeHTTP(w, r)
@@ -193,5 +193,5 @@ func EnableRateLimiting() {
 
 // AuthMiddleware supports both JWT and API key authentication
 func AuthMiddleware(next http.Handler) http.Handler {
-	return APIKeyMiddleware(next)
+	return apiKeyMiddleware(next)
 }

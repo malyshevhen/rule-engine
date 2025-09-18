@@ -21,7 +21,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	})
 
 	// Wrap with logging middleware
-	loggingHandler := LoggingMiddleware(testHandler)
+	loggingHandler := loggingMiddleware(testHandler)
 
 	// Create a test request
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
@@ -80,7 +80,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	rateLimitHandler := RateLimitMiddleware(testHandler)
+	rateLimitHandler := rateLimitMiddleware(testHandler)
 
 	t.Run("allow requests within limit", func(t *testing.T) {
 		for range 100 {
@@ -115,7 +115,7 @@ func TestAPIKeyMiddleware(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	apiKeyHandler := APIKeyMiddleware(testHandler)
+	apiKeyHandler := apiKeyMiddleware(testHandler)
 
 	t.Run("valid API key", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)

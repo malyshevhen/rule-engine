@@ -107,14 +107,6 @@ func (m *mockExecutorService) ExecuteScript(ctx context.Context, script string, 
 
 func TestServer_CreateRule(t *testing.T) {
 	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	tests := []struct {
 		name           string
@@ -184,7 +176,7 @@ func TestServer_CreateRule(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
-			server.CreateRule(w, req)
+			createRule(mockRuleSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockRuleSvc.AssertExpectations(t)
@@ -194,14 +186,6 @@ func TestServer_CreateRule(t *testing.T) {
 
 func TestServer_ListRules(t *testing.T) {
 	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	expectedRules := []*rule.Rule{
 		{
@@ -223,7 +207,7 @@ func TestServer_ListRules(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/rules", nil)
 	w := httptest.NewRecorder()
 
-	server.ListRules(w, req)
+	listRules(mockRuleSvc)(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockRuleSvc.AssertExpectations(t)
@@ -238,14 +222,6 @@ func TestServer_ListRules(t *testing.T) {
 
 func TestServer_UpdateRule(t *testing.T) {
 	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	ruleID := uuid.New()
 	existingRule := &rule.Rule{
@@ -323,7 +299,7 @@ func TestServer_UpdateRule(t *testing.T) {
 			req = mux.SetURLVars(req, map[string]string{"id": tt.ruleID})
 			w := httptest.NewRecorder()
 
-			server.UpdateRule(w, req)
+			updateRule(mockRuleSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockRuleSvc.AssertExpectations(t)
@@ -333,14 +309,6 @@ func TestServer_UpdateRule(t *testing.T) {
 
 func TestServer_DeleteRule(t *testing.T) {
 	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	ruleID := uuid.New()
 
@@ -382,7 +350,7 @@ func TestServer_DeleteRule(t *testing.T) {
 			req = mux.SetURLVars(req, map[string]string{"id": tt.ruleID})
 			w := httptest.NewRecorder()
 
-			server.DeleteRule(w, req)
+			deleteRule(mockRuleSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockRuleSvc.AssertExpectations(t)
@@ -392,14 +360,6 @@ func TestServer_DeleteRule(t *testing.T) {
 
 func TestServer_GetRule(t *testing.T) {
 	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	ruleID := uuid.New()
 	expectedRule := &rule.Rule{
@@ -447,7 +407,7 @@ func TestServer_GetRule(t *testing.T) {
 			req = mux.SetURLVars(req, map[string]string{"id": tt.ruleID})
 			w := httptest.NewRecorder()
 
-			server.GetRule(w, req)
+			getRule(mockRuleSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockRuleSvc.AssertExpectations(t)
@@ -456,15 +416,7 @@ func TestServer_GetRule(t *testing.T) {
 }
 
 func TestServer_CreateTrigger(t *testing.T) {
-	mockRuleSvc := &mockRuleService{}
 	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	ruleID := uuid.New()
 
@@ -530,7 +482,7 @@ func TestServer_CreateTrigger(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
-			server.CreateTrigger(w, req)
+			createTrigger(mockTriggerSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockTriggerSvc.AssertExpectations(t)
@@ -539,15 +491,7 @@ func TestServer_CreateTrigger(t *testing.T) {
 }
 
 func TestServer_ListTriggers(t *testing.T) {
-	mockRuleSvc := &mockRuleService{}
 	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	expectedTriggers := []*trigger.Trigger{
 		{
@@ -563,7 +507,7 @@ func TestServer_ListTriggers(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/triggers", nil)
 	w := httptest.NewRecorder()
 
-	server.ListTriggers(w, req)
+	listTriggers(mockTriggerSvc)(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockTriggerSvc.AssertExpectations(t)
@@ -576,15 +520,7 @@ func TestServer_ListTriggers(t *testing.T) {
 }
 
 func TestServer_GetTrigger(t *testing.T) {
-	mockRuleSvc := &mockRuleService{}
 	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	triggerID := uuid.New()
 	expectedTrigger := &trigger.Trigger{
@@ -632,7 +568,7 @@ func TestServer_GetTrigger(t *testing.T) {
 			req = mux.SetURLVars(req, map[string]string{"id": tt.triggerID})
 			w := httptest.NewRecorder()
 
-			server.GetTrigger(w, req)
+			getTrigger(mockTriggerSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockTriggerSvc.AssertExpectations(t)
@@ -641,15 +577,7 @@ func TestServer_GetTrigger(t *testing.T) {
 }
 
 func TestServer_ListActions(t *testing.T) {
-	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
 	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	expectedActions := []*action.Action{
 		{
@@ -669,7 +597,7 @@ func TestServer_ListActions(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/actions", nil)
 	w := httptest.NewRecorder()
 
-	server.ListActions(w, req)
+	listActions(mockActionSvc)(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockActionSvc.AssertExpectations(t)
@@ -683,15 +611,7 @@ func TestServer_ListActions(t *testing.T) {
 }
 
 func TestServer_GetAction(t *testing.T) {
-	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
 	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	actionID := uuid.New()
 	expectedAction := &action.Action{
@@ -738,7 +658,7 @@ func TestServer_GetAction(t *testing.T) {
 			req = mux.SetURLVars(req, map[string]string{"id": tt.actionID})
 			w := httptest.NewRecorder()
 
-			server.GetAction(w, req)
+			getAction(mockActionSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockActionSvc.AssertExpectations(t)
@@ -747,35 +667,17 @@ func TestServer_GetAction(t *testing.T) {
 }
 
 func TestServer_HealthCheck(t *testing.T) {
-	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
-	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
-
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	w := httptest.NewRecorder()
 
-	server.HealthCheck(w, req)
+	HealthCheck(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "healthy", w.Body.String())
 }
 
 func TestServer_CreateAction(t *testing.T) {
-	mockRuleSvc := &mockRuleService{}
-	mockTriggerSvc := &mockTriggerService{}
 	mockActionSvc := &mockActionService{}
-
-	server := &Server{
-		ruleSvc:    mockRuleSvc,
-		triggerSvc: mockTriggerSvc,
-		actionSvc:  mockActionSvc,
-	}
 
 	tests := []struct {
 		name           string
@@ -823,7 +725,7 @@ func TestServer_CreateAction(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
-			server.CreateAction(w, req)
+			createAction(mockActionSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockActionSvc.AssertExpectations(t)
@@ -833,10 +735,6 @@ func TestServer_CreateAction(t *testing.T) {
 
 func TestServer_EvaluateScript(t *testing.T) {
 	mockExecutorSvc := &mockExecutorService{}
-
-	server := &Server{
-		executorSvc: mockExecutorSvc,
-	}
 
 	tests := []struct {
 		name             string
@@ -912,7 +810,7 @@ func TestServer_EvaluateScript(t *testing.T) {
 			req.Header.Set("Content-Type", "application/json")
 			w := httptest.NewRecorder()
 
-			server.EvaluateScript(w, req)
+			evaluateScript(mockExecutorSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 

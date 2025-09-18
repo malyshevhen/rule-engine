@@ -2,16 +2,13 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/malyshevhen/rule-engine/api"
 	"github.com/malyshevhen/rule-engine/internal/alerting"
@@ -34,111 +31,17 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-// ruleServiceAdapter adapts the rule.Service to manager.RuleService interface
-type ruleServiceAdapter struct {
-	ruleSvc *rule.Service
-}
-
-func (a *ruleServiceAdapter) GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule, error) {
-	return a.ruleSvc.GetByID(ctx, id)
-}
-
-// triggerServiceAdapter adapts the trigger.Service to manager.TriggerService interface
-type triggerServiceAdapter struct {
-	triggerSvc *trigger.Service
-}
-
-func (a *triggerServiceAdapter) GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error) {
-	return a.triggerSvc.GetByID(ctx, id)
-}
-
-func (a *triggerServiceAdapter) GetEnabledConditionalTriggers(ctx context.Context) ([]*trigger.Trigger, error) {
-	return a.triggerSvc.GetEnabledConditionalTriggers(ctx)
-}
-
-func (a *triggerServiceAdapter) GetEnabledScheduledTriggers(ctx context.Context) ([]*trigger.Trigger, error) {
-	return a.triggerSvc.GetEnabledScheduledTriggers(ctx)
-}
-
-// Config holds application configuration
-type Config struct {
-	Port               string
-	DBURL              string
-	NATSURL            string
-	RedisURL           string
-	AlertingEnabled    bool
-	AlertWebhookURL    string
-	AlertRetryAttempts int
-}
-
 // App represents the rule engine application
 type App struct {
 	config      Config
 	db          *pgxpool.Pool
 	redis       *redisClient.Client
-	server      *api.Server
+	server      *http.Server
 	manager     *manager.Manager
 	workerPool  *queue.WorkerPool
 	alertingSvc *alerting.Service
 	nc          *nats.Conn
 	cron        *cron.Cron
-}
-
-// loadConfig loads configuration from environment variables
-func loadConfig() Config {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		// Try to build DATABASE_URL from individual environment variables
-		dbHost := os.Getenv("DB_HOST")
-		dbPort := os.Getenv("DB_PORT")
-		dbName := os.Getenv("DB_NAME")
-		dbUser := os.Getenv("DB_USER")
-		dbPassword := os.Getenv("DB_PASSWORD")
-		dbSSLMode := os.Getenv("DB_SSL_MODE")
-
-		if dbHost != "" && dbPort != "" && dbName != "" && dbUser != "" && dbPassword != "" {
-			dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s", dbUser, dbPassword, dbHost, dbPort, dbName)
-			if dbSSLMode != "" {
-				dbURL += "?sslmode=" + dbSSLMode
-			} else {
-				dbURL += "?sslmode=disable"
-			}
-		} else {
-			dbURL = "postgres://user:password@localhost:5432/rule_engine?sslmode=disable"
-		}
-	}
-	natsURL := os.Getenv("NATS_URL")
-	if natsURL == "" {
-		natsURL = "nats://localhost:4222"
-	}
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "localhost:6379"
-	}
-
-	// Alerting configuration
-	alertingEnabled := os.Getenv("ALERTING_ENABLED") == "true"
-	alertWebhookURL := os.Getenv("ALERT_WEBHOOK_URL")
-	alertRetryAttempts := 3 // default
-	if retryStr := os.Getenv("ALERT_RETRY_ATTEMPTS"); retryStr != "" {
-		if retry, err := strconv.Atoi(retryStr); err == nil && retry > 0 {
-			alertRetryAttempts = retry
-		}
-	}
-
-	return Config{
-		Port:               port,
-		DBURL:              dbURL,
-		NATSURL:            natsURL,
-		RedisURL:           redisURL,
-		AlertingEnabled:    alertingEnabled,
-		AlertWebhookURL:    alertWebhookURL,
-		AlertRetryAttempts: alertRetryAttempts,
-	}
 }
 
 // New creates a new App instance
@@ -242,13 +145,11 @@ func New() *App {
 	c := cron.New()
 
 	// Initialize trigger manager
-	ruleSvcForManager := &ruleServiceAdapter{ruleSvc: ruleSvc}
-	triggerSvcForManager := &triggerServiceAdapter{triggerSvc: triggerSvc}
-	mgr := manager.NewManager(nc, c, ruleSvcForManager, triggerSvcForManager, triggerEval, executorSvc, alertingSvc, execQueue)
+	mgr := manager.NewManager(nc, c, ruleSvc, triggerSvc, triggerEval, executorSvc, alertingSvc, execQueue)
 
 	// Initialize HTTP server
 	serverConfig := &api.ServerConfig{Port: config.Port}
-	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc, analyticsSvc, executorSvc)
+	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc, analyticsSvc, executorSvc, true)
 
 	return &App{
 		config:      config,
@@ -282,7 +183,7 @@ func (a *App) Run() error {
 
 	// Start server in a goroutine
 	go func() {
-		if err := a.server.Start(); err != nil && err != http.ErrServerClosed {
+		if err := a.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("Server failed to start", "error", err)
 			os.Exit(1)
 		}
