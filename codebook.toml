@@ -5,5 +5,7 @@ words = [
     "healthcheck",
     "hoverfly",
     "milli",
+    "sandboxed",
+    "sandboxing",
     "testcontainers",
 ]

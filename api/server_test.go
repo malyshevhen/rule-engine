@@ -750,11 +750,7 @@ func TestServer_HealthCheck(t *testing.T) {
 	server.HealthCheck(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response map[string]string
-	err := json.Unmarshal(w.Body.Bytes(), &response)
-	assert.NoError(t, err)
-	assert.Equal(t, "healthy", response["status"])
+	assert.Equal(t, "healthy", w.Body.String())
 }
 
 func TestServer_CreateAction(t *testing.T) {

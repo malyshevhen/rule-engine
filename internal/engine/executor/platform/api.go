@@ -62,7 +62,7 @@ func (s *Service) GetCurrentTime() time.Time {
 }
 
 // RegisterAPIFunctions registers platform API functions in the Lua state
-func (s *Service) RegisterAPIFunctions(L *lua.LState, ruleID, triggerID string) {
+func (s *Service) RegisterAPIFunctions(L *lua.LState) {
 	// Register modules
 	for _, module := range s.ms {
 		L.PreloadModule(module.Name(), module.Loader)

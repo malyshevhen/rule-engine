@@ -1,12 +1,17 @@
 package api
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/malyshevhen/rule-engine/internal/storage/redis"
 	"github.com/stretchr/testify/assert"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func TestLoggingMiddleware(t *testing.T) {
@@ -30,6 +35,46 @@ func TestLoggingMiddleware(t *testing.T) {
 }
 
 func TestRateLimitMiddleware(t *testing.T) {
+	ctx := context.Background()
+
+	// Start a Redis container
+	req := testcontainers.ContainerRequest{
+		Image:        "redis:7-alpine",
+		ExposedPorts: []string{"6379/tcp"},
+		WaitingFor:   wait.ForLog("Ready to accept connections").WithStartupTimeout(30 * time.Second),
+	}
+	redisContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer redisContainer.Terminate(ctx)
+
+	// Get the Redis address
+	host, err := redisContainer.Host(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port, err := redisContainer.MappedPort(ctx, "6379")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := host + ":" + port.Port()
+
+	// Create the internal Redis client
+	config := &redis.Config{
+		Addr: addr,
+	}
+	rdb := redis.NewClient(config)
+
+	// Initialize the rate limiter
+	InitRedisRateLimiter(rdb)
+
+	// Reset for testing
+	ResetMiddlewareForTesting()
+
 	// Create a test handler
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

@@ -54,7 +54,7 @@ func TestRegisterAPIFunctions_LogMessage(t *testing.T) {
 	L := lua.NewState()
 	defer L.Close()
 
-	service.RegisterAPIFunctions(L, "rule-123", "trigger-456")
+	service.RegisterAPIFunctions(L)
 
 	// Test log_message function
 	err := L.DoString(`
@@ -72,7 +72,7 @@ func TestRegisterAPIFunctions_GetCurrentTime(t *testing.T) {
 	L := lua.NewState()
 	defer L.Close()
 
-	service.RegisterAPIFunctions(L, "rule-123", "trigger-456")
+	service.RegisterAPIFunctions(L)
 
 	// Test get_current_time function
 	err := L.DoString(`
@@ -91,7 +91,7 @@ func TestRegisterAPIFunctions_ErrorHandling(t *testing.T) {
 	L := lua.NewState()
 	defer L.Close()
 
-	service.RegisterAPIFunctions(L, "rule-123", "trigger-456")
+	service.RegisterAPIFunctions(L)
 
 	// Test error handling for empty device ID
 	err := L.DoString(`
@@ -135,7 +135,7 @@ func TestPlatformAPI_Integration(t *testing.T) {
 	L := lua.NewState()
 	defer L.Close()
 
-	service.RegisterAPIFunctions(L, "rule-123", "trigger-456")
+	service.RegisterAPIFunctions(L)
 
 	// Test a complete Lua script that validates that all API functions are available
 	script := `

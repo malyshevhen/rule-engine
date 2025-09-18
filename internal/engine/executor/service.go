@@ -50,17 +50,17 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 	defer L.Close()
 
 	// Open only essential safe libraries
-	lua.OpenBase(L)   // _G, basic functions
-	lua.OpenTable(L)  // table library
-	lua.OpenString(L) // string library
-	lua.OpenMath(L)   // math library
-	// Explicitly do NOT open: io, os, debug, package, coroutine (if not needed)
+	lua.OpenBase(L)    // _G, basic functions
+	lua.OpenTable(L)   // table library
+	lua.OpenString(L)  // string library
+	lua.OpenMath(L)    // math library
+	lua.OpenPackage(L) // package library for require
+	// Explicitly do NOT open: io, os, debug, coroutine (if not needed)
 
 	// Remove any potentially unsafe globals that might be set
 	L.SetGlobal("io", lua.LNil)
 	L.SetGlobal("os", lua.LNil)
 	L.SetGlobal("debug", lua.LNil)
-	L.SetGlobal("package", lua.LNil)
 	L.SetGlobal("coroutine", lua.LNil)
 
 	// Set execution context in Lua
@@ -73,7 +73,7 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 	}
 
 	// Register platform API functions
-	s.platformAPI.RegisterAPIFunctions(L, execCtx.RuleID, execCtx.TriggerID)
+	s.platformAPI.RegisterAPIFunctions(L)
 
 	// Execute the script
 	err := L.DoString(script)
