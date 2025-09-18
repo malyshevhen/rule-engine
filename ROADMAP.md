@@ -181,20 +181,6 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 ### 8.3 Monitoring and Alerting
 
 - [x] Add alerting for failed executions
-- [x] Implement execution analytics dashboard
-  - **Tools & Frameworks**:
-    - **Backend**: Go (existing) + Gin HTTP framework (existing)
-    - **Frontend**: Vanilla HTML/CSS/JavaScript + Chart.js for visualizations
-    - **Data Processing**: Prometheus client library (existing) + custom aggregation logic
-    - **Styling**: Tailwind CSS or Bootstrap for responsive design
-  - **Implementation Plan**:
-    - Add new API endpoints under `/api/v1/analytics/` for aggregated metrics
-    - Create analytics service to aggregate rule execution data from Prometheus metrics
-    - Return time-series data for rule executions, success rates, latency percentiles
-    - Support date range filtering and rule-specific analytics
-    - Add caching layer for expensive aggregations
-    - Build responsive HTML dashboard served by Go application at `/dashboard`
-    - Include real-time metrics, historical trends, and rule performance charts
 
 ### 8.4 SDKs and Integration
 
@@ -204,17 +190,17 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 ### 9.1 Integration Testing
 
-- [ ] Set up test infrastructure with Testcontainers
+- [x] Set up test infrastructure with Testcontainers
 - [x] Implement simple device simulator for testing
 - [x] Set up Hoverfly for external API mocking (like endpoint data service)
 - [ ] Add end-to-end tests for all features
-- [ ] Test Lua script execution with mocked platform API
-- [ ] Test rule chaining and dependencies
-- [ ] Test rule execution queuing
-- [ ] Test rule execution with multiple triggers
-- [ ] Test rule execution with complex conditions
-- [ ] Test rule execution with scheduled triggers
-- [ ] Test rule execution with rule dependencies
+  - [ ] Test Lua script execution
+  - [ ] Test rule chaining and dependencies
+  - [ ] Test rule execution queuing
+  - [ ] Test rule execution with multiple triggers
+  - [ ] Test rule execution with complex conditions
+  - [ ] Test rule execution with scheduled triggers
+  - [ ] Test rule execution with rule dependencies
 
 ## Success Criteria
 
