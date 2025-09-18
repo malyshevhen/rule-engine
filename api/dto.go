@@ -22,6 +22,7 @@ type RuleDTO struct {
 // TriggerDTO represents a trigger for API responses
 type TriggerDTO struct {
 	ID              uuid.UUID `json:"id"`
+	RuleID          uuid.UUID `json:"rule_id"`
 	Type            string    `json:"type"`
 	ConditionScript string    `json:"condition_script"`
 	Enabled         bool      `json:"enabled"`
@@ -70,12 +71,14 @@ type CreateActionRequest struct {
 
 // EvaluateScriptRequest represents a request to evaluate a Lua script
 type EvaluateScriptRequest struct {
-	Script string `json:"script" validate:"required" example:"return 2 + 2"`
+	Script  string                 `json:"script" validate:"required" example:"return 2 + 2"`
+	Context map[string]interface{} `json:"context,omitempty"`
 }
 
 // EvaluateScriptResponse represents the result of script evaluation
 type EvaluateScriptResponse struct {
 	Success  bool   `json:"success" example:"true"`
+	Result   string `json:"result,omitempty" example:"4"`
 	Output   []any  `json:"output,omitempty"`
 	Error    string `json:"error,omitempty" example:"syntax error"`
 	Duration string `json:"duration" example:"1.5ms"`

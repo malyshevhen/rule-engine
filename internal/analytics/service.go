@@ -18,6 +18,7 @@ func NewService() *Service {
 
 // ExecutionStats represents execution statistics for a time period
 type ExecutionStats struct {
+	TotalRules           int64   `json:"total_rules"`
 	TotalExecutions      int64   `json:"total_executions"`
 	SuccessfulExecutions int64   `json:"successful_executions"`
 	FailedExecutions     int64   `json:"failed_executions"`

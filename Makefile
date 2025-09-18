@@ -13,7 +13,7 @@ help: ## Show this help message
 	@echo "  make dashboard       Open analytics dashboard"
 	@echo ""
 	@echo "🔧 Development Commands:"
-	@grep -E '^(run|run-local|migrate|dev-|test|lint|format|vet|tidy|quality|clients):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@grep -E '^(run|run-local|migrate|dev-|test|lint|format|vet|tidy|quality|clients|docs|prepare-e2e):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🐳 Docker Commands:"
 	@grep -E '^(docker-|dev-):.*?## .*$$' $(MAKEFILE_LIST) | grep -v "dev-up\|dev-down\|dev-logs\|dev-restart" | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
@@ -22,7 +22,7 @@ help: ## Show this help message
 	@grep -E '^(db-):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 	@echo ""
 	@echo "🔍 Utility Commands:"
-	@grep -E '^(logs|health|metrics|dashboard|setup|clean|build):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
+	@grep -E '^(logs|health|metrics|dashboard|setup|clean|build|docs-clean):.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-20s %s\n", $$1, $$2}'
 
 # Build commands
 build: ## Build the application binary
@@ -79,6 +79,14 @@ test-specific: ## Run specific test (usage: make test-specific TEST=TestName)
 	fi
 	go test -run $(TEST) ./...
 
+test-e2e: ## Run e2e tests (rebuilds Docker image first)
+	@echo "Preparing for e2e tests..."
+	make prepare-e2e
+	go test -v ./tests/e2e/ -timeout=10m
+
+test-e2e-only: ## Run e2e tests without rebuilding (assumes image is up to date)
+	go test -v ./tests/e2e/ -timeout=10m
+
 # Code quality commands
 lint: ## Run linter (golangci-lint)
 	golangci-lint run --exclude-files ".*_test.go$$"
@@ -95,23 +103,33 @@ tidy: ## Clean and update Go module dependencies
 sql-lint: ## Lint SQL migration files
 	sqruff lint internal/storage/db/migrations/
 
-docs: ## Generate OpenAPI/Swagger documentation
-	swag init -g cmd/main.go -o docs/
+docs: ## Generate OpenAPI/Swagger documentation and serve at /swagger/index.html
+	swag init -g cmd/main.go -d ./ -o docs/ --parseDependency --parseInternal
 
-clients: ## Generate API clients for Go and Python
+docs-clean: ## Clean generated documentation files
+	rm -f docs/docs.go docs/swagger.json docs/swagger.yaml
+
+clients: ## Generate API clients for Go and Python (rebuilds Docker image for e2e tests)
+	make docs
 	./scripts/generate-clients.sh all
+	make docker-build
 
-clients-go: ## Generate Go API client only
+clients-go: ## Generate Go API client only (rebuilds Docker image for e2e tests)
+	make docs
 	./scripts/generate-clients.sh go
+	make docker-build
 
 clients-python: ## Generate Python API client only
+	make docs
 	./scripts/generate-clients.sh python
 
 quality: format vet tidy sql-lint ## Run all code quality checks
 
 # Container commands
-docker-build: ## Build container
+docker-build: ## Build container (includes latest code changes)
+	@echo "Building Docker image with latest changes..."
 	docker build -f containers/Containerfile -t rule-engine:local .
+	@echo "Docker image built successfully!"
 
 docker-run: ## Run container
 	docker run -d --name rule-engine -p 8080:8080 \
@@ -163,8 +181,17 @@ db-down: ## Stop local PostgreSQL database (legacy)
 # Development workflow (legacy - use dev-up instead)
 dev: db-up db-wait migrate run-local ## Start development environment (legacy - use dev-up instead)
 
+# E2E test preparation
+prepare-e2e: ## Prepare for e2e tests (rebuild everything)
+	@echo "Preparing for e2e tests..."
+	make docs
+	make clients-go
+	@echo "E2E test preparation complete!"
+
 # CI/CD simulation
-ci: quality test test-integration lint ## Run CI pipeline locally
+ci: quality test test-integration test-e2e lint ## Run CI pipeline locally (includes e2e tests)
+
+ci-fast: quality test test-integration lint ## Run CI pipeline locally (skip e2e tests)
 
 # All-in-one setup for new developers
 setup: ## Initial project setup
@@ -184,6 +211,10 @@ metrics: ## Show application metrics
 dashboard: ## Open analytics dashboard in browser (requires app to be running)
 	@echo "Analytics dashboard available at: http://localhost:8080/dashboard"
 	@echo "API documentation available at: http://localhost:8080/swagger/index.html"
+	@echo ""
+	@echo "Opening dashboard..."
 	@which xdg-open >/dev/null 2>&1 && xdg-open http://localhost:8080/dashboard || \
 	which open >/dev/null 2>&1 && open http://localhost:8080/dashboard || \
 	echo "Please open http://localhost:8080/dashboard in your browser"
+	@echo ""
+	@echo "To view API docs: http://localhost:8080/swagger/index.html"

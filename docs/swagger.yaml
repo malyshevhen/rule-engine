@@ -29,6 +29,8 @@ definitions:
         type: integer
       total_executions:
         type: integer
+      total_rules:
+        type: integer
     type: object
   analytics.RuleStats:
     properties:
@@ -137,6 +139,9 @@ definitions:
     type: object
   api.EvaluateScriptRequest:
     properties:
+      context:
+        additionalProperties: true
+        type: object
       script:
         example: return 2 + 2
         type: string
@@ -154,6 +159,9 @@ definitions:
       output:
         items: {}
         type: array
+      result:
+        example: "4"
+        type: string
       success:
         example: true
         type: boolean
@@ -192,6 +200,8 @@ definitions:
       enabled:
         type: boolean
       id:
+        type: string
+      rule_id:
         type: string
       type:
         type: string
@@ -234,6 +244,7 @@ paths:
       consumes:
       - application/json
       description: Get a list of all actions
+      operationId: listActions
       produces:
       - application/json
       responses:
@@ -253,7 +264,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new action for rule execution
+      description: Create an action for a rule
+      operationId: createAction
       parameters:
       - description: Action data
         in: body
@@ -264,8 +276,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             $ref: '#/definitions/api.ActionDTO'
         "400":
@@ -284,6 +296,7 @@ paths:
       consumes:
       - application/json
       description: Get a specific action by its ID
+      operationId: getAction
       parameters:
       - description: Action ID
         in: path
@@ -313,6 +326,7 @@ paths:
       consumes:
       - application/json
       description: Get aggregated analytics data for the dashboard
+      operationId: getDashboardData
       parameters:
       - description: Time range (1h, 24h, 7d, 30d)
         enum:
@@ -341,12 +355,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Execute a Lua script in a sandboxed environment and return the
-        result
+      description: Evaluate a Lua script in a sandboxed environment for testing
+      operationId: evaluateScript
       parameters:
-      - description: Script evaluation request
+      - description: Script data
         in: body
-        name: request
+        name: script
         required: true
         schema:
           $ref: '#/definitions/api.EvaluateScriptRequest'
@@ -365,7 +379,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/api.APIErrorResponse'
-      summary: Evaluate a Lua script
+      summary: Evaluate Lua script
       tags:
       - scripts
   /health:
@@ -373,6 +387,7 @@ paths:
       consumes:
       - application/json
       description: Get the health status of the service
+      operationId: healthCheck
       produces:
       - text/plain
       responses:
@@ -380,7 +395,7 @@ paths:
           description: healthy
           schema:
             type: string
-      summary: Health check
+      summary: Health check endpoint
       tags:
       - system
   /rules:
@@ -388,6 +403,7 @@ paths:
       consumes:
       - application/json
       description: Get a list of all automation rules
+      operationId: listRules
       produces:
       - application/json
       responses:
@@ -408,6 +424,7 @@ paths:
       consumes:
       - application/json
       description: Create a new automation rule with Lua script
+      operationId: createRule
       parameters:
       - description: Rule data
         in: body
@@ -437,7 +454,8 @@ paths:
     delete:
       consumes:
       - application/json
-      description: Delete an automation rule by its ID
+      description: Delete a rule and its associated triggers and actions
+      operationId: deleteRule
       parameters:
       - description: Rule ID
         in: path
@@ -447,8 +465,12 @@ paths:
       produces:
       - application/json
       responses:
-        "204":
-          description: No Content
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "400":
           description: Bad Request
           schema:
@@ -467,7 +489,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a specific automation rule by its ID
+      description: Get a specific rule by its ID
+      operationId: getRule
       parameters:
       - description: Rule ID
         in: path
@@ -495,7 +518,8 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update an existing automation rule
+      description: Update an existing rule
+      operationId: updateRule
       parameters:
       - description: Rule ID
         in: path
@@ -535,6 +559,7 @@ paths:
       consumes:
       - application/json
       description: Get a list of all triggers
+      operationId: listTriggers
       produces:
       - application/json
       responses:
@@ -554,7 +579,8 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new trigger for rule execution
+      description: Create a trigger for a rule
+      operationId: createTrigger
       parameters:
       - description: Trigger data
         in: body
@@ -565,8 +591,8 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
             $ref: '#/definitions/api.TriggerDTO'
         "400":
@@ -585,6 +611,7 @@ paths:
       consumes:
       - application/json
       description: Get a specific trigger by its ID
+      operationId: getTrigger
       parameters:
       - description: Trigger ID
         in: path

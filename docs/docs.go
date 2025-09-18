@@ -37,6 +37,7 @@ const docTemplate = `{
                     "actions"
                 ],
                 "summary": "List all actions",
+                "operationId": "listActions",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -56,7 +57,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a new action for rule execution",
+                "description": "Create an action for a rule",
                 "consumes": [
                     "application/json"
                 ],
@@ -67,6 +68,7 @@ const docTemplate = `{
                     "actions"
                 ],
                 "summary": "Create a new action",
+                "operationId": "createAction",
                 "parameters": [
                     {
                         "description": "Action data",
@@ -79,8 +81,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/api.ActionDTO"
                         }
@@ -113,6 +115,7 @@ const docTemplate = `{
                     "actions"
                 ],
                 "summary": "Get action by ID",
+                "operationId": "getAction",
                 "parameters": [
                     {
                         "type": "string",
@@ -157,6 +160,7 @@ const docTemplate = `{
                     "analytics"
                 ],
                 "summary": "Get analytics dashboard data",
+                "operationId": "getDashboardData",
                 "parameters": [
                     {
                         "enum": [
@@ -189,7 +193,7 @@ const docTemplate = `{
         },
         "/evaluate": {
             "post": {
-                "description": "Execute a Lua script in a sandboxed environment and return the result",
+                "description": "Evaluate a Lua script in a sandboxed environment for testing",
                 "consumes": [
                     "application/json"
                 ],
@@ -199,11 +203,12 @@ const docTemplate = `{
                 "tags": [
                     "scripts"
                 ],
-                "summary": "Evaluate a Lua script",
+                "summary": "Evaluate Lua script",
+                "operationId": "evaluateScript",
                 "parameters": [
                     {
-                        "description": "Script evaluation request",
-                        "name": "request",
+                        "description": "Script data",
+                        "name": "script",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -245,7 +250,8 @@ const docTemplate = `{
                 "tags": [
                     "system"
                 ],
-                "summary": "Health check",
+                "summary": "Health check endpoint",
+                "operationId": "healthCheck",
                 "responses": {
                     "200": {
                         "description": "healthy",
@@ -269,6 +275,7 @@ const docTemplate = `{
                     "rules"
                 ],
                 "summary": "List all rules",
+                "operationId": "listRules",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -299,6 +306,7 @@ const docTemplate = `{
                     "rules"
                 ],
                 "summary": "Create a new rule",
+                "operationId": "createRule",
                 "parameters": [
                     {
                         "description": "Rule data",
@@ -334,7 +342,7 @@ const docTemplate = `{
         },
         "/rules/{id}": {
             "get": {
-                "description": "Get a specific automation rule by its ID",
+                "description": "Get a specific rule by its ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -345,6 +353,7 @@ const docTemplate = `{
                     "rules"
                 ],
                 "summary": "Get rule by ID",
+                "operationId": "getRule",
                 "parameters": [
                     {
                         "type": "string",
@@ -376,7 +385,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "Update an existing automation rule",
+                "description": "Update an existing rule",
                 "consumes": [
                     "application/json"
                 ],
@@ -387,6 +396,7 @@ const docTemplate = `{
                     "rules"
                 ],
                 "summary": "Update rule",
+                "operationId": "updateRule",
                 "parameters": [
                     {
                         "type": "string",
@@ -433,7 +443,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Delete an automation rule by its ID",
+                "description": "Delete a rule and its associated triggers and actions",
                 "consumes": [
                     "application/json"
                 ],
@@ -444,6 +454,7 @@ const docTemplate = `{
                     "rules"
                 ],
                 "summary": "Delete rule",
+                "operationId": "deleteRule",
                 "parameters": [
                     {
                         "type": "string",
@@ -454,8 +465,14 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -491,6 +508,7 @@ const docTemplate = `{
                     "triggers"
                 ],
                 "summary": "List all triggers",
+                "operationId": "listTriggers",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -510,7 +528,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Create a new trigger for rule execution",
+                "description": "Create a trigger for a rule",
                 "consumes": [
                     "application/json"
                 ],
@@ -521,6 +539,7 @@ const docTemplate = `{
                     "triggers"
                 ],
                 "summary": "Create a new trigger",
+                "operationId": "createTrigger",
                 "parameters": [
                     {
                         "description": "Trigger data",
@@ -533,8 +552,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/api.TriggerDTO"
                         }
@@ -567,6 +586,7 @@ const docTemplate = `{
                     "triggers"
                 ],
                 "summary": "Get trigger by ID",
+                "operationId": "getTrigger",
                 "parameters": [
                     {
                         "type": "string",
@@ -642,6 +662,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "total_executions": {
+                    "type": "integer"
+                },
+                "total_rules": {
                     "type": "integer"
                 }
             }
@@ -806,6 +829,10 @@ const docTemplate = `{
                 "script"
             ],
             "properties": {
+                "context": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
                 "script": {
                     "type": "string",
                     "example": "return 2 + 2"
@@ -826,6 +853,10 @@ const docTemplate = `{
                 "output": {
                     "type": "array",
                     "items": {}
+                },
+                "result": {
+                    "type": "string",
+                    "example": "4"
                 },
                 "success": {
                     "type": "boolean",
@@ -884,6 +915,9 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "rule_id": {
                     "type": "string"
                 },
                 "type": {

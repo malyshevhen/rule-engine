@@ -31,6 +31,7 @@
                     "actions"
                 ],
                 "summary": "List all actions",
+                "operationId": "listActions",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -50,7 +51,7 @@
                 }
             },
             "post": {
-                "description": "Create a new action for rule execution",
+                "description": "Create an action for a rule",
                 "consumes": [
                     "application/json"
                 ],
@@ -61,6 +62,7 @@
                     "actions"
                 ],
                 "summary": "Create a new action",
+                "operationId": "createAction",
                 "parameters": [
                     {
                         "description": "Action data",
@@ -73,8 +75,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/api.ActionDTO"
                         }
@@ -107,6 +109,7 @@
                     "actions"
                 ],
                 "summary": "Get action by ID",
+                "operationId": "getAction",
                 "parameters": [
                     {
                         "type": "string",
@@ -151,6 +154,7 @@
                     "analytics"
                 ],
                 "summary": "Get analytics dashboard data",
+                "operationId": "getDashboardData",
                 "parameters": [
                     {
                         "enum": [
@@ -183,7 +187,7 @@
         },
         "/evaluate": {
             "post": {
-                "description": "Execute a Lua script in a sandboxed environment and return the result",
+                "description": "Evaluate a Lua script in a sandboxed environment for testing",
                 "consumes": [
                     "application/json"
                 ],
@@ -193,11 +197,12 @@
                 "tags": [
                     "scripts"
                 ],
-                "summary": "Evaluate a Lua script",
+                "summary": "Evaluate Lua script",
+                "operationId": "evaluateScript",
                 "parameters": [
                     {
-                        "description": "Script evaluation request",
-                        "name": "request",
+                        "description": "Script data",
+                        "name": "script",
                         "in": "body",
                         "required": true,
                         "schema": {
@@ -239,7 +244,8 @@
                 "tags": [
                     "system"
                 ],
-                "summary": "Health check",
+                "summary": "Health check endpoint",
+                "operationId": "healthCheck",
                 "responses": {
                     "200": {
                         "description": "healthy",
@@ -263,6 +269,7 @@
                     "rules"
                 ],
                 "summary": "List all rules",
+                "operationId": "listRules",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -293,6 +300,7 @@
                     "rules"
                 ],
                 "summary": "Create a new rule",
+                "operationId": "createRule",
                 "parameters": [
                     {
                         "description": "Rule data",
@@ -328,7 +336,7 @@
         },
         "/rules/{id}": {
             "get": {
-                "description": "Get a specific automation rule by its ID",
+                "description": "Get a specific rule by its ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -339,6 +347,7 @@
                     "rules"
                 ],
                 "summary": "Get rule by ID",
+                "operationId": "getRule",
                 "parameters": [
                     {
                         "type": "string",
@@ -370,7 +379,7 @@
                 }
             },
             "put": {
-                "description": "Update an existing automation rule",
+                "description": "Update an existing rule",
                 "consumes": [
                     "application/json"
                 ],
@@ -381,6 +390,7 @@
                     "rules"
                 ],
                 "summary": "Update rule",
+                "operationId": "updateRule",
                 "parameters": [
                     {
                         "type": "string",
@@ -427,7 +437,7 @@
                 }
             },
             "delete": {
-                "description": "Delete an automation rule by its ID",
+                "description": "Delete a rule and its associated triggers and actions",
                 "consumes": [
                     "application/json"
                 ],
@@ -438,6 +448,7 @@
                     "rules"
                 ],
                 "summary": "Delete rule",
+                "operationId": "deleteRule",
                 "parameters": [
                     {
                         "type": "string",
@@ -448,8 +459,14 @@
                     }
                 ],
                 "responses": {
-                    "204": {
-                        "description": "No Content"
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     },
                     "400": {
                         "description": "Bad Request",
@@ -485,6 +502,7 @@
                     "triggers"
                 ],
                 "summary": "List all triggers",
+                "operationId": "listTriggers",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -504,7 +522,7 @@
                 }
             },
             "post": {
-                "description": "Create a new trigger for rule execution",
+                "description": "Create a trigger for a rule",
                 "consumes": [
                     "application/json"
                 ],
@@ -515,6 +533,7 @@
                     "triggers"
                 ],
                 "summary": "Create a new trigger",
+                "operationId": "createTrigger",
                 "parameters": [
                     {
                         "description": "Trigger data",
@@ -527,8 +546,8 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/api.TriggerDTO"
                         }
@@ -561,6 +580,7 @@
                     "triggers"
                 ],
                 "summary": "Get trigger by ID",
+                "operationId": "getTrigger",
                 "parameters": [
                     {
                         "type": "string",
@@ -636,6 +656,9 @@
                     "type": "integer"
                 },
                 "total_executions": {
+                    "type": "integer"
+                },
+                "total_rules": {
                     "type": "integer"
                 }
             }
@@ -800,6 +823,10 @@
                 "script"
             ],
             "properties": {
+                "context": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
                 "script": {
                     "type": "string",
                     "example": "return 2 + 2"
@@ -820,6 +847,10 @@
                 "output": {
                     "type": "array",
                     "items": {}
+                },
+                "result": {
+                    "type": "string",
+                    "example": "4"
                 },
                 "success": {
                     "type": "boolean",
@@ -878,6 +909,9 @@
                     "type": "boolean"
                 },
                 "id": {
+                    "type": "string"
+                },
+                "rule_id": {
                     "type": "string"
                 },
                 "type": {

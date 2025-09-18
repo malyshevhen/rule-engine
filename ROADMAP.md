@@ -198,7 +198,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 ### 8.4 SDKs and Integration
 
-- [x] Add automated RESTful client generation for Go, Pythona(optional), based on OpenAPI spec
+- [ ] Add automated RESTful client generation for Go based on OpenAPI spec
 
 ## Phase 9: End-to-End Testing
 
@@ -207,7 +207,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - [ ] Set up test infrastructure with Testcontainers
 - [x] Implement simple device simulator for testing
 - [x] Set up Hoverfly for external API mocking (like endpoint data service)
-- [ ] Add end-to-end tests for rule execution, triggering, and data persistence
+- [ ] Add end-to-end tests for all features
 - [ ] Test Lua script execution with mocked platform API
 - [ ] Test rule chaining and dependencies
 - [ ] Test rule execution queuing
