@@ -1,23 +1,83 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  postgres-test:
+  postgres:
     image: postgres:15-alpine
-    container_name: rule-engine-postgres-test
+    container_name: rule-engine-postgres
     environment:
-      POSTGRES_DB: rule_engine_test
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5433:5432"  # Use different port to avoid conflicts with dev DB
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - postgres_test_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ../../internal/storage/db/migrations:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d rule_engine_test"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  nats:
+    image: nats:2.10-alpine
+    ports:
+      - "${NATS_PORT}:4222"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 4222"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: rule-engine-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rule-engine-prometheus
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ${PROMETHEUS_CONFIG}:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=200h"
+      - "--web.enable-lifecycle"
+
+  rule-engine:
+    image: ${RULE_ENGINE_IMAGE}
+    container_name: rule-engine-app
+    ports:
+      - "${RULE_ENGINE_PORT}:3000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SSL_MODE: ${DB_SSL_MODE}
+      REDIS_ADDR: redis:6379
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET}
+      API_KEY: ${API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL}
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
 volumes:
-  postgres_test_data:
+  postgres_data:
+  prometheus_data:
