@@ -1,5 +1,6 @@
 words = [
     "cron",
+    "funcs",
     "healthcheck",
     "hoverfly",
     "testcontainers",

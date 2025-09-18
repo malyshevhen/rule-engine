@@ -12,7 +12,6 @@ import (
 
 // TestHealthCheck
 // - Verify the tests configured correctly
-// - Verify the healthcheck endpoint works
 func TestHealthCheck(t *testing.T) {
 	ctx := context.Background()
 

@@ -111,20 +111,20 @@ quality: format vet tidy sql-lint ## Run all code quality checks
 
 # Container commands
 docker-build: ## Build container
-	podman build -f containers/Containerfile -t rule-engine .
+	docker build -f containers/Containerfile -t rule-engine:local .
 
 docker-run: ## Run container
-	podman run -d --name rule-engine -p 8080:8080 \
+	docker run -d --name rule-engine -p 8080:8080 \
 		-e DATABASE_URL="postgres://postgres:password@localhost:5433/rule_engine?sslmode=disable" \
 		-e API_KEY="your-api-key-here" \
 		-e JWT_SECRET="your-jwt-secret-here" \
-		rule-engine
+		rule-engine:local
 
-docker-compose-up: ## Start services with Podman Compose
-	podman-compose -f containers/compose.yaml up
+docker-compose-up: ## Start services with Docker Compose
+	docker-compose -f containers/compose.yaml up
 
-docker-compose-down: ## Stop services with Podman Compose
-	podman-compose -f containers/compose.yaml down
+docker-compose-down: ## Stop services with Docker Compose
+	docker-compose -f containers/compose.yaml down
 
 # Local development stack
 dev-up: ## Start local development stack with podman-compose
@@ -173,7 +173,7 @@ setup: ## Initial project setup
 
 # Utility commands
 logs: ## Show application logs (if running in container)
-	podman logs -f rule-engine
+	docker logs -f rule-engine
 
 health: ## Check application health
 	curl -f http://localhost:8080/health || echo "Health check failed"

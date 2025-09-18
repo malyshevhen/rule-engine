@@ -41,9 +41,7 @@ func SetupTestEnvironment(ctx context.Context, t *testing.T) (*TestEnvironment, 
 		}
 	}
 
-	err = stack.
-		WaitForService("rule-engine", wait.ForHealthCheck()).
-		Up(ctx)
+	err = stack.WaitForService("rule-engine", wait.ForHealthCheck()).Up(ctx)
 	require.NoError(t, err)
 
 	pgContainer, err := stack.ServiceContainer(ctx, "postgres")

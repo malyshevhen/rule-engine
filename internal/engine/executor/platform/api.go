@@ -4,46 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
-	"strings"
 	"time"
 
+	"github.com/malyshevhen/rule-engine/internal/engine/executor/platform/modules"
 	lua "github.com/yuin/gopher-lua"
 )
-
-// PlatformAPI provides functions that Lua scripts can call to interact with the IoT platform
-type PlatformAPI interface {
-	// GetDeviceState retrieves the current state of a device
-	GetDeviceState(ctx context.Context, deviceID string) (map[string]any, error)
-
-	// SendCommand sends a command to a device
-	SendCommand(ctx context.Context, deviceID string, command string, params map[string]any) error
-
-	// LogMessage logs a message from a Lua script
-	LogMessage(ctx context.Context, level, message string)
-
-	// GetCurrentTime returns the current timestamp
-	GetCurrentTime() time.Time
-
-	// StoreData stores temporary data during rule execution
-	StoreData(ctx context.Context, key string, value any)
-
-	// GetStoredData retrieves stored data
-	GetStoredData(ctx context.Context, key string) any
-}
 
 // Service implements the PlatformAPI interface
 type Service struct {
 	// TODO: Add dependencies like device service, message bus, cache, etc.
-	dataStores map[string]map[string]any // Per-rule execution storage
+	dataStores   map[string]map[string]any // Per-rule execution storage
+	httpModule   *modules.HTTPModule
+	loggerModule *modules.LoggerModule
 }
 
 // NewService creates a new platform API service
 func NewService() *Service {
 	return &Service{
-		dataStores: make(map[string]map[string]any),
+		dataStores:   make(map[string]map[string]any),
+		httpModule:   modules.NewHTTPModule(),
+		loggerModule: modules.NewLoggerModule(),
 	}
 }
 
@@ -72,54 +53,9 @@ func (s *Service) SendCommand(ctx context.Context, deviceID string, command stri
 	return nil
 }
 
-// LogMessage logs a message from a Lua script
-func (s *Service) LogMessage(ctx context.Context, level, message string) {
-	switch level {
-	case "debug":
-		slog.Debug("Lua script message", "message", message)
-	case "info":
-		slog.Info("Lua script message", "message", message)
-	case "warn", "warning":
-		slog.Warn("Lua script message", "message", message)
-	case "error":
-		slog.Error("Lua script message", "message", message)
-	default:
-		slog.Info("Lua script message", "level", level, "message", message)
-	}
-}
-
 // GetCurrentTime returns the current timestamp
 func (s *Service) GetCurrentTime() time.Time {
 	return time.Now()
-}
-
-// MakeHTTPRequest makes an HTTP request
-func (s *Service) MakeHTTPRequest(ctx context.Context, method, url string, headers map[string]string, body string) (map[string]any, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
-	var bodyReader io.Reader
-	if body != "" {
-		bodyReader = strings.NewReader(body)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
-	if err != nil {
-		return nil, err
-	}
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{
-		"status": resp.StatusCode,
-		"body":   string(respBody),
-	}, nil
 }
 
 // RegisterAPIFunctions registers platform API functions in the Lua state
@@ -182,17 +118,6 @@ func (s *Service) RegisterAPIFunctions(L *lua.LState, ruleID, triggerID string) 
 		return 1
 	}))
 
-	// log_message(level, message)
-	L.SetGlobal("log_message", L.NewFunction(func(L *lua.LState) int {
-		level := L.ToString(1)
-		message := L.ToString(2)
-
-		ctx := context.Background()
-		s.LogMessage(ctx, level, message)
-
-		return 0
-	}))
-
 	// get_current_time()
 	L.SetGlobal("get_current_time", L.NewFunction(func(L *lua.LState) int {
 		currentTime := s.GetCurrentTime()
@@ -237,66 +162,11 @@ func (s *Service) RegisterAPIFunctions(L *lua.LState, ruleID, triggerID string) 
 		return 1
 	}))
 
-	// http_get(url, headers_table)
-	L.SetGlobal("http_get", L.NewFunction(func(L *lua.LState) int {
-		url := L.ToString(1)
-		headersTable := L.ToTable(2)
+	// Load logger module
+	L.PreloadModule("logger", s.loggerModule.Loader)
 
-		headers := make(map[string]string)
-		if headersTable != nil {
-			headersTable.ForEach(func(k, v lua.LValue) {
-				headers[k.String()] = v.String()
-			})
-		}
-
-		ctx := context.Background()
-		result, err := s.MakeHTTPRequest(ctx, "GET", url, headers, "")
-		if err != nil {
-			L.Push(lua.LNil)
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-
-		table := L.NewTable()
-		for k, v := range result {
-			L.SetField(table, k, luaValueFromGo(L, v))
-		}
-
-		L.Push(table)
-		L.Push(lua.LNil)
-		return 2
-	}))
-
-	// http_post(url, headers_table, body)
-	L.SetGlobal("http_post", L.NewFunction(func(L *lua.LState) int {
-		url := L.ToString(1)
-		headersTable := L.ToTable(2)
-		body := L.ToString(3)
-
-		headers := make(map[string]string)
-		if headersTable != nil {
-			headersTable.ForEach(func(k, v lua.LValue) {
-				headers[k.String()] = v.String()
-			})
-		}
-
-		ctx := context.Background()
-		result, err := s.MakeHTTPRequest(ctx, "POST", url, headers, body)
-		if err != nil {
-			L.Push(lua.LNil)
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-
-		table := L.NewTable()
-		for k, v := range result {
-			L.SetField(table, k, luaValueFromGo(L, v))
-		}
-
-		L.Push(table)
-		L.Push(lua.LNil)
-		return 2
-	}))
+	// Load HTTP module
+	L.PreloadModule("http", s.httpModule.Loader)
 }
 
 // luaValueFromGo converts a Go value to a Lua value

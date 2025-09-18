@@ -62,7 +62,6 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 	L.SetGlobal("debug", lua.LNil)
 	L.SetGlobal("package", lua.LNil)
 	L.SetGlobal("coroutine", lua.LNil)
-	// TODO: Remove networking libraries if any
 
 	// Set execution context in Lua
 	L.SetGlobal("rule_id", lua.LString(execCtx.RuleID))
