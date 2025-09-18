@@ -75,10 +75,10 @@ type EvaluateScriptRequest struct {
 
 // EvaluateScriptResponse represents the result of script evaluation
 type EvaluateScriptResponse struct {
-	Success  bool          `json:"success" example:"true"`
-	Output   []interface{} `json:"output,omitempty"`
-	Error    string        `json:"error,omitempty" example:"syntax error"`
-	Duration string        `json:"duration" example:"1.5ms"`
+	Success  bool   `json:"success" example:"true"`
+	Output   []any  `json:"output,omitempty"`
+	Error    string `json:"error,omitempty" example:"syntax error"`
+	Duration string `json:"duration" example:"1.5ms"`
 }
 
 // APIErrorResponse represents an error response for API documentation
