@@ -109,20 +109,6 @@ docs: ## Generate OpenAPI/Swagger documentation and serve at /swagger/index.html
 docs-clean: ## Clean generated documentation files
 	rm -f docs/docs.go docs/swagger.json docs/swagger.yaml
 
-clients: ## Generate API clients for Go and Python (rebuilds Docker image for e2e tests)
-	make docs
-	./scripts/generate-clients.sh all
-	make docker-build
-
-clients-go: ## Generate Go API client only (rebuilds Docker image for e2e tests)
-	make docs
-	./scripts/generate-clients.sh go
-	make docker-build
-
-clients-python: ## Generate Python API client only
-	make docs
-	./scripts/generate-clients.sh python
-
 quality: format vet tidy sql-lint ## Run all code quality checks
 
 # Container commands
@@ -189,9 +175,8 @@ prepare-e2e: ## Prepare for e2e tests (rebuild everything)
 	@echo "E2E test preparation complete!"
 
 # CI/CD simulation
-ci: quality test test-integration test-e2e lint ## Run CI pipeline locally (includes e2e tests)
-
-ci-fast: quality test test-integration lint ## Run CI pipeline locally (skip e2e tests)
+ci:  ## Run CI pipeline locally
+	gh act push
 
 # All-in-one setup for new developers
 setup: ## Initial project setup
