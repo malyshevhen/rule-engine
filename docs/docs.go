@@ -187,9 +187,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/health": {
-            "get": {
-                "description": "Get the health status of the service",
+        "/evaluate": {
+            "post": {
+                "description": "Execute a Lua script in a sandboxed environment and return the result",
                 "consumes": [
                     "application/json"
                 ],
@@ -197,17 +197,60 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
+                    "scripts"
+                ],
+                "summary": "Evaluate a Lua script",
+                "parameters": [
+                    {
+                        "description": "Script evaluation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.EvaluateScriptRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/api.EvaluateScriptResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/api.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/api.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Get the health status of the service",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
                     "system"
                 ],
                 "summary": "Health check",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "healthy",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "type": "string"
                         }
                     }
                 }
@@ -754,6 +797,39 @@ const docTemplate = `{
                         "CRON"
                     ],
                     "example": "CONDITIONAL"
+                }
+            }
+        },
+        "api.EvaluateScriptRequest": {
+            "type": "object",
+            "required": [
+                "script"
+            ],
+            "properties": {
+                "script": {
+                    "type": "string",
+                    "example": "return 2 + 2"
+                }
+            }
+        },
+        "api.EvaluateScriptResponse": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "type": "string",
+                    "example": "1.5ms"
+                },
+                "error": {
+                    "type": "string",
+                    "example": "syntax error"
+                },
+                "output": {
+                    "type": "array",
+                    "items": {}
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },

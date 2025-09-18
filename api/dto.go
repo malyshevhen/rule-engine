@@ -68,6 +68,19 @@ type CreateActionRequest struct {
 	Enabled   *bool  `json:"enabled,omitempty" example:"true"`
 }
 
+// EvaluateScriptRequest represents a request to evaluate a Lua script
+type EvaluateScriptRequest struct {
+	Script string `json:"script" validate:"required" example:"return 2 + 2"`
+}
+
+// EvaluateScriptResponse represents the result of script evaluation
+type EvaluateScriptResponse struct {
+	Success  bool          `json:"success" example:"true"`
+	Output   []interface{} `json:"output,omitempty"`
+	Error    string        `json:"error,omitempty" example:"syntax error"`
+	Duration string        `json:"duration" example:"1.5ms"`
+}
+
 // APIErrorResponse represents an error response for API documentation
 type APIErrorResponse struct {
 	Error string `json:"error" example:"Error message"`

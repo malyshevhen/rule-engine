@@ -248,7 +248,7 @@ func New() *App {
 
 	// Initialize HTTP server
 	serverConfig := &api.ServerConfig{Port: config.Port}
-	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc, analyticsSvc)
+	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc, analyticsSvc, executorSvc)
 
 	return &App{
 		config:      config,

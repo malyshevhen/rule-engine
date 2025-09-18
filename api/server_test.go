@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	"github.com/malyshevhen/rule-engine/internal/engine/executor"
+	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -90,6 +93,16 @@ func (m *mockActionService) GetByID(ctx context.Context, id uuid.UUID) (*action.
 func (m *mockActionService) List(ctx context.Context) ([]*action.Action, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]*action.Action), args.Error(1)
+}
+
+// mockExecutorService is a mock implementation of ExecutorService
+type mockExecutorService struct {
+	mock.Mock
+}
+
+func (m *mockExecutorService) ExecuteScript(ctx context.Context, script string, execCtx *execCtx.ExecutionContext) *executor.ExecuteResult {
+	args := m.Called(ctx, script, execCtx)
+	return args.Get(0).(*executor.ExecuteResult)
 }
 
 func TestServer_CreateRule(t *testing.T) {
@@ -814,6 +827,108 @@ func TestServer_CreateAction(t *testing.T) {
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockActionSvc.AssertExpectations(t)
+		})
+	}
+}
+
+func TestServer_EvaluateScript(t *testing.T) {
+	mockExecutorSvc := &mockExecutorService{}
+
+	server := &Server{
+		executorSvc: mockExecutorSvc,
+	}
+
+	tests := []struct {
+		name             string
+		requestBody      EvaluateScriptRequest
+		expectedStatus   int
+		setupMocks       func()
+		expectedResponse EvaluateScriptResponse
+	}{
+		{
+			name: "successful evaluation",
+			requestBody: EvaluateScriptRequest{
+				Script: "return 2 + 2",
+			},
+			expectedStatus: http.StatusOK,
+			setupMocks: func() {
+				result := &executor.ExecuteResult{
+					Success:  true,
+					Output:   []any{4.0},
+					Duration: 100 * time.Millisecond,
+				}
+				mockExecutorSvc.On("ExecuteScript", mock.Anything, "return 2 + 2", mock.AnythingOfType("*context.ExecutionContext")).Return(result)
+			},
+			expectedResponse: EvaluateScriptResponse{
+				Success:  true,
+				Output:   []any{4.0},
+				Duration: "100ms",
+			},
+		},
+		{
+			name: "script execution error",
+			requestBody: EvaluateScriptRequest{
+				Script: "invalid lua",
+			},
+			expectedStatus: http.StatusOK,
+			setupMocks: func() {
+				result := &executor.ExecuteResult{
+					Success:  false,
+					Error:    "syntax error",
+					Duration: 50 * time.Millisecond,
+				}
+				mockExecutorSvc.On("ExecuteScript", mock.Anything, "invalid lua", mock.AnythingOfType("*context.ExecutionContext")).Return(result)
+			},
+			expectedResponse: EvaluateScriptResponse{
+				Success:  false,
+				Error:    "syntax error",
+				Duration: "50ms",
+			},
+		},
+		{
+			name: "empty script",
+			requestBody: EvaluateScriptRequest{
+				Script: "",
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMocks:     func() {},
+		},
+		{
+			name: "script too long",
+			requestBody: EvaluateScriptRequest{
+				Script: string(make([]byte, 10001)),
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMocks:     func() {},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMocks()
+
+			body, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/evaluate", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			server.EvaluateScript(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedStatus == http.StatusOK {
+				var response EvaluateScriptResponse
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedResponse.Success, response.Success)
+				assert.Equal(t, tt.expectedResponse.Error, response.Error)
+				assert.Equal(t, tt.expectedResponse.Duration, response.Duration)
+				if tt.expectedResponse.Output != nil {
+					assert.Equal(t, tt.expectedResponse.Output, response.Output)
+				}
+			}
+
+			mockExecutorSvc.AssertExpectations(t)
 		})
 	}
 }

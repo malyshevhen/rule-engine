@@ -12,6 +12,8 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/core/action"
 	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	"github.com/malyshevhen/rule-engine/internal/engine/executor"
+	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -50,6 +52,11 @@ type AnalyticsService interface {
 	GetDashboardData(ctx context.Context, timeRange string) (*analytics.DashboardData, error)
 }
 
+// ExecutorService interface
+type ExecutorService interface {
+	ExecuteScript(ctx context.Context, script string, execCtx *execCtx.ExecutionContext) *executor.ExecuteResult
+}
+
 // ServerOption is a functional option for configuring the server
 type ServerOption func(*Server)
 
@@ -69,11 +76,12 @@ type Server struct {
 	triggerSvc          TriggerService
 	actionSvc           ActionService
 	analyticsSvc        AnalyticsService
+	executorSvc         ExecutorService
 	rateLimitingEnabled bool
 }
 
 // NewServer creates a new HTTP server with optional configuration
-func NewServer(config *ServerConfig, ruleSvc RuleService, triggerSvc TriggerService, actionSvc ActionService, analyticsSvc AnalyticsService, opts ...ServerOption) *Server {
+func NewServer(config *ServerConfig, ruleSvc RuleService, triggerSvc TriggerService, actionSvc ActionService, analyticsSvc AnalyticsService, executorSvc ExecutorService, opts ...ServerOption) *Server {
 	router := mux.NewRouter()
 
 	s := &Server{
@@ -83,6 +91,7 @@ func NewServer(config *ServerConfig, ruleSvc RuleService, triggerSvc TriggerServ
 		triggerSvc:          triggerSvc,
 		actionSvc:           actionSvc,
 		analyticsSvc:        analyticsSvc,
+		executorSvc:         executorSvc,
 		rateLimitingEnabled: true, // Default to enabled
 	}
 
@@ -112,8 +121,8 @@ func NewServer(config *ServerConfig, ruleSvc RuleService, triggerSvc TriggerServ
 }
 
 // NewServerWithoutRateLimit creates a new HTTP server without rate limiting (for performance testing)
-func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc RuleService, triggerSvc TriggerService, actionSvc ActionService, analyticsSvc AnalyticsService) *Server {
-	return NewServer(config, ruleSvc, triggerSvc, actionSvc, analyticsSvc, WithRateLimiting(false))
+func NewServerWithoutRateLimit(config *ServerConfig, ruleSvc RuleService, triggerSvc TriggerService, actionSvc ActionService, analyticsSvc AnalyticsService, executorSvc ExecutorService) *Server {
+	return NewServer(config, ruleSvc, triggerSvc, actionSvc, analyticsSvc, executorSvc, WithRateLimiting(false))
 }
 
 // setupRoutes registers all API routes
@@ -146,6 +155,9 @@ func (s *Server) setupRoutes() {
 
 	// Analytics routes
 	api.HandleFunc("/analytics/dashboard", s.GetDashboardData).Methods("GET")
+
+	// Script evaluation route
+	api.HandleFunc("/evaluate", s.EvaluateScript).Methods("POST")
 }
 
 // Start starts the HTTP server
@@ -320,7 +332,7 @@ func (s *Server) ServeDashboard(w http.ResponseWriter, r *http.Request) {
 //	@Description	Get the health status of the service
 //	@Tags			system
 //	@Accept			json
-//	@Produce		text
+//	@Produce		plain
 //	@Success		200	{string}	string	"healthy"
 //	@Router			/health [get]
 func (s *Server) HealthCheck(w http.ResponseWriter, r *http.Request) {
@@ -763,4 +775,57 @@ func (s *Server) GetAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	SuccessResponse(w, action)
+}
+
+// EvaluateScript godoc
+//
+//	@Summary		Evaluate a Lua script
+//	@Description	Execute a Lua script in a sandboxed environment and return the result
+//	@Tags			scripts
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		EvaluateScriptRequest	true	"Script evaluation request"
+//	@Success		200		{object}	EvaluateScriptResponse
+//	@Failure		400		{object}	APIErrorResponse
+//	@Failure		500		{object}	APIErrorResponse
+//	@Router			/evaluate [post]
+func (s *Server) EvaluateScript(w http.ResponseWriter, r *http.Request) {
+	var req EvaluateScriptRequest
+	if err := ParseJSONBody(r, &req); err != nil {
+		ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Sanitize and validate inputs
+	req.Script = strings.TrimSpace(req.Script)
+	if req.Script == "" {
+		ErrorResponse(w, http.StatusBadRequest, "Script cannot be empty")
+		return
+	}
+	if len(req.Script) > 10000 {
+		ErrorResponse(w, http.StatusBadRequest, "Script too long (max 10000 characters)")
+		return
+	}
+
+	// Create a minimal execution context for evaluation
+	execContext := &execCtx.ExecutionContext{
+		RuleID:    "evaluate", // Use a fixed ID for evaluation
+		TriggerID: "evaluate",
+		Data:      map[string]any{}, // Empty data for evaluation
+	}
+
+	// Execute the script
+	result := s.executorSvc.ExecuteScript(r.Context(), req.Script, execContext)
+
+	// Convert duration to string
+	durationStr := result.Duration.String()
+
+	response := EvaluateScriptResponse{
+		Success:  result.Success,
+		Output:   result.Output,
+		Error:    result.Error,
+		Duration: durationStr,
+	}
+
+	SuccessResponse(w, response)
 }

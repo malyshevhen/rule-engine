@@ -135,6 +135,29 @@ definitions:
     - rule_id
     - type
     type: object
+  api.EvaluateScriptRequest:
+    properties:
+      script:
+        example: return 2 + 2
+        type: string
+    required:
+    - script
+    type: object
+  api.EvaluateScriptResponse:
+    properties:
+      duration:
+        example: 1.5ms
+        type: string
+      error:
+        example: syntax error
+        type: string
+      output:
+        items: {}
+        type: array
+      success:
+        example: true
+        type: boolean
+    type: object
   api.RuleDTO:
     properties:
       actions:
@@ -314,20 +337,49 @@ paths:
       summary: Get analytics dashboard data
       tags:
       - analytics
-  /health:
-    get:
+  /evaluate:
+    post:
       consumes:
       - application/json
-      description: Get the health status of the service
+      description: Execute a Lua script in a sandboxed environment and return the
+        result
+      parameters:
+      - description: Script evaluation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/api.EvaluateScriptRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/definitions/api.EvaluateScriptResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.APIErrorResponse'
+      summary: Evaluate a Lua script
+      tags:
+      - scripts
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Get the health status of the service
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: healthy
+          schema:
+            type: string
       summary: Health check
       tags:
       - system
