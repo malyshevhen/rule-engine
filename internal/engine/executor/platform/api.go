@@ -1,10 +1,8 @@
 package platform
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/malyshevhen/rule-engine/internal/engine/executor/platform/modules"
@@ -29,31 +27,6 @@ func NewService() *Service {
 		modules.NewTimeModule(),
 	}
 	return &Service{ms: ms}
-}
-
-// GetDeviceState retrieves the current state of a device
-func (s *Service) GetDeviceState(ctx context.Context, deviceID string) (map[string]any, error) {
-	// TODO: Implement actual device state retrieval from device service
-	// For now, return mock data
-	return map[string]any{
-		"id":          deviceID,
-		"online":      true,
-		"last_seen":   time.Now().Unix(),
-		"temperature": 25.5,
-		"humidity":    60.0,
-	}, nil
-}
-
-// SendCommand sends a command to a device
-func (s *Service) SendCommand(ctx context.Context, deviceID string, command string, params map[string]any) error {
-	// TODO: Implement actual command sending via message bus
-	slog.Info("Sending command to device",
-		"device_id", deviceID,
-		"command", command,
-		"params", params)
-
-	// Simulate command sending
-	return nil
 }
 
 // GetCurrentTime returns the current timestamp

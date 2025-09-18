@@ -1,42 +1,12 @@
 package platform
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"
 )
-
-func TestService_GetDeviceState(t *testing.T) {
-	service := NewService()
-
-	ctx := context.Background()
-	state, err := service.GetDeviceState(ctx, "device-123")
-
-	assert.NoError(t, err)
-	assert.NotNil(t, state)
-	assert.Equal(t, "device-123", state["id"])
-	assert.True(t, state["online"].(bool))
-	assert.Contains(t, state, "temperature")
-	assert.Contains(t, state, "humidity")
-}
-
-func TestService_SendCommand(t *testing.T) {
-	service := NewService()
-
-	ctx := context.Background()
-	params := map[string]any{
-		"power": true,
-		"level": 75,
-	}
-
-	err := service.SendCommand(ctx, "device-123", "set_power", params)
-
-	// Should not error (mock implementation)
-	assert.NoError(t, err)
-}
 
 func TestService_GetCurrentTime(t *testing.T) {
 	service := NewService()
