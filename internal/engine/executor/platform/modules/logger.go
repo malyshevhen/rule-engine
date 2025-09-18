@@ -52,6 +52,11 @@ func NewLoggerModule(opts ...LoggerModuleOption) *LoggerModule {
 	return lm
 }
 
+// Name returns the name of the module
+func (s *LoggerModule) Name() string {
+	return "logger"
+}
+
 // LogMessage logs a message
 func (s *LoggerModule) Info(L *lua.LState) int {
 	message := L.ToString(1)

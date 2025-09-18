@@ -49,72 +49,6 @@ func TestService_GetCurrentTime(t *testing.T) {
 	assert.True(t, currentTime.Before(after) || currentTime.Equal(after))
 }
 
-func TestService_DataStorageViaLua(t *testing.T) {
-	service := NewService()
-	L := lua.NewState()
-	defer L.Close()
-
-	service.RegisterAPIFunctions(L, "test-rule", "test-trigger")
-
-	// Test store_data and get_stored_data via Lua
-	err := L.DoString(`
-		-- Store some data
-		store_data("test_key", "test_value")
-		store_data("number_key", 42)
-
-		-- Retrieve data
-		local value1 = get_stored_data("test_key")
-		local value2 = get_stored_data("number_key")
-		local value3 = get_stored_data("nonexistent_key")
-
-		assert(value1 == "test_value")
-		assert(value2 == 42)
-		assert(value3 == nil)
-	`)
-
-	assert.NoError(t, err)
-}
-
-func TestRegisterAPIFunctions_GetDeviceState(t *testing.T) {
-	service := NewService()
-	L := lua.NewState()
-	defer L.Close()
-
-	service.RegisterAPIFunctions(L, "rule-123", "trigger-456")
-
-	// Test get_device_state function
-	err := L.DoString(`
-		local state, err = get_device_state("device-123")
-		if err then
-			error(err)
-		end
-		assert(state.id == "device-123")
-		assert(state.online == true)
-		assert(type(state.temperature) == "number")
-		assert(type(state.humidity) == "number")
-	`)
-
-	assert.NoError(t, err)
-}
-
-func TestRegisterAPIFunctions_SendCommand(t *testing.T) {
-	service := NewService()
-	L := lua.NewState()
-	defer L.Close()
-
-	service.RegisterAPIFunctions(L, "rule-123", "trigger-456")
-
-	// Test send_command function
-	err := L.DoString(`
-		local err = send_command("device-123", "set_power", {power = true, level = 75})
-		if err then
-			error(err)
-		end
-	`)
-
-	assert.NoError(t, err)
-}
-
 func TestRegisterAPIFunctions_LogMessage(t *testing.T) {
 	service := NewService()
 	L := lua.NewState()
@@ -124,8 +58,10 @@ func TestRegisterAPIFunctions_LogMessage(t *testing.T) {
 
 	// Test log_message function
 	err := L.DoString(`
-		log_message("info", "Test log message from Lua")
-		log_message("error", "Test error message")
+		local logger = require 'logger'
+
+		logger.info('Test log message from Lua')
+		logger.error('Test error message')
 	`)
 
 	assert.NoError(t, err)
@@ -140,40 +76,11 @@ func TestRegisterAPIFunctions_GetCurrentTime(t *testing.T) {
 
 	// Test get_current_time function
 	err := L.DoString(`
-		local timestamp = get_current_time()
-		assert(type(timestamp) == "number")
-		assert(timestamp > 0)
-	`)
+		local time = require 'time'
 
-	assert.NoError(t, err)
-}
-
-func TestRegisterAPIFunctions_StoreData(t *testing.T) {
-	service := NewService()
-	L := lua.NewState()
-	defer L.Close()
-
-	service.RegisterAPIFunctions(L, "rule-123", "trigger-456")
-
-	// Test store_data and get_stored_data functions
-	err := L.DoString(`
-		-- Store some data
-		store_data("test_key", "test_value")
-		store_data("number_key", 42)
-		store_data("table_key", {a = 1, b = 2})
-
-		-- Retrieve data
-		local value1 = get_stored_data("test_key")
-		local value2 = get_stored_data("number_key")
-		local value3 = get_stored_data("table_key")
-		local value4 = get_stored_data("nonexistent")
-
-		assert(value1 == "test_value")
-		assert(value2 == 42)
-		assert(type(value3) == "table")
-		assert(value3.a == 1)
-		assert(value3.b == 2)
-		assert(value4 == nil)
+		local timestamp = time.now()
+		assert(type(timestamp) == "string")
+		assert(timestamp ~= "")
 	`)
 
 	assert.NoError(t, err)
@@ -188,9 +95,11 @@ func TestRegisterAPIFunctions_ErrorHandling(t *testing.T) {
 
 	// Test error handling for empty device ID
 	err := L.DoString(`
-		local state, err = get_device_state("")
+		local http = require 'http'
+
+		local state, err = http.get("", {}, "")
 		if not err then
-			error("Expected error for empty device ID")
+			error("Expected error for empty HTTP URL")
 		end
 	`)
 
@@ -228,41 +137,38 @@ func TestPlatformAPI_Integration(t *testing.T) {
 
 	service.RegisterAPIFunctions(L, "rule-123", "trigger-456")
 
-	// Test a complete Lua script that uses multiple API functions
+	// Test a complete Lua script that validates that all API functions are available
 	script := `
-		-- Get device state
-		local state, err = get_device_state("sensor-001")
-		if err then error("Failed to get device state: " .. err) end
+	local http = require 'http'
+	assert(type(http) == "table")
+	assert(http.get ~= nil)
+	assert(type(http.get) == "function")
+	assert(http.post ~= nil)
+	assert(type(http.post) == "function")
+	assert(http.delete ~= nil)
+	assert(type(http.delete) == "function")
+	assert(http.put ~= nil)
+	assert(type(http.put) == "function")
+	assert(http.patch ~= nil)
+	assert(type(http.patch) == "function")
 
-		-- Log the temperature
-		log_message("info", "Current temperature: " .. tostring(state.temperature))
+	local logger = require 'logger'
+	assert(type(logger) == "table")
+	assert(logger.info ~= nil)
+	assert(type(logger.info) == "function")
+	assert(logger.debug ~= nil)
+	assert(type(logger.debug) == "function")
+	assert(logger.warn ~= nil)
+	assert(type(logger.warn) == "function")
+	assert(logger.error ~= nil)
+	assert(type(logger.error) == "function")
 
-		-- Store the temperature for later use
-		store_data("last_temp", state.temperature)
-
-		-- Check if temperature is too high
-		if state.temperature > 30 then
-			-- Send command to turn on fan
-			local cmd_err = send_command("fan-001", "set_power", {power = true, speed = "high"})
-			if cmd_err then error("Failed to send command: " .. cmd_err) end
-
-			log_message("warn", "High temperature detected, turning on fan")
-		end
-
-		-- Get current time
-		local now = get_current_time()
-
-		-- Store execution timestamp
-		store_data("last_execution", now)
-
-		return true
+	local time = require 'time'
+	assert(type(time) == "table")
+	assert(time.now ~= nil)
+	assert(type(time.now) == "function")
 	`
 
 	err := L.DoString(script)
-	assert.NoError(t, err)
-
-	// The data is stored within the Lua execution context, so we can't access it directly
-	// from Go. The test passes if the Lua script runs without error, which means
-	// the data storage and retrieval worked within the Lua context.
 	assert.NoError(t, err)
 }

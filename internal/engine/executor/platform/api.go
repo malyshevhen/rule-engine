@@ -11,21 +11,24 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+type Module interface {
+	Name() string
+	Loader(L *lua.LState) int
+}
+
 // Service implements the PlatformAPI interface
 type Service struct {
-	// TODO: Add dependencies like device service, message bus, cache, etc.
-	dataStores   map[string]map[string]any // Per-rule execution storage
-	httpModule   *modules.HTTPModule
-	loggerModule *modules.LoggerModule
+	ms []Module
 }
 
 // NewService creates a new platform API service
 func NewService() *Service {
-	return &Service{
-		dataStores:   make(map[string]map[string]any),
-		httpModule:   modules.NewHTTPModule(),
-		loggerModule: modules.NewLoggerModule(),
+	ms := []Module{
+		modules.NewLoggerModule(),
+		modules.NewHTTPModule(),
+		modules.NewTimeModule(),
 	}
+	return &Service{ms: ms}
 }
 
 // GetDeviceState retrieves the current state of a device
@@ -60,113 +63,10 @@ func (s *Service) GetCurrentTime() time.Time {
 
 // RegisterAPIFunctions registers platform API functions in the Lua state
 func (s *Service) RegisterAPIFunctions(L *lua.LState, ruleID, triggerID string) {
-	// get_device_state(device_id)
-	L.SetGlobal("get_device_state", L.NewFunction(func(L *lua.LState) int {
-		deviceID := L.ToString(1)
-		if deviceID == "" {
-			L.Push(lua.LNil)
-			L.Push(lua.LString("device_id cannot be empty"))
-			return 2
-		}
-
-		ctx := context.Background()
-		state, err := s.GetDeviceState(ctx, deviceID)
-		if err != nil {
-			L.Push(lua.LNil)
-			L.Push(lua.LString(err.Error()))
-			return 2
-		}
-
-		// Convert Go map to Lua table
-		table := L.NewTable()
-		for k, v := range state {
-			L.SetField(table, k, luaValueFromGo(L, v))
-		}
-
-		L.Push(table)
-		L.Push(lua.LNil)
-		return 2
-	}))
-
-	// send_command(device_id, command, params_table)
-	L.SetGlobal("send_command", L.NewFunction(func(L *lua.LState) int {
-		deviceID := L.ToString(1)
-		command := L.ToString(2)
-		paramsTable := L.ToTable(3)
-
-		if deviceID == "" || command == "" {
-			L.Push(lua.LString("device_id and command cannot be empty"))
-			return 1
-		}
-
-		// Convert Lua table to Go map
-		params := make(map[string]any)
-		if paramsTable != nil {
-			paramsTable.ForEach(func(k, v lua.LValue) {
-				params[k.String()] = luaValueToGo(v)
-			})
-		}
-
-		ctx := context.Background()
-		err := s.SendCommand(ctx, deviceID, command, params)
-		if err != nil {
-			L.Push(lua.LString(err.Error()))
-			return 1
-		}
-
-		L.Push(lua.LNil)
-		return 1
-	}))
-
-	// get_current_time()
-	L.SetGlobal("get_current_time", L.NewFunction(func(L *lua.LState) int {
-		currentTime := s.GetCurrentTime()
-		L.Push(lua.LNumber(currentTime.Unix()))
-		return 1
-	}))
-
-	// store_data(key, value)
-	L.SetGlobal("store_data", L.NewFunction(func(L *lua.LState) int {
-		key := L.ToString(1)
-		value := L.Get(2)
-
-		if key == "" {
-			L.Push(lua.LString("key cannot be empty"))
-			return 1
-		}
-
-		// Use execution-specific key
-		execKey := ruleID + ":" + triggerID
-		if s.dataStores[execKey] == nil {
-			s.dataStores[execKey] = make(map[string]any)
-		}
-		s.dataStores[execKey][key] = luaValueToGo(value)
-
-		return 0
-	}))
-
-	// get_stored_data(key)
-	L.SetGlobal("get_stored_data", L.NewFunction(func(L *lua.LState) int {
-		key := L.ToString(1)
-
-		// Use execution-specific key
-		execKey := ruleID + ":" + triggerID
-		if store, exists := s.dataStores[execKey]; exists {
-			if value, exists := store[key]; exists {
-				L.Push(luaValueFromGo(L, value))
-				return 1
-			}
-		}
-
-		L.Push(lua.LNil)
-		return 1
-	}))
-
-	// Load logger module
-	L.PreloadModule("logger", s.loggerModule.Loader)
-
-	// Load HTTP module
-	L.PreloadModule("http", s.httpModule.Loader)
+	// Register modules
+	for _, module := range s.ms {
+		L.PreloadModule(module.Name(), module.Loader)
+	}
 }
 
 // luaValueFromGo converts a Go value to a Lua value

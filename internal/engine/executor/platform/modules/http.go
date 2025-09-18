@@ -49,6 +49,11 @@ func NewHTTPModule(opts ...HTTPModuleOption) *HTTPModule {
 	return hm
 }
 
+// Name returns the name of the module
+func (s *HTTPModule) Name() string {
+	return "http"
+}
+
 // Get makes an HTTP GET request
 func (s *HTTPModule) Get(L *lua.LState) int {
 	url := L.ToString(1)

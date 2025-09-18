@@ -1,7 +1,9 @@
 words = [
+    "ansic",
     "cron",
     "funcs",
     "healthcheck",
     "hoverfly",
+    "milli",
     "testcontainers",
 ]
