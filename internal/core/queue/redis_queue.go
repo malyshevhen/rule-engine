@@ -59,7 +59,7 @@ func NewRedisQueue(client *redisClient.Client, queueKey string) *RedisQueue {
 // Enqueue adds a rule execution request to the Redis queue
 func (q *RedisQueue) Enqueue(ctx context.Context, req *ExecutionRequest) error {
 	if q.client == nil {
-		return fmt.Errorf("Redis client not available")
+		return fmt.Errorf("redis client not available")
 	}
 
 	req.ID = uuid.New()
@@ -94,7 +94,7 @@ func (q *RedisQueue) Enqueue(ctx context.Context, req *ExecutionRequest) error {
 // Dequeue removes and returns the next rule execution request from the Redis queue with distributed locking
 func (q *RedisQueue) Dequeue(ctx context.Context) (*ExecutionRequest, error) {
 	if q.client == nil {
-		return nil, fmt.Errorf("Redis client not available")
+		return nil, fmt.Errorf("redis client not available")
 	}
 
 	// Try to find an available item that we can lock
@@ -226,7 +226,7 @@ func (q *RedisQueue) CleanupExpired(ctx context.Context, maxAge time.Duration) e
 // acquireLock attempts to acquire a distributed lock for processing a specific request
 func (q *RedisQueue) acquireLock(ctx context.Context, requestID string, lockTTL time.Duration) (bool, error) {
 	if q.client == nil {
-		return false, fmt.Errorf("Redis client not available")
+		return false, fmt.Errorf("redis client not available")
 	}
 
 	lockKey := fmt.Sprintf("lock:%s", requestID)
@@ -252,7 +252,7 @@ func (q *RedisQueue) ReleaseLock(ctx context.Context, requestID string) error {
 // releaseLock releases the distributed lock for a specific request
 func (q *RedisQueue) releaseLock(ctx context.Context, requestID string) error {
 	if q.client == nil {
-		return fmt.Errorf("Redis client not available")
+		return fmt.Errorf("redis client not available")
 	}
 
 	lockKey := fmt.Sprintf("lock:%s", requestID)
@@ -278,7 +278,7 @@ func (q *RedisQueue) releaseLock(ctx context.Context, requestID string) error {
 // SendHeartbeat updates the instance's health status in Redis
 func (q *RedisQueue) SendHeartbeat(ctx context.Context) error {
 	if q.client == nil {
-		return fmt.Errorf("Redis client not available")
+		return fmt.Errorf("redis client not available")
 	}
 
 	q.lastHeartbeat = time.Now()
@@ -310,7 +310,7 @@ func (q *RedisQueue) GetInstanceID() string {
 // CleanupStaleLocks removes locks held by instances that are no longer active
 func (q *RedisQueue) CleanupStaleLocks(ctx context.Context) error {
 	if q.client == nil {
-		return fmt.Errorf("Redis client not available")
+		return fmt.Errorf("redis client not available")
 	}
 
 	// Get all lock keys

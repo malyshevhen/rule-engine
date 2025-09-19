@@ -2,12 +2,17 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 )
 
 // ParseJSONBody parses JSON request body into the provided interface
 func ParseJSONBody(r *http.Request, v any) error {
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			slog.Error("Failed to close request body", "error", err)
+		}
+	}()
 	return json.NewDecoder(r.Body).Decode(v)
 }
 

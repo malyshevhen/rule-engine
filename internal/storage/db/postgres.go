@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"embed"
+	"log/slog"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/pgx/v5"
@@ -46,7 +47,12 @@ func RunMigrations(pool *pgxpool.Pool) error {
 	if err != nil {
 		return err
 	}
-	defer m.Close()
+	defer func() {
+		if merr, dberr := m.Close(); merr != nil || dberr != nil {
+			slog.Error("Failed to close database migration manager", "error", merr, "dberror", dberr)
+
+		}
+	}()
 
 	err = m.Up()
 	if err != nil {

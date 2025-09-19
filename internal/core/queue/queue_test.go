@@ -131,11 +131,11 @@ func TestRedisQueue_BasicOperations(t *testing.T) {
 
 	err := q.Enqueue(ctx, req)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Redis client not available")
+	assert.Contains(t, err.Error(), "redis client not available")
 
 	_, err = q.Dequeue(ctx)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Redis client not available")
+	assert.Contains(t, err.Error(), "redis client not available")
 
 	size := q.Size()
 	assert.Equal(t, 0, size)

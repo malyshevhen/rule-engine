@@ -116,9 +116,10 @@ func TestService_getRuleStats(t *testing.T) {
 	// Find rule1 stats
 	var rule1Stats, rule2Stats *RuleStats
 	for i := range ruleStats {
-		if ruleStats[i].RuleID == "rule1" {
+		switch ruleStats[i].RuleID {
+		case "rule1":
 			rule1Stats = &ruleStats[i]
-		} else if ruleStats[i].RuleID == "rule2" {
+		case "rule2":
 			rule2Stats = &ruleStats[i]
 		}
 	}
