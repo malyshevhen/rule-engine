@@ -32,9 +32,9 @@ func TestTrigger(t *testing.T) {
 		require.NoError(t, err)
 
 		resp, body := DoRequest(t, req)
-		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
 
-		var trigger map[string]interface{}
+		var trigger map[string]any
 		err = json.Unmarshal(body, &trigger)
 		require.NoError(t, err)
 		require.NotEmpty(t, trigger["id"])
@@ -56,7 +56,7 @@ func TestTrigger(t *testing.T) {
 		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var trigger map[string]interface{}
+		var trigger map[string]any
 		err = json.Unmarshal(body, &trigger)
 		require.NoError(t, err)
 		require.Equal(t, createdTriggerID, trigger["id"])
@@ -73,7 +73,7 @@ func TestTrigger(t *testing.T) {
 		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var triggers []map[string]interface{}
+		var triggers []map[string]any
 		err = json.Unmarshal(body, &triggers)
 		require.NoError(t, err)
 		require.Greater(t, len(triggers), 0)
@@ -106,9 +106,9 @@ func createTestRule(t *testing.T, baseURL string) string {
 	require.NoError(t, err)
 
 	resp, body := DoRequest(t, req)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
 
-	var rule map[string]interface{}
+	var rule map[string]any
 	err = json.Unmarshal(body, &rule)
 	require.NoError(t, err)
 	return rule["id"].(string)

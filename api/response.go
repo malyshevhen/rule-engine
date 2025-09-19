@@ -25,3 +25,8 @@ func ErrorResponse(w http.ResponseWriter, status int, message string) {
 func SuccessResponse(w http.ResponseWriter, data any) {
 	JSONResponse(w, http.StatusOK, data)
 }
+
+// CreatedResponse sends a created response with data
+func CreatedResponse(w http.ResponseWriter, data any) {
+	JSONResponse(w, http.StatusCreated, data)
+}

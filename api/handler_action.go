@@ -45,7 +45,7 @@ func createAction(actionSvc ActionService) http.HandlerFunc {
 			return
 		}
 
-		SuccessResponse(w, action)
+		CreatedResponse(w, action)
 	}
 }
 

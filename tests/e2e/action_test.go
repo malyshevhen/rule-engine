@@ -29,10 +29,7 @@ func TestAction(t *testing.T) {
 		require.NoError(t, err)
 
 		resp, body := DoRequest(t, req)
-		if http.StatusCreated != resp.StatusCode {
-			t.Logf("Response body: %s", string(body))
-			t.Fail()
-		}
+		require.Equal(t, http.StatusCreated, resp.StatusCode)
 
 		var action map[string]any
 		err = json.Unmarshal(body, &action)
@@ -54,7 +51,7 @@ func TestAction(t *testing.T) {
 		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var action map[string]interface{}
+		var action map[string]any
 		err = json.Unmarshal(body, &action)
 		require.NoError(t, err)
 		require.Equal(t, createdActionID, action["id"])
@@ -69,7 +66,7 @@ func TestAction(t *testing.T) {
 		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var actions []map[string]interface{}
+		var actions []map[string]any
 		err = json.Unmarshal(body, &actions)
 		require.NoError(t, err)
 		require.Greater(t, len(actions), 0)

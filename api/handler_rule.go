@@ -62,7 +62,7 @@ func createRule(ruleSvc RuleService) http.HandlerFunc {
 			return
 		}
 
-		SuccessResponse(w, rule)
+		CreatedResponse(w, rule)
 	}
 }
 

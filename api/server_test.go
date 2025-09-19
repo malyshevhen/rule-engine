@@ -122,7 +122,7 @@ func TestServer_CreateRule(t *testing.T) {
 				Priority:  &[]int{5}[0],
 				Enabled:   &[]bool{true}[0],
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusCreated,
 			setupMocks: func() {
 				mockRuleSvc.On("Create", mock.Anything, mock.MatchedBy(func(r *rule.Rule) bool {
 					return r.Name == "Test Rule" && r.LuaScript == "return true" && r.Priority == 5 && r.Enabled == true
@@ -434,7 +434,7 @@ func TestServer_CreateTrigger(t *testing.T) {
 				ConditionScript: "event.type == 'device_update'",
 				Enabled:         &[]bool{true}[0],
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusCreated,
 			setupMocks: func() {
 				mockTriggerSvc.On("Create", mock.Anything, mock.MatchedBy(func(tr *trigger.Trigger) bool {
 					return tr.RuleID == ruleID && tr.Type == trigger.Conditional && tr.ConditionScript == "event.type == 'device_update'" && tr.Enabled == true
@@ -691,7 +691,7 @@ func TestServer_CreateAction(t *testing.T) {
 				LuaScript: "print('action executed')",
 				Enabled:   &[]bool{true}[0],
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusCreated,
 			setupMocks: func() {
 				mockActionSvc.On("Create", mock.Anything, mock.MatchedBy(func(a *action.Action) bool {
 					return a.LuaScript == "print('action executed')" && a.Enabled == true

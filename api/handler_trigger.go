@@ -55,7 +55,7 @@ func createTrigger(triggerSvc TriggerService) http.HandlerFunc {
 			return
 		}
 
-		SuccessResponse(w, trigger)
+		CreatedResponse(w, trigger)
 	}
 }
 
