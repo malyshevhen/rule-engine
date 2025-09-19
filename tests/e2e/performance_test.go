@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	_ "embed"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -113,8 +114,6 @@ func TestPerformance_RulesAPI_LoadTest(t *testing.T) {
 	env, cleanup := SetupTestEnvironment(ctx, t)
 	defer cleanup()
 
-	env.WaitForServices(ctx, t)
-
 	baseURL := env.GetRuleEngineURL(ctx, t) + "/api/v1"
 
 	// Run load test on /rules endpoint
@@ -143,8 +142,6 @@ func TestPerformance_TriggersAPI_LoadTest(t *testing.T) {
 	env, cleanup := SetupTestEnvironment(ctx, t)
 	defer cleanup()
 
-	env.WaitForServices(ctx, t)
-
 	baseURL := env.GetRuleEngineURL(ctx, t) + "/api/v1"
 
 	// Run load test on /triggers endpoint
@@ -172,8 +169,6 @@ func TestPerformance_ActionsAPI_LoadTest(t *testing.T) {
 	ctx := context.Background()
 	env, cleanup := SetupTestEnvironment(ctx, t)
 	defer cleanup()
-
-	env.WaitForServices(ctx, t)
 
 	baseURL := env.GetRuleEngineURL(ctx, t) + "/api/v1"
 
