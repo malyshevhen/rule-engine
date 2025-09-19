@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ type TestEnvironment struct {
 	NATSContainer       testcontainers.Container
 	HoverflyContainer   testcontainers.Container
 	RuleEngineContainer testcontainers.Container
+	hoverflyMutex       sync.Mutex
 }
 
 // SetupTestEnvironment creates and starts all required test infrastructure
@@ -162,6 +164,8 @@ func (env *TestEnvironment) WaitForServices(ctx context.Context, t *testing.T) {
 // SetupHoverflySimulation loads a simulation into Hoverfly
 func (env *TestEnvironment) SetupHoverflySimulation(ctx context.Context, t *testing.T, simulationData string) {
 	t.Helper()
+	env.hoverflyMutex.Lock()
+	defer env.hoverflyMutex.Unlock()
 
 	hoverflyAdminURL := env.GetHoverflyAdminURL(ctx, t)
 	client := &http.Client{Timeout: 10 * time.Second}
