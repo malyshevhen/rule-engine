@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -32,6 +33,21 @@ type TestEnvironment struct {
 // SetupTestEnvironment creates and starts all required test infrastructure
 func SetupTestEnvironment(ctx context.Context, t *testing.T) (*TestEnvironment, func()) {
 	t.Helper()
+
+	// Set environment variables for compose
+	os.Setenv("DB_NAME", "rule_engine_test")
+	os.Setenv("DB_USER", "postgres")
+	os.Setenv("DB_PASSWORD", "password")
+	os.Setenv("DB_PORT", "5432")
+	os.Setenv("DB_SSL_MODE", "disable")
+	os.Setenv("NATS_PORT", "4222")
+	os.Setenv("PROMETHEUS_PORT", "9090")
+	os.Setenv("PROMETHEUS_CONFIG", "/tmp/prometheus.yml")
+	os.Setenv("RULE_ENGINE_IMAGE", "localhost/rule-engine:local")
+	os.Setenv("RULE_ENGINE_PORT", "8080")
+	os.Setenv("JWT_SECRET", "dev-jwt-secret-67890")
+	os.Setenv("API_KEY", "dev-api-key-12345")
+	os.Setenv("LOG_LEVEL", "info")
 
 	// Start environment containers
 	stack, err := compose.NewDockerCompose("containers/compose.yaml")
@@ -184,4 +200,31 @@ func (env *TestEnvironment) SetupHoverflySimulation(ctx context.Context, t *test
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("Expected status code %d, got %d; Response: %s", http.StatusOK, resp.StatusCode, string(body))
 	}
+}
+
+// MakeAuthenticatedRequest creates an HTTP request with authentication header
+func MakeAuthenticatedRequest(method, url, body string) (*http.Request, error) {
+	var reader io.Reader
+	if body != "" {
+		reader = strings.NewReader(body)
+	}
+	req, err := http.NewRequest(method, url, reader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "ApiKey test-api-key")
+	return req, nil
+}
+
+// DoRequest performs the HTTP request and returns response
+func DoRequest(t *testing.T, req *http.Request) (*http.Response, []byte) {
+	t.Helper()
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	return resp, body
 }

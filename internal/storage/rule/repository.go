@@ -56,12 +56,11 @@ func (r *Repository) GetByIDWithAssociations(ctx context.Context, id uuid.UUID) 
 		return nil, nil, nil, err
 	}
 
-	// Get triggers using JOIN
+	// Get triggers directly
 	triggersQuery := `
 		SELECT t.id, t.rule_id, t.type, t.condition_script, t.enabled, t.created_at, t.updated_at
 		FROM triggers t
-		INNER JOIN rule_triggers rt ON t.id = rt.trigger_id
-		WHERE rt.rule_id = $1
+		WHERE t.rule_id = $1
 		ORDER BY t.created_at
 	`
 	triggersRows, err := r.db.Query(ctx, triggersQuery, id)
@@ -112,8 +111,7 @@ func (r *Repository) GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) 
 	query := `
 		SELECT t.id, t.rule_id, t.type, t.condition_script, t.enabled, t.created_at, t.updated_at
 		FROM triggers t
-		JOIN rule_triggers rt ON t.id = rt.trigger_id
-		WHERE rt.rule_id = $1
+		WHERE t.rule_id = $1
 	`
 	rows, err := r.db.Query(ctx, query, ruleID)
 	if err != nil {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -39,7 +40,8 @@ func createAction(actionSvc ActionService) http.HandlerFunc {
 		}
 
 		if err := actionSvc.Create(r.Context(), action); err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to create action")
+			slog.Error("Failed to create action", "error", err)
+			ErrorResponse(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 

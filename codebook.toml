@@ -6,6 +6,8 @@ words = [
     "healthcheck",
     "hoverfly",
     "milli",
+    "natsurl",
+    "postgre",
     "sandboxed",
     "sandboxing",
     "subrouter",
