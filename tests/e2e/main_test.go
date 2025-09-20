@@ -88,7 +88,9 @@ func SetupTestEnvironment(ctx context.Context, t *testing.T) (*TestEnvironment, 
 // GetRuleEngineURL returns the Rule Engine service URL
 func (env *TestEnvironment) GetRuleEngineURL(ctx context.Context, t *testing.T) string {
 	t.Helper()
-	return "http://localhost:8080"
+	port, err := env.RuleEngineContainer.MappedPort(ctx, "8080")
+	require.NoError(t, err)
+	return fmt.Sprintf("http://localhost:%s", port.Port())
 }
 
 // GetHoverflyAdminURL returns the Hoverfly admin API URL
@@ -153,28 +155,6 @@ func (env *TestEnvironment) SetupDatabasePool(ctx context.Context, t *testing.T)
 	require.NoError(t, pool.Ping(ctx))
 
 	return pool
-}
-
-// WaitForServices waits for all services to be ready
-func (env *TestEnvironment) WaitForServices(ctx context.Context, t *testing.T) {
-	t.Helper()
-
-	// Test Hoverfly admin API first (it's faster)
-	hoverflyAdminURL := env.GetHoverflyAdminURL(ctx, t)
-	resp, err := http.Get(hoverflyAdminURL + "/api/v2/hoverfly")
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	resp.Body.Close()
-
-	// Test Rule Engine health endpoint
-	ruleEngineURL := env.GetRuleEngineURL(ctx, t)
-	resp, err = http.Get(ruleEngineURL + "/health")
-	require.NoError(t, err)
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("Health check failed with status %d: %s", resp.StatusCode, string(body))
-	}
-	resp.Body.Close()
 }
 
 // SetupHoverflySimulation loads a simulation into Hoverfly
