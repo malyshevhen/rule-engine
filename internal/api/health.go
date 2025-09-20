@@ -53,6 +53,9 @@ func (h *Health) healthCheckHandler() http.HandlerFunc {
 			w.WriteHeader(http.StatusOK)
 		}
 
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
 	}
 }

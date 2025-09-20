@@ -37,8 +37,12 @@ func init() {
 	validate = validator.New()
 
 	// Register custom validation functions
-	validate.RegisterValidation("lua_script_length", validateLuaScriptLength)
-	validate.RegisterValidation("rule_name_length", validateRuleNameLength)
+	if err := validate.RegisterValidation("lua_script_length", validateLuaScriptLength); err != nil {
+		panic("Failed to register lua_script_length validation: " + err.Error())
+	}
+	if err := validate.RegisterValidation("rule_name_length", validateRuleNameLength); err != nil {
+		panic("Failed to register rule_name_length validation: " + err.Error())
+	}
 }
 
 // validateLuaScriptLength validates Lua script length

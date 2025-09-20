@@ -89,7 +89,7 @@ test-e2e-only: ## Run e2e tests without rebuilding (assumes image is up to date)
 
 # Code quality commands
 lint: ## Run linter (golangci-lint)
-	golangci-lint run --exclude-files ".*_test.go$$"
+	golangci-lint run
 
 format: ## Format code with gofmt
 	gofmt -w .

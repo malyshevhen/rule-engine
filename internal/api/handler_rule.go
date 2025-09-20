@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/evanphx/json-patch/v5"
+	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/malyshevhen/rule-engine/internal/rule"
@@ -185,7 +185,7 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		modifiedJSON, err := patch.Apply(ruleJSON)
 		if err != nil {
 			// Provide more specific error messages based on the type of patch error
-			errorMsg := "Failed to apply patch"
+			var errorMsg string
 			if strings.Contains(err.Error(), "path") {
 				errorMsg = fmt.Sprintf("Invalid patch path: %s", err.Error())
 			} else if strings.Contains(err.Error(), "operation") {
