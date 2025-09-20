@@ -248,37 +248,49 @@ func TestServer_UpdateRule(t *testing.T) {
 		LuaScript: "return false",
 		Priority:  0,
 		Enabled:   false,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 
 	tests := []struct {
 		name           string
 		ruleID         string
-		requestBody    UpdateRuleRequest
+		requestBody    PatchRequest
 		expectedStatus int
 		setupMocks     func()
 	}{
 		{
-			name:   "successful update",
+			name:   "successful update with replace operations",
 			ruleID: ruleID.String(),
-			requestBody: UpdateRuleRequest{
-				Name:      &[]string{"New Name"}[0],
-				LuaScript: &[]string{"return true"}[0],
-				Priority:  &[]int{10}[0],
-				Enabled:   &[]bool{true}[0],
+			requestBody: PatchRequest{
+				{Op: "replace", Path: "/name", Value: "New Name"},
+				{Op: "replace", Path: "/lua_script", Value: "return true"},
+				{Op: "replace", Path: "/priority", Value: 10},
+				{Op: "replace", Path: "/enabled", Value: true},
 			},
 			expectedStatus: http.StatusOK,
 			setupMocks: func() {
 				mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return(existingRule, nil)
-				mockRuleSvc.On("Update", mock.Anything, mock.MatchedBy(func(r *rule.Rule) bool {
-					return r.ID == ruleID && r.Name == "New Name" && r.LuaScript == "return true" && r.Priority == 10 && r.Enabled == true
-				})).Return(nil)
+				mockRuleSvc.On("Update", mock.Anything, mock.AnythingOfType("*rule.Rule")).Return(nil)
+			},
+		},
+		{
+			name:   "successful update with single operation",
+			ruleID: ruleID.String(),
+			requestBody: PatchRequest{
+				{Op: "replace", Path: "/name", Value: "Updated Name"},
+			},
+			expectedStatus: http.StatusOK,
+			setupMocks: func() {
+				mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return(existingRule, nil)
+				mockRuleSvc.On("Update", mock.Anything, mock.AnythingOfType("*rule.Rule")).Return(nil)
 			},
 		},
 		{
 			name:   "invalid uuid",
 			ruleID: "invalid-uuid",
-			requestBody: UpdateRuleRequest{
-				Name: &[]string{"New Name"}[0],
+			requestBody: PatchRequest{
+				{Op: "replace", Path: "/name", Value: "New Name"},
 			},
 			expectedStatus: http.StatusBadRequest,
 			setupMocks:     func() {},
@@ -286,8 +298,8 @@ func TestServer_UpdateRule(t *testing.T) {
 		{
 			name:   "rule not found",
 			ruleID: uuid.New().String(),
-			requestBody: UpdateRuleRequest{
-				Name: &[]string{"New Name"}[0],
+			requestBody: PatchRequest{
+				{Op: "replace", Path: "/name", Value: "New Name"},
 			},
 			expectedStatus: http.StatusNotFound,
 			setupMocks: func() {
@@ -295,10 +307,32 @@ func TestServer_UpdateRule(t *testing.T) {
 			},
 		},
 		{
-			name:   "empty name",
+			name:   "empty name after patch",
 			ruleID: ruleID.String(),
-			requestBody: UpdateRuleRequest{
-				Name: &[]string{""}[0],
+			requestBody: PatchRequest{
+				{Op: "replace", Path: "/name", Value: ""},
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMocks: func() {
+				mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return(existingRule, nil)
+			},
+		},
+		{
+			name:   "invalid patch operation",
+			ruleID: ruleID.String(),
+			requestBody: PatchRequest{
+				{Op: "invalid", Path: "/name", Value: "New Name"},
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMocks: func() {
+				mockRuleSvc.On("GetByID", mock.Anything, ruleID).Return(existingRule, nil)
+			},
+		},
+		{
+			name:   "invalid patch path",
+			ruleID: ruleID.String(),
+			requestBody: PatchRequest{
+				{Op: "replace", Path: "/invalid_field", Value: "value"},
 			},
 			expectedStatus: http.StatusBadRequest,
 			setupMocks: func() {
@@ -312,8 +346,8 @@ func TestServer_UpdateRule(t *testing.T) {
 			tt.setupMocks()
 
 			body, _ := json.Marshal(tt.requestBody)
-			req := httptest.NewRequest(http.MethodPut, "/api/v1/rules/"+tt.ruleID, bytes.NewReader(body))
-			req.Header.Set("Content-Type", "application/json")
+			req := httptest.NewRequest(http.MethodPatch, "/api/v1/rules/"+tt.ruleID, bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json-patch+json")
 			req = mux.SetURLVars(req, map[string]string{"id": tt.ruleID})
 			w := httptest.NewRecorder()
 

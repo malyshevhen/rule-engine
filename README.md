@@ -309,10 +309,46 @@ The API supports two authentication methods:
 #### Rules
 
 - `POST /api/v1/rules` - Create a new rule
-- `GET /api/v1/rules` - List all rules
+- `GET /api/v1/rules?limit=50&offset=0` - List all rules (with pagination support)
 - `GET /api/v1/rules/{id}` - Get rule by ID
-- `PUT /api/v1/rules/{id}` - Update rule
+- `PATCH /api/v1/rules/{id}` - Update rule (JSON Patch RFC 6902)
 - `DELETE /api/v1/rules/{id}` - Delete rule
+
+**Rule Update (PATCH) with JSON Patch:**
+
+The PATCH endpoint supports JSON Patch (RFC 6902) for partial updates. Send a JSON array of patch operations:
+
+```json
+[
+  {"op": "replace", "path": "/name", "value": "Updated Rule Name"},
+  {"op": "replace", "path": "/lua_script", "value": "if event.temp > 30 then return true end"},
+  {"op": "replace", "path": "/priority", "value": 10},
+  {"op": "replace", "path": "/enabled", "value": false}
+]
+```
+
+Supported operations: `add`, `remove`, `replace`, `test`
+
+**Rules List Response with Pagination:**
+
+```json
+{
+  "rules": [
+    {
+      "id": "uuid",
+      "name": "Temperature Alert",
+      "lua_script": "if event.temperature > 25 then return true end",
+      "priority": 0,
+      "enabled": true,
+      "created_at": "2024-01-01T12:00:00Z",
+      "updated_at": "2024-01-01T12:00:00Z"
+    }
+  ],
+  "limit": 50,
+  "offset": 0,
+  "count": 1
+}
+```
 
 #### Triggers
 

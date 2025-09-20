@@ -1,12 +1,14 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/evanphx/json-patch/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/malyshevhen/rule-engine/internal/rule"
@@ -126,10 +128,30 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 			return
 		}
 
-		var req UpdateRuleRequest
-		if err := ValidateAndParseJSON(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, err.Error())
+		// Parse JSON Patch operations
+		var patchOps PatchRequest
+		if err := ParseJSONBody(r, &patchOps); err != nil {
+			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON patch request body: %s", err.Error()))
 			return
+		}
+
+		// Validate patch operations
+		if len(patchOps) == 0 {
+			ErrorResponse(w, http.StatusBadRequest, "At least one patch operation is required")
+			return
+		}
+
+		// Basic validation of patch operations
+		for i, op := range patchOps {
+			if strings.TrimSpace(op.Path) == "" {
+				ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Patch operation %d: path cannot be empty", i+1))
+				return
+			}
+			// Validate path format (should start with /)
+			if !strings.HasPrefix(op.Path, "/") {
+				ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Patch operation %d: path must start with '/'", i+1))
+				return
+			}
 		}
 
 		// Get existing rule
@@ -139,31 +161,88 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 			return
 		}
 
-		// Apply updates
-		if req.Name != nil {
-			name := strings.TrimSpace(*req.Name)
-			existingRule.Name = name
-		}
-
-		if req.LuaScript != nil {
-			script := strings.TrimSpace(*req.LuaScript)
-			existingRule.LuaScript = script
-		}
-
-		if req.Enabled != nil {
-			existingRule.Enabled = *req.Enabled
-		}
-
-		if req.Priority != nil {
-			existingRule.Priority = *req.Priority
-		}
-
-		if err := ruleSvc.Update(r.Context(), existingRule); err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to update rule")
+		// Convert rule to JSON for patching
+		ruleJSON, err := json.Marshal(RuleToRuleInfo(existingRule))
+		if err != nil {
+			ErrorResponse(w, http.StatusInternalServerError, "Failed to prepare rule for patching")
 			return
 		}
 
-		SuccessResponse(w, RuleToRuleInfo(existingRule))
+		// Convert patch operations to JSON Patch format
+		patchJSON, err := json.Marshal(patchOps)
+		if err != nil {
+			ErrorResponse(w, http.StatusBadRequest, "Invalid patch operations")
+			return
+		}
+
+		// Apply the patch
+		patch, err := jsonpatch.DecodePatch(patchJSON)
+		if err != nil {
+			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON Patch format: %s", err.Error()))
+			return
+		}
+
+		modifiedJSON, err := patch.Apply(ruleJSON)
+		if err != nil {
+			// Provide more specific error messages based on the type of patch error
+			errorMsg := "Failed to apply patch"
+			if strings.Contains(err.Error(), "path") {
+				errorMsg = fmt.Sprintf("Invalid patch path: %s", err.Error())
+			} else if strings.Contains(err.Error(), "operation") {
+				errorMsg = fmt.Sprintf("Invalid patch operation: %s", err.Error())
+			} else {
+				errorMsg = fmt.Sprintf("Patch application failed: %s", err.Error())
+			}
+			ErrorResponse(w, http.StatusBadRequest, errorMsg)
+			return
+		}
+
+		// Convert back to RuleInfo
+		var updatedRuleInfo RuleInfo
+		if err := json.Unmarshal(modifiedJSON, &updatedRuleInfo); err != nil {
+			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Patch resulted in invalid JSON structure: %s", err.Error()))
+			return
+		}
+
+		// Validate the updated rule
+		var validationErrors []string
+
+		trimmedName := strings.TrimSpace(updatedRuleInfo.Name)
+		if trimmedName == "" {
+			validationErrors = append(validationErrors, "rule name cannot be empty")
+		} else if len(trimmedName) > apiConfig.MaxRuleNameLength {
+			validationErrors = append(validationErrors, fmt.Sprintf("rule name too long (max %d characters, got %d)", apiConfig.MaxRuleNameLength, len(trimmedName)))
+		}
+
+		trimmedScript := strings.TrimSpace(updatedRuleInfo.LuaScript)
+		if trimmedScript == "" {
+			validationErrors = append(validationErrors, "Lua script cannot be empty")
+		} else if len(trimmedScript) > apiConfig.MaxLuaScriptLength {
+			validationErrors = append(validationErrors, fmt.Sprintf("Lua script too long (max %d characters, got %d)", apiConfig.MaxLuaScriptLength, len(trimmedScript)))
+		}
+
+		if len(validationErrors) > 0 {
+			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Validation failed: %s", strings.Join(validationErrors, "; ")))
+			return
+		}
+
+		// Convert back to domain model
+		updatedRule := &rule.Rule{
+			ID:        existingRule.ID,
+			Name:      strings.TrimSpace(updatedRuleInfo.Name),
+			LuaScript: strings.TrimSpace(updatedRuleInfo.LuaScript),
+			Priority:  updatedRuleInfo.Priority,
+			Enabled:   updatedRuleInfo.Enabled,
+			CreatedAt: existingRule.CreatedAt,
+			UpdatedAt: existingRule.UpdatedAt,
+		}
+
+		if err := ruleSvc.Update(r.Context(), updatedRule); err != nil {
+			ErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update rule in database: %s", err.Error()))
+			return
+		}
+
+		SuccessResponse(w, RuleToRuleInfo(updatedRule))
 	}
 }
 

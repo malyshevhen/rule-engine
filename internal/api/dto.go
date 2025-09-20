@@ -120,6 +120,18 @@ type APIErrorResponse struct {
 	Error string `json:"error" example:"Error message"`
 }
 
+// JSON Patch (RFC 6902) types
+
+// PatchOperation represents a single JSON Patch operation
+type PatchOperation struct {
+	Op    string      `json:"op" validate:"required,oneof=add remove replace test" example:"replace"`
+	Path  string      `json:"path" validate:"required" example:"/name"`
+	Value interface{} `json:"value,omitempty" example:"Updated Rule Name"`
+}
+
+// PatchRequest represents a JSON Patch request containing multiple operations
+type PatchRequest []PatchOperation
+
 // Conversion functions from domain models to DTOs
 
 // RuleToRuleInfo converts a rule domain model to RuleInfo DTO

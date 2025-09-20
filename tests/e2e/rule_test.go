@@ -97,9 +97,15 @@ func TestRule(t *testing.T) {
 
 	t.Run("UpdateRule", func(t *testing.T) {
 		require.NotEmpty(t, createdRuleID)
-		reqBody := `{"name": "Updated Test Rule", "lua_script": "if event.temperature > 30 then return true end", "enabled": false, "priority": 5}`
+		reqBody := `[
+			{"op": "replace", "path": "/name", "value": "Updated Test Rule"},
+			{"op": "replace", "path": "/lua_script", "value": "if event.temperature > 30 then return true end"},
+			{"op": "replace", "path": "/enabled", "value": false},
+			{"op": "replace", "path": "/priority", "value": 5}
+		]`
 		req, err := MakeAuthenticatedRequest("PATCH", baseURL+"/rules/"+createdRuleID, reqBody)
 		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json-patch+json")
 
 		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
