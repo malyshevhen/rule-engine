@@ -6,28 +6,21 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
+	"github.com/malyshevhen/rule-engine/internal/storage/db"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
 
 // ErrNotFound is returned when a rule is not found
 var ErrNotFound = errors.New("rule not found")
 
-// Pool interface for database operations
-type Pool interface {
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
-}
-
 // Repository handles database operations for rules
 type Repository struct {
-	db Pool
+	db db.DBTX
 }
 
 // NewRepository creates a new rule repository
-func NewRepository(db Pool) *Repository {
+func NewRepository(db db.DBTX) *Repository {
 	return &Repository{db: db}
 }
 

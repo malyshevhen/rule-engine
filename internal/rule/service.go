@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/internal/action"
+	"github.com/malyshevhen/rule-engine/internal/storage"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	redisClient "github.com/malyshevhen/rule-engine/internal/storage/redis"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
@@ -33,43 +34,41 @@ type RuleRepository interface {
 
 // Service handles business logic for rules
 type Service struct {
-	ruleRepo    RuleRepository
-	triggerRepo *triggerStorage.Repository
-	actionRepo  *actionStorage.Repository
-	redis       *redisClient.Client
+	store *storage.SQLStore
+	redis *redisClient.Client
 }
 
 // NewService creates a new rule service
-func NewService(ruleRepo RuleRepository, triggerRepo *triggerStorage.Repository, actionRepo *actionStorage.Repository, redis *redisClient.Client) *Service {
+func NewService(store *storage.SQLStore, redis *redisClient.Client) *Service {
 	return &Service{
-		ruleRepo:    ruleRepo,
-		triggerRepo: triggerRepo,
-		actionRepo:  actionRepo,
-		redis:       redis,
+		store: store,
+		redis: redis,
 	}
 }
 
 // Create creates a new rule
 func (s *Service) Create(ctx context.Context, rule *Rule) error {
-	storageRule := &ruleStorage.Rule{
-		Name:      rule.Name,
-		LuaScript: rule.LuaScript,
-		Priority:  rule.Priority,
-		Enabled:   rule.Enabled,
-	}
-	err := s.ruleRepo.Create(ctx, storageRule)
-	if err != nil {
-		return err
-	}
-	// Copy the generated ID back to the domain rule
-	rule.ID = storageRule.ID
-	rule.CreatedAt = storageRule.CreatedAt
-	rule.UpdatedAt = storageRule.UpdatedAt
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		storageRule := &ruleStorage.Rule{
+			Name:      rule.Name,
+			LuaScript: rule.LuaScript,
+			Priority:  rule.Priority,
+			Enabled:   rule.Enabled,
+		}
+		err := q.RuleRepository.Create(ctx, storageRule)
+		if err != nil {
+			return err
+		}
+		// Copy the generated ID back to the domain rule
+		rule.ID = storageRule.ID
+		rule.CreatedAt = storageRule.CreatedAt
+		rule.UpdatedAt = storageRule.UpdatedAt
 
-	// Invalidate caches
-	s.invalidateRuleCaches(ctx, rule.ID)
+		// Invalidate caches
+		s.invalidateRuleCaches(ctx, rule.ID)
 
-	return nil
+		return nil
+	})
 }
 
 // GetByID retrieves a rule with its triggers and actions
@@ -87,7 +86,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 	}
 
 	// Get the rule with associations using optimized JOIN queries
-	ruleStorage, triggersStorage, actionsStorage, err := s.ruleRepo.GetByIDWithAssociations(ctx, id)
+	ruleStorage, triggersStorage, actionsStorage, err := s.store.Store.RuleRepository.GetByIDWithAssociations(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +167,7 @@ func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, err
 		}
 	}
 
-	rules, err := s.ruleRepo.List(ctx, limit, offset)
+	rules, err := s.store.Store.RuleRepository.List(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -206,47 +205,53 @@ func (s *Service) ListAll(ctx context.Context) ([]*Rule, error) {
 
 // Update updates an existing rule
 func (s *Service) Update(ctx context.Context, rule *Rule) error {
-	storageRule := &ruleStorage.Rule{
-		ID:        rule.ID,
-		Name:      rule.Name,
-		LuaScript: rule.LuaScript,
-		Priority:  rule.Priority,
-		Enabled:   rule.Enabled,
-	}
-	err := s.ruleRepo.Update(ctx, storageRule)
-	if err != nil {
-		return err
-	}
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		storageRule := &ruleStorage.Rule{
+			ID:        rule.ID,
+			Name:      rule.Name,
+			LuaScript: rule.LuaScript,
+			Priority:  rule.Priority,
+			Enabled:   rule.Enabled,
+		}
+		err := q.RuleRepository.Update(ctx, storageRule)
+		if err != nil {
+			return err
+		}
 
-	// Invalidate caches
-	s.invalidateRuleCaches(ctx, rule.ID)
+		// Invalidate caches
+		s.invalidateRuleCaches(ctx, rule.ID)
 
-	return nil
+		return nil
+	})
 }
 
 // Delete deletes a rule by ID
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-	err := s.ruleRepo.Delete(ctx, id)
-	if err != nil {
-		return err
-	}
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		err := q.RuleRepository.Delete(ctx, id)
+		if err != nil {
+			return err
+		}
 
-	// Invalidate caches for this specific rule
-	s.invalidateRuleCaches(ctx, id)
+		// Invalidate caches for this specific rule
+		s.invalidateRuleCaches(ctx, id)
 
-	return nil
+		return nil
+	})
 }
 
 // AddAction adds an action to a rule
 func (s *Service) AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error {
-	if err := s.ruleRepo.AddAction(ctx, ruleID, actionID); err != nil {
-		return err
-	}
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		if err := q.RuleRepository.AddAction(ctx, ruleID, actionID); err != nil {
+			return err
+		}
 
-	// Invalidate caches
-	s.invalidateRuleCaches(ctx, ruleID)
+		// Invalidate caches
+		s.invalidateRuleCaches(ctx, ruleID)
 
-	return nil
+		return nil
+	})
 }
 
 // invalidateRuleCaches clears rule-related caches for a specific rule

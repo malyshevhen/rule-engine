@@ -20,11 +20,9 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/engine/manager"
 	"github.com/malyshevhen/rule-engine/internal/queue"
 	"github.com/malyshevhen/rule-engine/internal/rule"
-	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
+	"github.com/malyshevhen/rule-engine/internal/storage"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
 	redisClient "github.com/malyshevhen/rule-engine/internal/storage/redis"
-	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
-	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 	"github.com/malyshevhen/rule-engine/internal/trigger"
 	"github.com/malyshevhen/rule-engine/pkg/tracing"
 	"github.com/nats-io/nats.go"
@@ -74,10 +72,8 @@ func New() *App {
 	}
 	slog.Info("Database migrations completed")
 
-	// Initialize repositories
-	ruleRepo := ruleStorage.NewRepository(pool)
-	triggerRepo := triggerStorage.NewRepository(pool)
-	actionRepo := actionStorage.NewRepository(pool)
+	// Initialize SQLStore for transaction management
+	sqlStore := storage.NewSQLStore(pool)
 
 	// Initialize Redis client
 	redisConfig := &redisClient.Config{
@@ -97,9 +93,9 @@ func New() *App {
 	}
 
 	// Initialize services
-	ruleSvc := rule.NewService(ruleRepo, triggerRepo, actionRepo, redisCli)
-	triggerSvc := trigger.NewService(triggerRepo, redisCli)
-	actionSvc := action.NewService(actionRepo)
+	ruleSvc := rule.NewService(sqlStore, redisCli)
+	triggerSvc := trigger.NewService(sqlStore, redisCli)
+	actionSvc := action.NewService(sqlStore)
 
 	// Initialize executor components
 	contextSvc := execCtx.NewService()

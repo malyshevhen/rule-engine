@@ -4,22 +4,16 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/malyshevhen/rule-engine/internal/storage/db"
 )
-
-// Pool interface for database operations
-type Pool interface {
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-}
 
 // Repository handles database operations for actions
 type Repository struct {
-	db Pool
+	db db.DBTX
 }
 
 // NewRepository creates a new action repository
-func NewRepository(db Pool) *Repository {
+func NewRepository(db db.DBTX) *Repository {
 	return &Repository{db: db}
 }
 

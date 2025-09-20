@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/malyshevhen/rule-engine/internal/storage"
 	redisClient "github.com/malyshevhen/rule-engine/internal/storage/redis"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
@@ -20,41 +21,43 @@ type TriggerRepository interface {
 
 // Service handles business logic for triggers
 type Service struct {
-	repo  TriggerRepository
+	store *storage.SQLStore
 	redis *redisClient.Client
 }
 
 // NewService creates a new trigger service
-func NewService(repo TriggerRepository, redis *redisClient.Client) *Service {
-	return &Service{repo: repo, redis: redis}
+func NewService(store *storage.SQLStore, redis *redisClient.Client) *Service {
+	return &Service{store: store, redis: redis}
 }
 
 // Create creates a new trigger
 func (s *Service) Create(ctx context.Context, trigger *Trigger) error {
-	storageTrigger := &triggerStorage.Trigger{
-		RuleID:          trigger.RuleID,
-		Type:            triggerStorage.TriggerType(trigger.Type),
-		ConditionScript: trigger.ConditionScript,
-		Enabled:         trigger.Enabled,
-	}
-	err := s.repo.Create(ctx, storageTrigger)
-	if err != nil {
-		return err
-	}
-	// Copy the generated ID back to the domain trigger
-	trigger.ID = storageTrigger.ID
-	trigger.CreatedAt = storageTrigger.CreatedAt
-	trigger.UpdatedAt = storageTrigger.UpdatedAt
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		storageTrigger := &triggerStorage.Trigger{
+			RuleID:          trigger.RuleID,
+			Type:            triggerStorage.TriggerType(trigger.Type),
+			ConditionScript: trigger.ConditionScript,
+			Enabled:         trigger.Enabled,
+		}
+		err := q.TriggerRepository.Create(ctx, storageTrigger)
+		if err != nil {
+			return err
+		}
+		// Copy the generated ID back to the domain trigger
+		trigger.ID = storageTrigger.ID
+		trigger.CreatedAt = storageTrigger.CreatedAt
+		trigger.UpdatedAt = storageTrigger.UpdatedAt
 
-	// Invalidate caches
-	s.invalidateTriggerCaches(ctx)
+		// Invalidate caches
+		s.invalidateTriggerCaches(ctx)
 
-	return nil
+		return nil
+	})
 }
 
 // GetByID retrieves a trigger by its ID
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error) {
-	storageTrigger, err := s.repo.GetByID(ctx, id)
+	storageTrigger, err := s.store.Store.TriggerRepository.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +77,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error) {
 
 // List retrieves all triggers
 func (s *Service) List(ctx context.Context) ([]*Trigger, error) {
-	storageTriggers, err := s.repo.List(ctx)
+	storageTriggers, err := s.store.Store.TriggerRepository.List(ctx)
 	if err != nil {
 		return nil, err
 	}

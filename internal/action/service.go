@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/malyshevhen/rule-engine/internal/storage"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 )
 
@@ -16,35 +17,37 @@ type ActionRepository interface {
 
 // Service handles business logic for actions
 type Service struct {
-	repo ActionRepository
+	store *storage.SQLStore
 }
 
 // NewService creates a new action service
-func NewService(repo ActionRepository) *Service {
-	return &Service{repo: repo}
+func NewService(store *storage.SQLStore) *Service {
+	return &Service{store: store}
 }
 
 // Create creates a new action
 func (s *Service) Create(ctx context.Context, action *Action) error {
-	storageAction := &actionStorage.Action{
-		Type:    "lua_script",
-		Params:  action.LuaScript,
-		Enabled: action.Enabled,
-	}
-	err := s.repo.Create(ctx, storageAction)
-	if err != nil {
-		return err
-	}
-	// Copy the generated ID back to the domain action
-	action.ID = storageAction.ID
-	action.CreatedAt = storageAction.CreatedAt
-	action.UpdatedAt = storageAction.UpdatedAt
-	return nil
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		storageAction := &actionStorage.Action{
+			Type:    "lua_script",
+			Params:  action.LuaScript,
+			Enabled: action.Enabled,
+		}
+		err := q.ActionRepository.Create(ctx, storageAction)
+		if err != nil {
+			return err
+		}
+		// Copy the generated ID back to the domain action
+		action.ID = storageAction.ID
+		action.CreatedAt = storageAction.CreatedAt
+		action.UpdatedAt = storageAction.UpdatedAt
+		return nil
+	})
 }
 
 // GetByID retrieves an action by its ID
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
-	storageAction, err := s.repo.GetByID(ctx, id)
+	storageAction, err := s.store.Store.ActionRepository.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +70,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
 
 // List retrieves all actions
 func (s *Service) List(ctx context.Context) ([]*Action, error) {
-	storageActions, err := s.repo.List(ctx)
+	storageActions, err := s.store.Store.ActionRepository.List(ctx)
 	if err != nil {
 		return nil, err
 	}
