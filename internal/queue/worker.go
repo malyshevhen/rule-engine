@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/malyshevhen/rule-engine/internal/core/rule"
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 	"github.com/malyshevhen/rule-engine/internal/metrics"
+	"github.com/malyshevhen/rule-engine/internal/rule"
 	"github.com/malyshevhen/rule-engine/pkg/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )

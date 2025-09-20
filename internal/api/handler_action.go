@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/malyshevhen/rule-engine/internal/core/action"
+	"github.com/malyshevhen/rule-engine/internal/action"
 )
 
 func createAction(actionSvc ActionService) http.HandlerFunc {

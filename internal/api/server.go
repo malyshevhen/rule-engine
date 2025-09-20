@@ -8,12 +8,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
+	"github.com/malyshevhen/rule-engine/internal/action"
 	"github.com/malyshevhen/rule-engine/internal/analytics"
-	"github.com/malyshevhen/rule-engine/internal/core/action"
-	"github.com/malyshevhen/rule-engine/internal/core/rule"
-	"github.com/malyshevhen/rule-engine/internal/core/trigger"
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
+	"github.com/malyshevhen/rule-engine/internal/rule"
+	"github.com/malyshevhen/rule-engine/internal/trigger"
 )
 
 // RuleService interface

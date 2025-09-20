@@ -182,10 +182,6 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 
 - [x] Add alerting for failed executions
 
-### 8.4 SDKs and Integration
-
-- [ ] Add automated RESTful client generation for Go based on OpenAPI spec
-
 ## Phase 9: End-to-End Testing
 
 ### 9.1 Integration Testing
@@ -194,7 +190,7 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - [x] Implement simple device simulator for testing
 - [x] Set up Hoverfly for external API mocking (like endpoint data service)
 - [ ] Add end-to-end tests for all features
-  - [ ] Test Lua script execution
+  - [x] Test Lua script execution
   - [ ] Test rule chaining and dependencies
   - [ ] Test rule execution queuing
   - [ ] Test rule execution with multiple triggers
@@ -211,5 +207,5 @@ This roadmap outlines the step-by-step development plan for building a robust, s
 - [x] Support for conditional and scheduled triggers
 - [x] Production-ready deployment configuration
 - [ ] Complete observability stack
-- [ ] Performance benchmarks met
+- [x] Performance benchmarks met
 - [ ] Cover all features with end-to-end tests

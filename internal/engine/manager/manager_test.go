@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/malyshevhen/rule-engine/internal/core/action"
-	"github.com/malyshevhen/rule-engine/internal/core/rule"
-	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	"github.com/malyshevhen/rule-engine/internal/action"
 	execPkg "github.com/malyshevhen/rule-engine/internal/engine/executor"
 	ctxPkg "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
+	"github.com/malyshevhen/rule-engine/internal/rule"
+	"github.com/malyshevhen/rule-engine/internal/trigger"
 	"github.com/stretchr/testify/mock"
 )
 

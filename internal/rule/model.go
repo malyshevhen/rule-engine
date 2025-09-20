@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/malyshevhen/rule-engine/internal/core/action"
-	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	"github.com/malyshevhen/rule-engine/internal/action"
+	"github.com/malyshevhen/rule-engine/internal/trigger"
 )
 
 // Rule represents a business rule with its triggers and actions

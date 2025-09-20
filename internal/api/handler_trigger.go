@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	"github.com/malyshevhen/rule-engine/internal/trigger"
 )
 
 func createTrigger(triggerSvc TriggerService) http.HandlerFunc {

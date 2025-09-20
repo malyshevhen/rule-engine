@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/malyshevhen/rule-engine/internal/core/rule"
+	"github.com/malyshevhen/rule-engine/internal/rule"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 )
 

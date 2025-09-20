@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/malyshevhen/rule-engine/internal/core/action"
-	"github.com/malyshevhen/rule-engine/internal/core/trigger"
+	"github.com/malyshevhen/rule-engine/internal/action"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	redisClient "github.com/malyshevhen/rule-engine/internal/storage/redis"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
+	"github.com/malyshevhen/rule-engine/internal/trigger"
 )
 
 // RuleRepository interface for rule storage operations
