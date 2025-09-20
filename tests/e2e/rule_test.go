@@ -96,24 +96,30 @@ func TestRule(t *testing.T) {
 	})
 
 	t.Run("UpdateRule", func(t *testing.T) {
-		require.NotEmpty(t, createdRuleID)
+		// If createdRuleID is empty (when running this test individually), create a rule first
+		ruleID := createdRuleID
+		if ruleID == "" {
+			ruleID = createRule(t, env, `{"name": "Test Rule for Update", "lua_script": "if event.temperature > 25 then return true end", "enabled": true, "priority": 0}`)
+		}
+		require.NotEmpty(t, ruleID)
+
 		reqBody := `[
-			{"op": "replace", "path": "/name", "value": "Updated Test Rule"},
-			{"op": "replace", "path": "/lua_script", "value": "if event.temperature > 30 then return true end"},
-			{"op": "replace", "path": "/enabled", "value": false},
-			{"op": "replace", "path": "/priority", "value": 5}
-		]`
-		req, err := MakeAuthenticatedRequest("PATCH", baseURL+"/rules/"+createdRuleID, reqBody)
+ 			{"op": "replace", "path": "/name", "value": "Updated Test Rule"},
+ 			{"op": "replace", "path": "/lua_script", "value": "if event.temperature > 30 then return true end"},
+ 			{"op": "replace", "path": "/enabled", "value": false},
+ 			{"op": "replace", "path": "/priority", "value": 5}
+ 		]`
+		req, err := MakeAuthenticatedRequest("PATCH", baseURL+"/rules/"+ruleID, reqBody)
 		require.NoError(t, err)
 		req.Header.Set("Content-Type", "application/json-patch+json")
 
 		resp, body := DoRequest(t, req)
-		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode, "Failed to update rule", "Response: ", string(body))
 
 		var rule map[string]any
 		err = json.Unmarshal(body, &rule)
 		require.NoError(t, err)
-		require.Equal(t, createdRuleID, rule["id"])
+		require.Equal(t, ruleID, rule["id"])
 		require.Equal(t, "Updated Test Rule", rule["name"])
 		require.Equal(t, "if event.temperature > 30 then return true end", rule["lua_script"])
 		require.Equal(t, false, rule["enabled"])
@@ -121,8 +127,14 @@ func TestRule(t *testing.T) {
 	})
 
 	t.Run("DeleteRule", func(t *testing.T) {
-		require.NotEmpty(t, createdRuleID)
-		req, err := MakeAuthenticatedRequest("DELETE", baseURL+"/rules/"+createdRuleID, "")
+		// If createdRuleID is empty (when running this test individually), create a rule first
+		ruleID := createdRuleID
+		if ruleID == "" {
+			ruleID = createRule(t, env, `{"name": "Test Rule for Delete", "lua_script": "if event.temperature > 25 then return true end", "enabled": true, "priority": 0}`)
+		}
+		require.NotEmpty(t, ruleID)
+
+		req, err := MakeAuthenticatedRequest("DELETE", baseURL+"/rules/"+ruleID, "")
 		require.NoError(t, err)
 
 		resp, body := DoRequest(t, req)
@@ -130,7 +142,7 @@ func TestRule(t *testing.T) {
 		require.Empty(t, body)
 
 		// Verify it's deleted by trying to get it
-		req, err = MakeAuthenticatedRequest("GET", baseURL+"/rules/"+createdRuleID, "")
+		req, err = MakeAuthenticatedRequest("GET", baseURL+"/rules/"+ruleID, "")
 		require.NoError(t, err)
 		resp, _ = DoRequest(t, req)
 		require.Equal(t, http.StatusNotFound, resp.StatusCode)

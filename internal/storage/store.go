@@ -3,17 +3,46 @@ package storage
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
 
+// ActionRepository interface for action storage operations
+type ActionRepository interface {
+	Create(ctx context.Context, action *actionStorage.Action) error
+	GetByID(ctx context.Context, id uuid.UUID) (*actionStorage.Action, error)
+	List(ctx context.Context) ([]*actionStorage.Action, error)
+}
+
+// TriggerRepository interface for trigger storage operations
+type TriggerRepository interface {
+	Create(ctx context.Context, trigger *triggerStorage.Trigger) error
+	GetByID(ctx context.Context, id uuid.UUID) (*triggerStorage.Trigger, error)
+	List(ctx context.Context) ([]*triggerStorage.Trigger, error)
+}
+
+// RuleRepository interface for rule storage operations
+type RuleRepository interface {
+	Create(ctx context.Context, rule *ruleStorage.Rule) error
+	GetByID(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, error)
+	GetByIDWithAssociations(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, []*triggerStorage.Trigger, []*actionStorage.Action, error)
+	List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, error)
+	ListAll(ctx context.Context) ([]*ruleStorage.Rule, error)
+	Update(ctx context.Context, rule *ruleStorage.Rule) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*triggerStorage.Trigger, error)
+	GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*actionStorage.Action, error)
+	AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error
+}
+
 // Store provides all functions to execute db queries and transactions
 type Store struct {
-	RuleRepository    *ruleStorage.Repository
-	TriggerRepository *triggerStorage.Repository
-	ActionRepository  *actionStorage.Repository
+	RuleRepository    RuleRepository
+	TriggerRepository TriggerRepository
+	ActionRepository  ActionRepository
 }
 
 // SQLStore provides all functions to execute SQL queries and transactions
@@ -55,4 +84,9 @@ func (s *SQLStore) ExecTx(ctx context.Context, fn func(*Store) error) error {
 	}
 
 	return tx.Commit(ctx)
+}
+
+// GetStore returns the Store instance
+func (s *SQLStore) GetStore() *Store {
+	return s.Store
 }

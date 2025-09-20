@@ -19,14 +19,20 @@ type TriggerRepository interface {
 	List(ctx context.Context) ([]*triggerStorage.Trigger, error)
 }
 
+// Store interface for database operations
+type Store interface {
+	ExecTx(ctx context.Context, fn func(*storage.Store) error) error
+	GetStore() *storage.Store
+}
+
 // Service handles business logic for triggers
 type Service struct {
-	store *storage.SQLStore
+	store Store
 	redis *redisClient.Client
 }
 
 // NewService creates a new trigger service
-func NewService(store *storage.SQLStore, redis *redisClient.Client) *Service {
+func NewService(store Store, redis *redisClient.Client) *Service {
 	return &Service{store: store, redis: redis}
 }
 
@@ -57,7 +63,7 @@ func (s *Service) Create(ctx context.Context, trigger *Trigger) error {
 
 // GetByID retrieves a trigger by its ID
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error) {
-	storageTrigger, err := s.store.Store.TriggerRepository.GetByID(ctx, id)
+	storageTrigger, err := s.store.GetStore().TriggerRepository.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +83,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error) {
 
 // List retrieves all triggers
 func (s *Service) List(ctx context.Context) ([]*Trigger, error) {
-	storageTriggers, err := s.store.Store.TriggerRepository.List(ctx)
+	storageTriggers, err := s.store.GetStore().TriggerRepository.List(ctx)
 	if err != nil {
 		return nil, err
 	}

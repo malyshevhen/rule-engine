@@ -32,14 +32,20 @@ type RuleRepository interface {
 	AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error
 }
 
+// Store interface for database operations
+type Store interface {
+	ExecTx(ctx context.Context, fn func(*storage.Store) error) error
+	GetStore() *storage.Store
+}
+
 // Service handles business logic for rules
 type Service struct {
-	store *storage.SQLStore
+	store Store
 	redis *redisClient.Client
 }
 
 // NewService creates a new rule service
-func NewService(store *storage.SQLStore, redis *redisClient.Client) *Service {
+func NewService(store Store, redis *redisClient.Client) *Service {
 	return &Service{
 		store: store,
 		redis: redis,
@@ -86,7 +92,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 	}
 
 	// Get the rule with associations using optimized JOIN queries
-	ruleStorage, triggersStorage, actionsStorage, err := s.store.Store.RuleRepository.GetByIDWithAssociations(ctx, id)
+	ruleStorage, triggersStorage, actionsStorage, err := s.store.GetStore().RuleRepository.GetByIDWithAssociations(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +173,7 @@ func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, err
 		}
 	}
 
-	rules, err := s.store.Store.RuleRepository.List(ctx, limit, offset)
+	rules, err := s.store.GetStore().RuleRepository.List(ctx, limit, offset)
 	if err != nil {
 		return nil, err
 	}

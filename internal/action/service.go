@@ -15,13 +15,19 @@ type ActionRepository interface {
 	List(ctx context.Context) ([]*actionStorage.Action, error)
 }
 
+// Store interface for database operations
+type Store interface {
+	ExecTx(ctx context.Context, fn func(*storage.Store) error) error
+	GetStore() *storage.Store
+}
+
 // Service handles business logic for actions
 type Service struct {
-	store *storage.SQLStore
+	store Store
 }
 
 // NewService creates a new action service
-func NewService(store *storage.SQLStore) *Service {
+func NewService(store Store) *Service {
 	return &Service{store: store}
 }
 
@@ -47,7 +53,7 @@ func (s *Service) Create(ctx context.Context, action *Action) error {
 
 // GetByID retrieves an action by its ID
 func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
-	storageAction, err := s.store.Store.ActionRepository.GetByID(ctx, id)
+	storageAction, err := s.store.GetStore().ActionRepository.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +76,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
 
 // List retrieves all actions
 func (s *Service) List(ctx context.Context) ([]*Action, error) {
-	storageActions, err := s.store.Store.ActionRepository.List(ctx)
+	storageActions, err := s.store.GetStore().ActionRepository.List(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/malyshevhen/rule-engine/internal/storage"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
@@ -49,11 +50,17 @@ func (m *mockRuleRepository) AddAction(ctx context.Context, ruleID, actionID uui
 
 func (m *mockRuleRepository) List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, error) {
 	args := m.Called(ctx, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]*ruleStorage.Rule), args.Error(1)
 }
 
 func (m *mockRuleRepository) ListAll(ctx context.Context) ([]*ruleStorage.Rule, error) {
 	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]*ruleStorage.Rule), args.Error(1)
 }
 
@@ -67,9 +74,36 @@ func (m *mockRuleRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
+// mockSQLStore is a mock implementation of Store interface for testing
+type mockSQLStore struct {
+	mock.Mock
+	ruleRepo storage.RuleRepository
+}
+
+func newMockSQLStore() *mockSQLStore {
+	return &mockSQLStore{
+		ruleRepo: &mockRuleRepository{},
+	}
+}
+
+func (m *mockSQLStore) ExecTx(ctx context.Context, fn func(*storage.Store) error) error {
+	store := &storage.Store{
+		RuleRepository: m.ruleRepo,
+	}
+	err := fn(store)
+	m.Called(ctx, mock.Anything)
+	return err
+}
+
+func (m *mockSQLStore) GetStore() *storage.Store {
+	return &storage.Store{
+		RuleRepository: m.ruleRepo,
+	}
+}
+
 func TestService_Create(t *testing.T) {
-	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil, nil)
+	mockStore := newMockSQLStore()
+	svc := NewService(mockStore, nil)
 
 	rule := &Rule{
 		Name:      "Test Rule",
@@ -77,17 +111,20 @@ func TestService_Create(t *testing.T) {
 		Enabled:   true,
 	}
 
-	mockRepo.On("Create", mock.Anything, mock.AnythingOfType("*rule.Rule")).Return(nil)
+	mockStore.ruleRepo.(*mockRuleRepository).On("Create", mock.Anything, mock.AnythingOfType("*rule.Rule")).Return(nil)
+
+	mockStore.On("ExecTx", mock.Anything, mock.Anything).Return(nil)
 
 	err := svc.Create(context.Background(), rule)
 
 	assert.NoError(t, err)
-	mockRepo.AssertExpectations(t)
+	mockStore.ruleRepo.(*mockRuleRepository).AssertExpectations(t)
+	mockStore.AssertExpectations(t)
 }
 
 func TestService_GetByID(t *testing.T) {
-	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil, nil)
+	mockStore := newMockSQLStore()
+	svc := NewService(mockStore, nil)
 
 	ruleID := uuid.New()
 	expectedRule := &ruleStorage.Rule{
@@ -100,7 +137,7 @@ func TestService_GetByID(t *testing.T) {
 	expectedTriggers := []*triggerStorage.Trigger{}
 	expectedActions := []*actionStorage.Action{}
 
-	mockRepo.On("GetByIDWithAssociations", mock.Anything, ruleID).Return(expectedRule, expectedTriggers, expectedActions, nil)
+	mockStore.ruleRepo.(*mockRuleRepository).On("GetByIDWithAssociations", mock.Anything, ruleID).Return(expectedRule, expectedTriggers, expectedActions, nil)
 
 	rule, err := svc.GetByID(context.Background(), ruleID)
 
@@ -113,27 +150,27 @@ func TestService_GetByID(t *testing.T) {
 	assert.Empty(t, rule.Triggers)
 	assert.Empty(t, rule.Actions)
 
-	mockRepo.AssertExpectations(t)
+	mockStore.ruleRepo.(*mockRuleRepository).AssertExpectations(t)
 }
 
 func TestService_GetByID_Error(t *testing.T) {
-	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil, nil)
+	mockStore := newMockSQLStore()
+	svc := NewService(mockStore, nil)
 
 	ruleID := uuid.New()
 
-	mockRepo.On("GetByIDWithAssociations", mock.Anything, ruleID).Return((*ruleStorage.Rule)(nil), ([]*triggerStorage.Trigger)(nil), ([]*actionStorage.Action)(nil), assert.AnError)
+	mockStore.ruleRepo.(*mockRuleRepository).On("GetByIDWithAssociations", mock.Anything, ruleID).Return((*ruleStorage.Rule)(nil), ([]*triggerStorage.Trigger)(nil), ([]*actionStorage.Action)(nil), assert.AnError)
 
 	rule, err := svc.GetByID(context.Background(), ruleID)
 
 	assert.Error(t, err)
 	assert.Nil(t, rule)
-	mockRepo.AssertExpectations(t)
+	mockStore.ruleRepo.(*mockRuleRepository).AssertExpectations(t)
 }
 
 func TestService_List(t *testing.T) {
-	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil, nil)
+	mockStore := newMockSQLStore()
+	svc := NewService(mockStore, nil)
 
 	expectedRules := []*ruleStorage.Rule{
 		{
@@ -144,7 +181,7 @@ func TestService_List(t *testing.T) {
 		},
 	}
 
-	mockRepo.On("List", mock.Anything, 1000, 0).Return(expectedRules, nil)
+	mockStore.ruleRepo.(*mockRuleRepository).On("List", mock.Anything, 1000, 0).Return(expectedRules, nil)
 
 	rules, err := svc.ListAll(context.Background())
 
@@ -152,12 +189,12 @@ func TestService_List(t *testing.T) {
 	assert.Len(t, rules, 1)
 	assert.Equal(t, "Rule 1", rules[0].Name)
 
-	mockRepo.AssertExpectations(t)
+	mockStore.ruleRepo.(*mockRuleRepository).AssertExpectations(t)
 }
 
 func TestService_Update(t *testing.T) {
-	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil, nil)
+	mockStore := newMockSQLStore()
+	svc := NewService(mockStore, nil)
 
 	rule := &Rule{
 		ID:        uuid.New(),
@@ -166,24 +203,30 @@ func TestService_Update(t *testing.T) {
 		Enabled:   true,
 	}
 
-	mockRepo.On("Update", mock.Anything, mock.Anything).Return(nil)
+	mockStore.ruleRepo.(*mockRuleRepository).On("Update", mock.Anything, mock.Anything).Return(nil)
+
+	mockStore.On("ExecTx", mock.Anything, mock.Anything).Return(nil)
 
 	err := svc.Update(context.Background(), rule)
 
 	assert.NoError(t, err)
-	mockRepo.AssertExpectations(t)
+	mockStore.ruleRepo.(*mockRuleRepository).AssertExpectations(t)
+	mockStore.AssertExpectations(t)
 }
 
 func TestService_Delete(t *testing.T) {
-	mockRepo := &mockRuleRepository{}
-	svc := NewService(mockRepo, nil, nil, nil)
+	mockStore := newMockSQLStore()
+	svc := NewService(mockStore, nil)
 
 	ruleID := uuid.New()
 
-	mockRepo.On("Delete", mock.Anything, ruleID).Return(nil)
+	mockStore.ruleRepo.(*mockRuleRepository).On("Delete", mock.Anything, ruleID).Return(nil)
+
+	mockStore.On("ExecTx", mock.Anything, mock.Anything).Return(nil)
 
 	err := svc.Delete(context.Background(), ruleID)
 
 	assert.NoError(t, err)
-	mockRepo.AssertExpectations(t)
+	mockStore.ruleRepo.(*mockRuleRepository).AssertExpectations(t)
+	mockStore.AssertExpectations(t)
 }
