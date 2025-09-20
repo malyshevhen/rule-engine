@@ -41,8 +41,6 @@ func TestRule(t *testing.T) {
 		require.Equal(t, float64(0), rule["priority"])
 		require.NotEmpty(t, rule["created_at"])
 		require.NotEmpty(t, rule["updated_at"])
-		// require.NotNil(t, rule["actions"])
-		// require.NotNil(t, rule["triggers"])
 
 		createdRuleID = rule["id"].(string)
 	})
@@ -72,10 +70,18 @@ func TestRule(t *testing.T) {
 		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		var rules []map[string]any
-		err = json.Unmarshal(body, &rules)
-		require.NoError(t, err)
-		require.Greater(t, len(rules), 0)
+		var rules_page = struct {
+			Count  int              `json:"count"`
+			Limit  int              `json:"limit"`
+			Offset int              `json:"offset"`
+			Rules  []map[string]any `json:"rules"`
+		}{}
+
+		err = json.Unmarshal(body, &rules_page)
+		require.NoError(t, err, "Failed to unmarshal response body: ", string(body))
+
+		rules := rules_page.Rules
+		require.Greater(t, rules_page.Count, 0)
 
 		// Check that our created rule is in the list
 		found := false
@@ -92,7 +98,7 @@ func TestRule(t *testing.T) {
 	t.Run("UpdateRule", func(t *testing.T) {
 		require.NotEmpty(t, createdRuleID)
 		reqBody := `{"name": "Updated Test Rule", "lua_script": "if event.temperature > 30 then return true end", "enabled": false, "priority": 5}`
-		req, err := MakeAuthenticatedRequest("PUT", baseURL+"/rules/"+createdRuleID, reqBody)
+		req, err := MakeAuthenticatedRequest("PATCH", baseURL+"/rules/"+createdRuleID, reqBody)
 		require.NoError(t, err)
 
 		resp, body := DoRequest(t, req)

@@ -207,7 +207,7 @@ func TestServer_ListRules(t *testing.T) {
 		},
 	}
 
-	mockRuleSvc.On("ListAll", mock.Anything).Return(expectedRules, nil)
+	mockRuleSvc.On("List", mock.Anything, 50, 0).Return(expectedRules, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/rules", nil)
 	w := httptest.NewRecorder()
@@ -217,12 +217,25 @@ func TestServer_ListRules(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockRuleSvc.AssertExpectations(t)
 
-	var response []*rule.Rule
+	var response map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Len(t, response, 2)
-	assert.Equal(t, "Rule 1", response[0].Name)
-	assert.Equal(t, "Rule 2", response[1].Name)
+
+	rules := response["rules"].([]interface{})
+	assert.Len(t, rules, 2)
+
+	// Check the first rule
+	rule1 := rules[0].(map[string]interface{})
+	assert.Equal(t, "Rule 1", rule1["name"])
+
+	// Check the second rule
+	rule2 := rules[1].(map[string]interface{})
+	assert.Equal(t, "Rule 2", rule2["name"])
+
+	// Check pagination metadata
+	assert.Equal(t, float64(50), response["limit"])
+	assert.Equal(t, float64(0), response["offset"])
+	assert.Equal(t, float64(2), response["count"])
 }
 
 func TestServer_UpdateRule(t *testing.T) {

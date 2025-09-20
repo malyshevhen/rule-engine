@@ -154,7 +154,7 @@ func TestEvaluateEndpoint(t *testing.T) {
 		var errorResp map[string]string
 		err = json.Unmarshal(body, &errorResp)
 		require.NoError(t, err)
-		require.Contains(t, errorResp["error"], "Script cannot be empty")
+		require.Contains(t, errorResp["error"], "validation failed: Script is required")
 	})
 
 	t.Run("ScriptTooLong", func(t *testing.T) {
@@ -191,7 +191,7 @@ func TestEvaluateEndpoint(t *testing.T) {
 		var errorResp map[string]string
 		err = json.Unmarshal(body, &errorResp)
 		require.NoError(t, err)
-		require.Contains(t, errorResp["error"], "Script too long")
+		require.Contains(t, errorResp["error"], "validation failed: Lua script must be between 1 and 10000 characters")
 	})
 
 	t.Run("Unauthorized", func(t *testing.T) {

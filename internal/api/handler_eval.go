@@ -10,21 +10,13 @@ import (
 func evaluateScript(executorSvc ExecutorService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req EvaluateScriptRequest
-		if err := ParseJSONBody(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		if err := ValidateAndParseJSON(r, &req); err != nil {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		// Sanitize and validate inputs
+		// Sanitize inputs
 		req.Script = strings.TrimSpace(req.Script)
-		if req.Script == "" {
-			ErrorResponse(w, http.StatusBadRequest, "Script cannot be empty")
-			return
-		}
-		if len(req.Script) > 10000 {
-			ErrorResponse(w, http.StatusBadRequest, "Script too long (max 10000 characters)")
-			return
-		}
 
 		// Create a minimal execution context for evaluation
 		execContext := &execCtx.ExecutionContext{

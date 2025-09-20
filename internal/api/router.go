@@ -26,7 +26,7 @@ func setupRoutes(
 	api.HandleFunc("/rules", createRule(ruleSvc)).Methods("POST")
 	api.HandleFunc("/rules", listRules(ruleSvc)).Methods("GET")
 	api.HandleFunc("/rules/{id}", getRule(ruleSvc)).Methods("GET")
-	api.HandleFunc("/rules/{id}", updateRule(ruleSvc)).Methods("PUT")
+	api.HandleFunc("/rules/{id}", updateRule(ruleSvc)).Methods("PATCH")
 	api.HandleFunc("/rules/{id}", deleteRule(ruleSvc)).Methods("DELETE")
 	api.HandleFunc("/rules/{id}/actions", addActionToRule(ruleSvc)).Methods("POST")
 

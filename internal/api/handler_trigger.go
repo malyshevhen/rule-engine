@@ -12,31 +12,14 @@ import (
 func createTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateTriggerRequest
-		if err := ParseJSONBody(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		if err := ValidateAndParseJSON(r, &req); err != nil {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		// Sanitize and validate inputs
+		// Sanitize inputs
 		req.Type = strings.TrimSpace(req.Type)
-		if req.Type == "" {
-			ErrorResponse(w, http.StatusBadRequest, "Trigger type cannot be empty")
-			return
-		}
-		if req.Type != "CONDITIONAL" && req.Type != "CRON" {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid trigger type (must be 'CONDITIONAL' or 'CRON')")
-			return
-		}
-
 		req.ConditionScript = strings.TrimSpace(req.ConditionScript)
-		if req.ConditionScript == "" {
-			ErrorResponse(w, http.StatusBadRequest, "Condition script cannot be empty")
-			return
-		}
-		if len(req.ConditionScript) > 5000 {
-			ErrorResponse(w, http.StatusBadRequest, "Condition script too long (max 5000 characters)")
-			return
-		}
 
 		enabled := true
 		if req.Enabled != nil {
@@ -55,7 +38,7 @@ func createTrigger(triggerSvc TriggerService) http.HandlerFunc {
 			return
 		}
 
-		CreatedResponse(w, trigger)
+		CreatedResponse(w, TriggerToTriggerInfo(trigger))
 	}
 }
 
@@ -67,7 +50,13 @@ func listTriggers(triggerSvc TriggerService) http.HandlerFunc {
 			return
 		}
 
-		SuccessResponse(w, triggers)
+		// Convert to DTOs
+		triggerInfos := make([]TriggerInfo, len(triggers))
+		for i, t := range triggers {
+			triggerInfos[i] = *TriggerToTriggerInfo(t)
+		}
+
+		SuccessResponse(w, triggerInfos)
 	}
 }
 
@@ -87,6 +76,6 @@ func getTrigger(triggerSvc TriggerService) http.HandlerFunc {
 			return
 		}
 
-		SuccessResponse(w, trigger)
+		SuccessResponse(w, TriggerToTriggerInfo(trigger))
 	}
 }

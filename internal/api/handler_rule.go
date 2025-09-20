@@ -2,7 +2,9 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -14,31 +16,14 @@ import (
 func createRule(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateRuleRequest
-		if err := ParseJSONBody(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		if err := ValidateAndParseJSON(r, &req); err != nil {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
-		// Sanitize and validate inputs
+		// Sanitize inputs
 		req.Name = strings.TrimSpace(req.Name)
-		if req.Name == "" {
-			ErrorResponse(w, http.StatusBadRequest, "Rule name cannot be empty")
-			return
-		}
-		if len(req.Name) > 255 {
-			ErrorResponse(w, http.StatusBadRequest, "Rule name too long (max 255 characters)")
-			return
-		}
-
 		req.LuaScript = strings.TrimSpace(req.LuaScript)
-		if req.LuaScript == "" {
-			ErrorResponse(w, http.StatusBadRequest, "Lua script cannot be empty")
-			return
-		}
-		if len(req.LuaScript) > 10000 {
-			ErrorResponse(w, http.StatusBadRequest, "Lua script too long (max 10000 characters)")
-			return
-		}
 
 		enabled := true
 		if req.Enabled != nil {
@@ -62,19 +47,52 @@ func createRule(ruleSvc RuleService) http.HandlerFunc {
 			return
 		}
 
-		CreatedResponse(w, rule)
+		CreatedResponse(w, RuleToRuleInfo(rule))
 	}
 }
 
 func listRules(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rules, err := ruleSvc.ListAll(r.Context())
+		// Parse pagination parameters
+		limitStr := GetQueryParam(r, "limit")
+		offsetStr := GetQueryParam(r, "offset")
+
+		limit := apiConfig.DefaultRulesLimit
+		offset := apiConfig.DefaultRulesOffset
+
+		if limitStr != "" {
+			if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= apiConfig.MaxRulesLimit {
+				limit = parsedLimit
+			} else {
+				ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid limit parameter (must be between 1 and %d)", apiConfig.MaxRulesLimit))
+				return
+			}
+		}
+
+		if offsetStr != "" {
+			if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+				offset = parsedOffset
+			} else {
+				ErrorResponse(w, http.StatusBadRequest, "Invalid offset parameter (must be non-negative)")
+				return
+			}
+		}
+
+		rules, err := ruleSvc.List(r.Context(), limit, offset)
 		if err != nil {
 			ErrorResponse(w, http.StatusInternalServerError, "Failed to list rules")
 			return
 		}
 
-		SuccessResponse(w, rules)
+		// Create response with pagination metadata
+		response := map[string]interface{}{
+			"rules":  RulesToRuleInfos(rules),
+			"limit":  limit,
+			"offset": offset,
+			"count":  len(rules),
+		}
+
+		SuccessResponse(w, response)
 	}
 }
 
@@ -94,7 +112,7 @@ func getRule(ruleSvc RuleService) http.HandlerFunc {
 			return
 		}
 
-		SuccessResponse(w, rule)
+		SuccessResponse(w, RuleToRuleInfo(rule))
 	}
 }
 
@@ -109,8 +127,8 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		}
 
 		var req UpdateRuleRequest
-		if err := ParseJSONBody(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		if err := ValidateAndParseJSON(r, &req); err != nil {
+			ErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
@@ -124,27 +142,11 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		// Apply updates
 		if req.Name != nil {
 			name := strings.TrimSpace(*req.Name)
-			if name == "" {
-				ErrorResponse(w, http.StatusBadRequest, "Rule name cannot be empty")
-				return
-			}
-			if len(name) > 255 {
-				ErrorResponse(w, http.StatusBadRequest, "Rule name too long (max 255 characters)")
-				return
-			}
 			existingRule.Name = name
 		}
 
 		if req.LuaScript != nil {
 			script := strings.TrimSpace(*req.LuaScript)
-			if script == "" {
-				ErrorResponse(w, http.StatusBadRequest, "Lua script cannot be empty")
-				return
-			}
-			if len(script) > 10000 {
-				ErrorResponse(w, http.StatusBadRequest, "Lua script too long (max 10000 characters)")
-				return
-			}
 			existingRule.LuaScript = script
 		}
 
@@ -161,7 +163,7 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 			return
 		}
 
-		SuccessResponse(w, existingRule)
+		SuccessResponse(w, RuleToRuleInfo(existingRule))
 	}
 }
 
