@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"testing"
@@ -35,7 +36,16 @@ func TestHealthCheck(t *testing.T) {
 
 	body, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
+	require.NoError(t, err)
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	require.Equal(t, []byte("healthy"), body)
+
+	// Parse JSON response
+	var healthResponse map[string]string
+	err = json.Unmarshal(body, &healthResponse)
+	require.NoError(t, err)
+
+	// Verify database and redis status
+	require.Equal(t, "ok", healthResponse["database"])
+	require.Contains(t, []string{"ok", "disabled"}, healthResponse["redis"])
 }

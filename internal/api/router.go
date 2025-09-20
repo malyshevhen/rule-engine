@@ -1,14 +1,13 @@
 package api
 
 import (
-	"net/http"
-
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // setupRoutes registers all API routes
 func setupRoutes(
+	healthSvc *Health,
 	executorSvc ExecutorService,
 	ruleSvc RuleService,
 	triggerSvc TriggerService,
@@ -16,7 +15,7 @@ func setupRoutes(
 ) *mux.Router {
 	router := mux.NewRouter()
 	// Public routes (no authentication required)
-	router.HandleFunc("/health", HealthCheck).Methods("GET")
+	router.HandleFunc("/health", healthSvc.healthCheckHandler()).Methods("GET")
 	router.Handle("/metrics", promhttp.Handler())
 
 	// Protected API routes (require authentication)
@@ -45,10 +44,4 @@ func setupRoutes(
 	api.HandleFunc("/evaluate", evaluateScript(executorSvc)).Methods("POST")
 
 	return router
-}
-
-func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("healthy"))
 }

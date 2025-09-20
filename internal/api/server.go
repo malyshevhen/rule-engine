@@ -59,6 +59,7 @@ type ServerConfig struct {
 // NewServer creates a new HTTP server with optional configuration
 func NewServer(
 	config *ServerConfig,
+	healthSvc *Health,
 	ruleSvc RuleService,
 	triggerSvc TriggerService,
 	actionSvc ActionService,
@@ -67,6 +68,7 @@ func NewServer(
 	rateLimitingEnabled bool,
 ) *http.Server {
 	router := setupRoutes(
+		healthSvc,
 		executorSvc,
 		ruleSvc,
 		triggerSvc,

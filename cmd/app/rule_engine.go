@@ -147,9 +147,12 @@ func New() *App {
 	// Initialize trigger manager
 	mgr := manager.NewManager(nc, c, ruleSvc, triggerSvc, triggerEval, executorSvc, alertingSvc, execQueue)
 
+	// Initialize Health Check service
+	healthSvc := api.NewHealth(pool, redisCli)
+
 	// Initialize HTTP server
 	serverConfig := &api.ServerConfig{Port: config.Port}
-	server := api.NewServer(serverConfig, ruleSvc, triggerSvc, actionSvc, analyticsSvc, executorSvc, true)
+	server := api.NewServer(serverConfig, healthSvc, ruleSvc, triggerSvc, actionSvc, analyticsSvc, executorSvc, true)
 
 	return &App{
 		config:      config,
