@@ -24,6 +24,7 @@ type RuleService interface {
 	ListAll(ctx context.Context) ([]*rule.Rule, error)
 	Update(ctx context.Context, rule *rule.Rule) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error
 }
 
 // TriggerService interface

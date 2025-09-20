@@ -29,6 +29,7 @@ func setupRoutes(
 	api.HandleFunc("/rules/{id}", getRule(ruleSvc)).Methods("GET")
 	api.HandleFunc("/rules/{id}", updateRule(ruleSvc)).Methods("PUT")
 	api.HandleFunc("/rules/{id}", deleteRule(ruleSvc)).Methods("DELETE")
+	api.HandleFunc("/rules/{id}/actions", addActionToRule(ruleSvc)).Methods("POST")
 
 	// Triggers routes
 	api.HandleFunc("/triggers", createTrigger(triggerSvc)).Methods("POST")

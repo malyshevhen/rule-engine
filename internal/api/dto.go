@@ -84,6 +84,11 @@ type EvaluateScriptResponse struct {
 	Duration string `json:"duration" example:"1.5ms"`
 }
 
+// AddActionToRuleRequest represents a request to add an action to a rule
+type AddActionToRuleRequest struct {
+	ActionID uuid.UUID `json:"action_id" validate:"required" example:"550e8400-e29b-41d4-a716-446655440000"`
+}
+
 // APIErrorResponse represents an error response for API documentation
 type APIErrorResponse struct {
 	Error string `json:"error" example:"Error message"`

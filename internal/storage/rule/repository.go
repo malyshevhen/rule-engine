@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 )
@@ -17,6 +18,7 @@ var ErrNotFound = errors.New("rule not found")
 type Pool interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
 // Repository handles database operations for rules
@@ -203,4 +205,11 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	return nil
+}
+
+// AddAction associates an action with a rule
+func (r *Repository) AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error {
+	query := `INSERT INTO rule_actions (rule_id, action_id) VALUES ($1, $2)`
+	_, err := r.db.Exec(ctx, query, ruleID, actionID)
+	return err
 }

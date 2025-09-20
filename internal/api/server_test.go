@@ -55,6 +55,11 @@ func (m *mockRuleService) Delete(ctx context.Context, id uuid.UUID) error {
 	return args.Error(0)
 }
 
+func (m *mockRuleService) AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error {
+	args := m.Called(ctx, ruleID, actionID)
+	return args.Error(0)
+}
+
 // mockTriggerService is a mock implementation of TriggerService
 type mockTriggerService struct {
 	mock.Mock
@@ -408,6 +413,69 @@ func TestServer_GetRule(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			getRule(mockRuleSvc)(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			mockRuleSvc.AssertExpectations(t)
+		})
+	}
+}
+
+func TestServer_AddActionToRule(t *testing.T) {
+	ruleID := uuid.New()
+	actionID := uuid.New()
+
+	tests := []struct {
+		name           string
+		ruleID         string
+		requestBody    AddActionToRuleRequest
+		expectedStatus int
+		setupMocks     func(mock *mockRuleService)
+	}{
+		{
+			name:   "successful add action",
+			ruleID: ruleID.String(),
+			requestBody: AddActionToRuleRequest{
+				ActionID: actionID,
+			},
+			expectedStatus: http.StatusOK,
+			setupMocks: func(m *mockRuleService) {
+				m.On("AddAction", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			},
+		},
+		{
+			name:   "invalid rule uuid",
+			ruleID: "invalid-uuid",
+			requestBody: AddActionToRuleRequest{
+				ActionID: actionID,
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMocks:     func(mock *mockRuleService) {},
+		},
+		{
+			name:   "service error",
+			ruleID: ruleID.String(),
+			requestBody: AddActionToRuleRequest{
+				ActionID: actionID,
+			},
+			expectedStatus: http.StatusInternalServerError,
+			setupMocks: func(m *mockRuleService) {
+				m.On("AddAction", mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRuleSvc := &mockRuleService{}
+			tt.setupMocks(mockRuleSvc)
+
+			body, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/rules/"+tt.ruleID+"/actions", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req = mux.SetURLVars(req, map[string]string{"id": tt.ruleID})
+			w := httptest.NewRecorder()
+
+			addActionToRule(mockRuleSvc)(w, req)
 
 			assert.Equal(t, tt.expectedStatus, w.Code)
 			mockRuleSvc.AssertExpectations(t)

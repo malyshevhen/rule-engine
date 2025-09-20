@@ -42,6 +42,11 @@ func (m *mockRuleRepository) GetActionsByRuleID(ctx context.Context, ruleID uuid
 	return args.Get(0).([]*actionStorage.Action), args.Error(1)
 }
 
+func (m *mockRuleRepository) AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error {
+	args := m.Called(ctx, ruleID, actionID)
+	return args.Error(0)
+}
+
 func (m *mockRuleRepository) List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, error) {
 	args := m.Called(ctx, limit, offset)
 	return args.Get(0).([]*ruleStorage.Rule), args.Error(1)

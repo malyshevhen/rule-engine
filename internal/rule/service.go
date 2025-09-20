@@ -28,6 +28,7 @@ type RuleRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetTriggersByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*triggerStorage.Trigger, error)
 	GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) ([]*actionStorage.Action, error)
+	AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error
 }
 
 // Service handles business logic for rules
@@ -232,6 +233,18 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 
 	// Invalidate caches for this specific rule
 	s.invalidateRuleCaches(ctx, id)
+
+	return nil
+}
+
+// AddAction adds an action to a rule
+func (s *Service) AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error {
+	if err := s.ruleRepo.AddAction(ctx, ruleID, actionID); err != nil {
+		return err
+	}
+
+	// Invalidate caches
+	s.invalidateRuleCaches(ctx, ruleID)
 
 	return nil
 }
