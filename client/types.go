@@ -65,17 +65,17 @@ type CreateActionRequest struct {
 
 // EvaluateScriptRequest represents a request to evaluate a Lua script
 type EvaluateScriptRequest struct {
-	Script  string                 `json:"script"`
-	Context map[string]interface{} `json:"context,omitempty"`
+	Script  string         `json:"script"`
+	Context map[string]any `json:"context,omitempty"`
 }
 
 // EvaluateScriptResponse represents the response from script evaluation
 type EvaluateScriptResponse struct {
-	Success  bool          `json:"success"`
-	Result   interface{}   `json:"result,omitempty"`
-	Output   []interface{} `json:"output,omitempty"`
-	Error    string        `json:"error,omitempty"`
-	Duration string        `json:"duration"`
+	Success  bool   `json:"success"`
+	Result   any    `json:"result,omitempty"`
+	Output   []any  `json:"output,omitempty"`
+	Error    string `json:"error,omitempty"`
+	Duration string `json:"duration"`
 }
 
 // AddActionToRuleRequest represents a request to add an action to a rule
@@ -85,9 +85,9 @@ type AddActionToRuleRequest struct {
 
 // PatchOperation represents a JSON Patch operation
 type PatchOperation struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value,omitempty"`
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value any    `json:"value,omitempty"`
 }
 
 // PatchRequest represents a JSON Patch request

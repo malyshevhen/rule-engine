@@ -40,7 +40,8 @@ func TestRule(t *testing.T) {
 
 	t.Run("GetRule", func(t *testing.T) {
 		require.NotEmpty(t, createdRuleID)
-		rule := client.GetRule(ctx, t, createdRuleID)
+		rule, err := client.GetRule(ctx, t, createdRuleID)
+		require.NoError(t, err)
 		require.Equal(t, createdRuleID, rule.ID)
 		require.Equal(t, "Test Rule", rule.Name)
 		require.Equal(t, "if event.temperature > 25 then return true end", rule.LuaScript)
@@ -92,13 +93,9 @@ func TestRule(t *testing.T) {
 
 		client.DeleteRule(ctx, t, ruleID)
 
-		// Verify it's deleted by trying to get it - this should fail
-		defer func() {
-			if r := recover(); r == nil {
-				t.Error("Expected GetRule to fail for deleted rule")
-			}
-		}()
-		client.GetRule(ctx, t, ruleID)
+		// Verify it's deleted by trying to get it - this should return an error
+		_, err := client.GetRule(ctx, t, ruleID)
+		require.Error(t, err, "Expected GetRule to fail for deleted rule")
 	})
 }
 

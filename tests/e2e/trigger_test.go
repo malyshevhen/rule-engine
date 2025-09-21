@@ -45,7 +45,8 @@ func TestTrigger(t *testing.T) {
 
 	t.Run("GetTrigger", func(t *testing.T) {
 		require.NotEmpty(t, createdTriggerID)
-		trigger := client.GetTrigger(ctx, t, createdTriggerID)
+		trigger, err := client.GetTrigger(ctx, t, createdTriggerID)
+		require.NoError(t, err)
 		require.Equal(t, createdTriggerID, trigger.ID)
 		require.Equal(t, ruleID, trigger.RuleID)
 		require.Equal(t, "if event.device_id == 'sensor_1' then return true end", trigger.ConditionScript)

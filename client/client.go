@@ -44,7 +44,7 @@ func NewClientWithHTTPClient(baseURL string, auth AuthConfig, httpClient *http.C
 }
 
 // doRequest performs an HTTP request with authentication
-func (c *Client) doRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
+func (c *Client) doRequest(ctx context.Context, method, path string, body any) (*http.Response, error) {
 	var reqBody io.Reader
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
@@ -81,7 +81,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body interf
 }
 
 // parseResponse parses a JSON response into the provided interface
-func parseResponse(resp *http.Response, v interface{}) error {
+func parseResponse(resp *http.Response, v any) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {

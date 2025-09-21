@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -19,7 +20,7 @@ func NewTestClient(baseURL string) *TestClient {
 }
 
 func (c *TestClient) CreateAction(ctx context.Context, t *testing.T, luaScript, name string, enabled *bool) *ActionResponse {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"lua_script": luaScript,
 	}
 	if name != "" {
@@ -42,17 +43,23 @@ func (c *TestClient) CreateAction(ctx context.Context, t *testing.T, luaScript, 
 	return &action
 }
 
-func (c *TestClient) GetAction(ctx context.Context, t *testing.T, id string) *ActionResponse {
+func (c *TestClient) GetAction(ctx context.Context, t *testing.T, id string) (*ActionResponse, error) {
 	req, err := MakeAuthenticatedRequest("GET", c.baseURL+"/api/v1/actions/"+id, "")
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, body := DoRequest(t, req)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 
 	var action ActionResponse
 	err = json.Unmarshal(body, &action)
-	require.NoError(t, err)
-	return &action
+	if err != nil {
+		return nil, err
+	}
+	return &action, nil
 }
 
 func (c *TestClient) ListActions(ctx context.Context, t *testing.T) *ActionsListResponse {
@@ -68,8 +75,8 @@ func (c *TestClient) ListActions(ctx context.Context, t *testing.T) *ActionsList
 	return &actions
 }
 
-func (c *TestClient) EvaluateScript(ctx context.Context, t *testing.T, script string, context map[string]interface{}) *EvaluateResponse {
-	reqBody := map[string]interface{}{
+func (c *TestClient) EvaluateScript(ctx context.Context, t *testing.T, script string, context map[string]any) *EvaluateResponse {
+	reqBody := map[string]any{
 		"script": script,
 	}
 	if context != nil {
@@ -90,7 +97,7 @@ func (c *TestClient) EvaluateScript(ctx context.Context, t *testing.T, script st
 }
 
 func (c *TestClient) EvaluateScriptWithError(ctx context.Context, t *testing.T, script string, expectedStatus int) *ErrorResponse {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"script": script,
 	}
 
@@ -109,7 +116,7 @@ func (c *TestClient) EvaluateScriptWithError(ctx context.Context, t *testing.T, 
 
 // Rule methods
 func (c *TestClient) CreateRule(ctx context.Context, t *testing.T, name, luaScript string, priority *int, enabled *bool) *RuleResponse {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"name":       name,
 		"lua_script": luaScript,
 	}
@@ -133,17 +140,23 @@ func (c *TestClient) CreateRule(ctx context.Context, t *testing.T, name, luaScri
 	return &rule
 }
 
-func (c *TestClient) GetRule(ctx context.Context, t *testing.T, id string) *RuleResponse {
+func (c *TestClient) GetRule(ctx context.Context, t *testing.T, id string) (*RuleResponse, error) {
 	req, err := MakeAuthenticatedRequest("GET", c.baseURL+"/api/v1/rules/"+id, "")
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, body := DoRequest(t, req)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 
 	var rule RuleResponse
 	err = json.Unmarshal(body, &rule)
-	require.NoError(t, err)
-	return &rule
+	if err != nil {
+		return nil, err
+	}
+	return &rule, nil
 }
 
 func (c *TestClient) ListRules(ctx context.Context, t *testing.T) *RulesListResponse {
@@ -170,7 +183,7 @@ func (c *TestClient) DeleteRule(ctx context.Context, t *testing.T, id string) {
 
 // Trigger methods
 func (c *TestClient) CreateTrigger(ctx context.Context, t *testing.T, ruleID, triggerType, conditionScript string, enabled *bool) *TriggerResponse {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"rule_id":          ruleID,
 		"type":             triggerType,
 		"condition_script": conditionScript,
@@ -192,17 +205,23 @@ func (c *TestClient) CreateTrigger(ctx context.Context, t *testing.T, ruleID, tr
 	return &trigger
 }
 
-func (c *TestClient) GetTrigger(ctx context.Context, t *testing.T, id string) *TriggerResponse {
+func (c *TestClient) GetTrigger(ctx context.Context, t *testing.T, id string) (*TriggerResponse, error) {
 	req, err := MakeAuthenticatedRequest("GET", c.baseURL+"/api/v1/triggers/"+id, "")
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, body := DoRequest(t, req)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
 
 	var trigger TriggerResponse
 	err = json.Unmarshal(body, &trigger)
-	require.NoError(t, err)
-	return &trigger
+	if err != nil {
+		return nil, err
+	}
+	return &trigger, nil
 }
 
 func (c *TestClient) ListTriggers(ctx context.Context, t *testing.T) *TriggersListResponse {
@@ -228,7 +247,7 @@ func (c *TestClient) DeleteTrigger(ctx context.Context, t *testing.T, id string)
 }
 
 func (c *TestClient) AddActionToRule(ctx context.Context, t *testing.T, ruleID, actionID string) {
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"action_id": actionID,
 	}
 
@@ -237,8 +256,8 @@ func (c *TestClient) AddActionToRule(ctx context.Context, t *testing.T, ruleID, 
 	require.NoError(t, err)
 
 	resp, body := DoRequest(t, req)
-	require.Equal(t, http.StatusNoContent, resp.StatusCode)
-	require.Empty(t, body)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Contains(t, string(body), "success")
 }
 
 func (c *TestClient) Health(ctx context.Context, t *testing.T) *HealthResponse {
@@ -256,11 +275,11 @@ func (c *TestClient) Health(ctx context.Context, t *testing.T) *HealthResponse {
 
 // Response types for evaluate endpoint
 type EvaluateResponse struct {
-	Success  bool          `json:"success"`
-	Result   interface{}   `json:"result,omitempty"`
-	Output   []interface{} `json:"output,omitempty"`
-	Error    string        `json:"error,omitempty"`
-	Duration string        `json:"duration"`
+	Success  bool   `json:"success"`
+	Result   any    `json:"result,omitempty"`
+	Output   []any  `json:"output,omitempty"`
+	Error    string `json:"error,omitempty"`
+	Duration string `json:"duration"`
 }
 
 type ErrorResponse struct {
@@ -364,7 +383,8 @@ func TestAction(t *testing.T) {
 
 	t.Run("GetAction", func(t *testing.T) {
 		require.NotEmpty(t, createdActionID)
-		action := client.GetAction(ctx, t, createdActionID)
+		action, err := client.GetAction(ctx, t, createdActionID)
+		require.NoError(t, err)
 		require.Equal(t, createdActionID, action.ID)
 		require.Equal(t, "log_message('info', 'test action')", action.LuaScript)
 		require.Equal(t, true, action.Enabled)

@@ -28,7 +28,7 @@ func main() {
 	fmt.Println("Evaluating Lua script...")
 	result, err := c.EvaluateScript(ctx, client.EvaluateScriptRequest{
 		Script: "return 2 + 3",
-		Context: map[string]interface{}{
+		Context: map[string]any{
 			"temperature": 25,
 			"device_id":   "sensor_1",
 		},

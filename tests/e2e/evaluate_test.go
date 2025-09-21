@@ -31,7 +31,7 @@ func TestEvaluateEndpoint(t *testing.T) {
 		result := client.EvaluateScript(ctx, t, "return 2 + 3", nil)
 
 		require.True(t, result.Success)
-		require.Equal(t, []interface{}{5.0}, result.Output)
+		require.Equal(t, []any{5.0}, result.Output)
 		require.Empty(t, result.Error)
 		require.NotEmpty(t, result.Duration)
 	})
@@ -40,7 +40,7 @@ func TestEvaluateEndpoint(t *testing.T) {
 		result := client.EvaluateScript(ctx, t, complexScript, nil)
 
 		require.True(t, result.Success)
-		require.Equal(t, []interface{}{true}, result.Output)
+		require.Equal(t, []any{true}, result.Output)
 		require.Empty(t, result.Error)
 		require.NotEmpty(t, result.Duration)
 	})
@@ -78,6 +78,6 @@ func TestEvaluateEndpoint(t *testing.T) {
 
 		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-		require.Contains(t, string(body), "unauthorized")
+		require.Contains(t, string(body), "Missing authorization header")
 	})
 }
