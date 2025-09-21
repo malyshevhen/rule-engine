@@ -57,6 +57,8 @@ func tracingMiddleware(next http.Handler) http.Handler {
 }
 
 // jwtMiddleware validates JWT tokens for authentication
+// TODO: Implement JWT authentication middleware when needed
+// nolint:unused
 func jwtMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")

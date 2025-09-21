@@ -47,7 +47,6 @@ func (s *Service) Create(ctx context.Context, action *Action) error {
 		}
 		// Copy the generated ID back to the domain action
 		action.ID = storageAction.ID
-		action.Name = action.Name // Keep the name from the input
 		action.CreatedAt = storageAction.CreatedAt
 		action.UpdatedAt = storageAction.UpdatedAt
 		return nil
