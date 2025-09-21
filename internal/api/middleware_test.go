@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/malyshevhen/rule-engine/internal/storage/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
@@ -103,7 +104,7 @@ func TestRateLimitMiddleware(t *testing.T) {
 	})
 }
 
-func TestAPIKeyMiddleware(t *testing.T) {
+func TestAuthMiddleware(t *testing.T) {
 	// Set up environment
 	os.Setenv("API_KEY", "test-api-key")
 	defer os.Unsetenv("API_KEY")
@@ -115,61 +116,66 @@ func TestAPIKeyMiddleware(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	apiKeyHandler := apiKeyMiddleware(testHandler)
+	authHandler := AuthMiddleware(testHandler)
 
-	t.Run("valid API key", func(t *testing.T) {
+	t.Run("valid API key in X-API-Key header", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("Authorization", "ApiKey test-api-key")
+		req.Header.Set("X-API-Key", "test-api-key")
 		w := httptest.NewRecorder()
 
-		apiKeyHandler.ServeHTTP(w, req)
+		authHandler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("invalid API key", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("Authorization", "ApiKey invalid-key")
+		req.Header.Set("X-API-Key", "invalid-key")
 		w := httptest.NewRecorder()
 
-		apiKeyHandler.ServeHTTP(w, req)
+		authHandler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
-	t.Run("missing authorization header", func(t *testing.T) {
+	t.Run("missing authentication", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
 		w := httptest.NewRecorder()
 
-		apiKeyHandler.ServeHTTP(w, req)
+		authHandler.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("valid JWT Bearer token", func(t *testing.T) {
+		// Create a valid JWT token for testing
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"sub": "test-user",
+			"exp": time.Now().Add(time.Hour).Unix(),
+		})
+		tokenString, err := token.SignedString([]byte("test-jwt-secret"))
+		assert.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Authorization", "Bearer "+tokenString)
+		w := httptest.NewRecorder()
+
+		authHandler.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("invalid JWT Bearer token", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Authorization", "Bearer invalid-token")
+		w := httptest.NewRecorder()
+
+		authHandler.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("invalid authorization format", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("Authorization", "InvalidFormat")
-		w := httptest.NewRecorder()
-
-		apiKeyHandler.ServeHTTP(w, req)
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-	})
-}
-
-func TestAuthMiddleware(t *testing.T) {
-	// AuthMiddleware is just an alias for APIKeyMiddleware, so test it the same way
-	os.Setenv("API_KEY", "test-api-key")
-	defer os.Unsetenv("API_KEY")
-
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	authHandler := AuthMiddleware(testHandler)
-
-	t.Run("valid API key through AuthMiddleware", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/test", nil)
-		req.Header.Set("Authorization", "ApiKey test-api-key")
+		req.Header.Set("Authorization", "InvalidFormat token")
 		w := httptest.NewRecorder()
 
 		authHandler.ServeHTTP(w, req)
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

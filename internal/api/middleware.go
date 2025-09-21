@@ -100,36 +100,59 @@ func jwtMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// apiKeyMiddleware validates API key authentication
-func apiKeyMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", "Missing authorization header")
-			return
+// authenticateRequest validates both API key and JWT authentication
+// Either API key (X-API-Key header) or JWT Bearer token (Authorization header) must be valid
+func authenticateRequest(r *http.Request) error {
+	// Check API key authentication first
+	apiKey := r.Header.Get("X-API-Key")
+	if apiKey != "" {
+		expectedKey := os.Getenv("API_KEY")
+		if expectedKey == "" {
+			slog.Error("API_KEY environment variable not set")
+			return fmt.Errorf("authentication configuration error")
+		}
+		if apiKey == expectedKey {
+			return nil // Valid API key
+		}
+	}
+
+	// Check JWT Bearer token authentication
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" {
+		// Extract token from "Bearer <token>" format
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == authHeader {
+			// Not a Bearer token format, continue to check if we have a valid API key
+			if apiKey != "" {
+				return fmt.Errorf("invalid API key")
+			}
+			return fmt.Errorf("missing valid authentication")
 		}
 
-		// Check for API key format: "ApiKey <key>"
-		if after, ok := strings.CutPrefix(authHeader, "ApiKey "); ok {
-			apiKey := after
-			expectedKey := os.Getenv("API_KEY")
-			if expectedKey == "" {
-				slog.Error("API_KEY environment variable not set")
-				ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Authentication configuration error")
-				return
+		// Parse and validate JWT token
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			if apiKey != expectedKey {
-				ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", "Invalid API key")
-				return
+			secret := os.Getenv("JWT_SECRET")
+			if secret == "" {
+				return nil, fmt.Errorf("JWT_SECRET not set")
 			}
-			// Valid API key, proceed
-			next.ServeHTTP(w, r)
-			return
+			return []byte(secret), nil
+		})
+
+		if err != nil {
+			slog.Error("JWT parsing error", "error", err)
+			return fmt.Errorf("invalid token")
 		}
 
-		// If not API key, try JWT
-		jwtMiddleware(next).ServeHTTP(w, r)
-	})
+		if token.Valid {
+			return nil // Valid JWT token
+		}
+	}
+
+	// Neither API key nor JWT token was valid
+	return fmt.Errorf("missing or invalid authentication")
 }
 
 // rateLimitMiddleware limits requests per IP (100 per minute) using Redis-backed rate limiting
@@ -191,7 +214,16 @@ func EnableRateLimiting() {
 	rateLimitingEnabled = true
 }
 
-// AuthMiddleware supports both JWT and API key authentication
+// AuthMiddleware supports both JWT Bearer token and API key authentication
+// Either X-API-Key header or Authorization: Bearer <token> header must be valid
 func AuthMiddleware(next http.Handler) http.Handler {
-	return apiKeyMiddleware(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := authenticateRequest(r); err != nil {
+			ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", err.Error())
+			return
+		}
+
+		// Authentication successful, proceed
+		next.ServeHTTP(w, r)
+	})
 }

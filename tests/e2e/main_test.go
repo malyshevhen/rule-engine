@@ -193,7 +193,7 @@ func MakeAuthenticatedRequest(method, url, body string) (*http.Request, error) {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "ApiKey test-api-key")
+	req.Header.Set("X-API-Key", "test-api-key")
 	return req, nil
 }
 

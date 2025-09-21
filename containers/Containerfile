@@ -9,12 +9,11 @@ RUN adduser -D -s /bin/sh -u 1001 appuser
 
 WORKDIR /app
 
-# Copy go mod files first for better caching
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy source code
+# Copy source code (needed for local replace directives)
 COPY . .
+
+# Download dependencies
+RUN go mod download
 
 # Build the application with optimizations
 RUN CGO_ENABLED=0 GOOS=linux go build \

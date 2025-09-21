@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"testing"
 
+	re_client "github.com/malyshevhen/rule-engine/client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,12 +25,17 @@ func TestEvaluateEndpoint(t *testing.T) {
 	require.NotNil(t, env)
 
 	// Create client
-	baseURL := env.GetRuleEngineURL(ctx, t)
-	client := NewTestClient(baseURL)
+	client := re_client.NewClient(env.GetRuleEngineURL(ctx, t), re_client.AuthConfig{
+		APIKey: "test-api-key",
+	})
 
 	t.Run("SimpleScript", func(t *testing.T) {
-		result := client.EvaluateScript(ctx, t, "return 2 + 3", nil)
+		result, err := client.EvaluateScript(ctx, re_client.EvaluateScriptRequest{
+			Script:  "return 2 + 3",
+			Context: map[string]any{},
+		})
 
+		require.NoError(t, err)
 		require.True(t, result.Success)
 		require.Equal(t, []any{5.0}, result.Output)
 		require.Empty(t, result.Error)
@@ -37,8 +43,12 @@ func TestEvaluateEndpoint(t *testing.T) {
 	})
 
 	t.Run("ScriptWithPlatformAPI", func(t *testing.T) {
-		result := client.EvaluateScript(ctx, t, complexScript, nil)
+		result, err := client.EvaluateScript(ctx, re_client.EvaluateScriptRequest{
+			Script:  complexScript,
+			Context: map[string]any{},
+		})
 
+		require.NoError(t, err)
 		require.True(t, result.Success)
 		require.Equal(t, []any{true}, result.Output)
 		require.Empty(t, result.Error)
@@ -46,8 +56,12 @@ func TestEvaluateEndpoint(t *testing.T) {
 	})
 
 	t.Run("ScriptError", func(t *testing.T) {
-		result := client.EvaluateScript(ctx, t, "invalid lua syntax {{{", nil)
+		result, err := client.EvaluateScript(ctx, re_client.EvaluateScriptRequest{
+			Script:  "invalid lua syntax {{{",
+			Context: map[string]any{},
+		})
 
+		require.NoError(t, err)
 		require.False(t, result.Success)
 		require.Empty(t, result.Output)
 		require.Contains(t, result.Error, "parse error")
@@ -55,8 +69,13 @@ func TestEvaluateEndpoint(t *testing.T) {
 	})
 
 	t.Run("EmptyScript", func(t *testing.T) {
-		errorResp := client.EvaluateScriptWithError(ctx, t, "", 400)
-		require.Contains(t, errorResp.Error.Message, "validation failed: Script is required")
+		errorResp, err := client.EvaluateScript(ctx, re_client.EvaluateScriptRequest{
+			Script:  "",
+			Context: map[string]any{},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "validation failed: Script is required")
+		require.Nil(t, errorResp)
 	})
 
 	t.Run("ScriptTooLong", func(t *testing.T) {
@@ -65,19 +84,25 @@ func TestEvaluateEndpoint(t *testing.T) {
 			longScript[i] = 'a'
 		}
 
-		errorResp := client.EvaluateScriptWithError(ctx, t, string(longScript), 400)
-		require.Contains(t, errorResp.Error.Message, "validation failed: Lua script must be between 1 and 10000 characters")
+		errorResp, err := client.EvaluateScript(ctx, re_client.EvaluateScriptRequest{
+			Script:  string(longScript),
+			Context: map[string]any{},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "validation failed: Lua script must be between 1 and 10000 characters")
+		require.Nil(t, errorResp)
 	})
 
 	t.Run("Unauthorized", func(t *testing.T) {
 		// Test without authorization - need to make direct HTTP call for this
+		baseURL := env.GetRuleEngineURL(ctx, t)
 		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader([]byte(`{"script":"return 42"}`)))
 		require.NoError(t, err)
 		req.Header.Set("Content-Type", "application/json")
-		// Missing Authorization header
 
+		// Missing authorization header
 		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-		require.Contains(t, string(body), "Missing authorization header")
+		require.Contains(t, string(body), "missing or invalid authentication")
 	})
 }
