@@ -1,0 +1,899 @@
+openapi: 3.0.3
+info:
+  title: Rule Engine API
+  description: A microservice for managing and executing custom automation rules using Lua scripts
+  version: 1.0.0
+  contact:
+    name: Rule Engine Team
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.rule-engine.example.com
+    description: Production server
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check the health status of the service and its dependencies
+      tags:
+        - Health
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  database:
+                    type: string
+                    enum: [ok, error]
+                    example: ok
+                  redis:
+                    type: string
+                    enum: [ok, error, disabled]
+                    example: ok
+        "503":
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  database:
+                    type: string
+                    enum: [ok, error]
+                    example: error
+                  redis:
+                    type: string
+                    enum: [ok, error, disabled]
+                    example: ok
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      description: Expose application metrics in Prometheus format
+      tags:
+        - Monitoring
+      responses:
+        "200":
+          description: Metrics data
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/v1/rules:
+    post:
+      summary: Create a new rule
+      description: Create a new automation rule with Lua script logic
+      tags:
+        - Rules
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRuleRequest"
+      responses:
+        "201":
+          description: Rule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleInfo"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: List rules
+      description: Retrieve a paginated list of rules
+      tags:
+        - Rules
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of rules to return (1-1000)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 50
+        - name: offset
+          in: query
+          description: Number of rules to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: List of rules
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RuleInfo"
+                  limit:
+                    type: integer
+                    example: 50
+                  offset:
+                    type: integer
+                    example: 0
+                  count:
+                    type: integer
+                    example: 25
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/rules/{id}:
+    get:
+      summary: Get a rule by ID
+      description: Retrieve a specific rule by its UUID
+      tags:
+        - Rules
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Rule UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Rule details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleInfo"
+        "400":
+          description: Invalid rule ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Rule not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    patch:
+      summary: Update a rule
+      description: Update a rule using JSON Patch operations
+      tags:
+        - Rules
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Rule UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchRequest"
+      responses:
+        "200":
+          description: Rule updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RuleInfo"
+        "400":
+          description: Invalid request data or patch operations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Rule not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Delete a rule
+      description: Delete a rule by its UUID
+      tags:
+        - Rules
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Rule UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Rule deleted successfully
+        "400":
+          description: Invalid rule ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Rule not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/rules/{id}/actions:
+    post:
+      summary: Add action to rule
+      description: Associate an existing action with a rule
+      tags:
+        - Rules
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Rule UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddActionToRuleRequest"
+      responses:
+        "200":
+          description: Action added to rule successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+        "400":
+          description: Invalid request data or rule ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/triggers:
+    post:
+      summary: Create a new trigger
+      description: Create a new trigger for rule execution
+      tags:
+        - Triggers
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTriggerRequest"
+      responses:
+        "201":
+          description: Trigger created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggerInfo"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: List triggers
+      description: Retrieve all triggers
+      tags:
+        - Triggers
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: List of triggers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TriggerInfo"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/triggers/{id}:
+    get:
+      summary: Get a trigger by ID
+      description: Retrieve a specific trigger by its UUID
+      tags:
+        - Triggers
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Trigger UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Trigger details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggerInfo"
+        "400":
+          description: Invalid trigger ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Trigger not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/actions:
+    post:
+      summary: Create a new action
+      description: Create a new action with Lua script logic
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateActionRequest"
+      responses:
+        "201":
+          description: Action created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionInfo"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    get:
+      summary: List actions
+      description: Retrieve all actions
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: List of actions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActionInfo"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/actions/{id}:
+    get:
+      summary: Get an action by ID
+      description: Retrieve a specific action by its UUID
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Action UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Action details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionInfo"
+        "400":
+          description: Invalid action ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Action not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/evaluate:
+    post:
+      summary: Evaluate Lua script
+      description: Execute a Lua script in a sandboxed environment for testing purposes
+      tags:
+        - Evaluation
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvaluateScriptRequest"
+      responses:
+        "200":
+          description: Script evaluation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluateScriptResponse"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "API Key authentication. Format: 'ApiKey <your-api-key>'"
+
+  schemas:
+    RuleInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          example: "Temperature Alert Rule"
+        lua_script:
+          type: string
+          example: "if event.temperature > 25 then return true end"
+        priority:
+          type: integer
+          example: 0
+        enabled:
+          type: boolean
+          example: true
+        triggers:
+          type: array
+          items:
+            $ref: "#/components/schemas/TriggerInfo"
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActionInfo"
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+
+    TriggerInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440001"
+        rule_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        type:
+          type: string
+          enum: [CONDITIONAL, CRON]
+          example: "CONDITIONAL"
+        condition_script:
+          type: string
+          example: "if event.device_id == 'sensor_1' then return true end"
+        enabled:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+
+    ActionInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+        lua_script:
+          type: string
+          example: "log_message('info', 'Temperature alert triggered')"
+        enabled:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2023-01-01T00:00:00Z"
+
+    CreateRuleRequest:
+      type: object
+      required:
+        - name
+        - lua_script
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "Temperature Alert Rule"
+        lua_script:
+          type: string
+          maxLength: 10000
+          example: "if event.temperature > 25 then return true end"
+        priority:
+          type: integer
+          default: 0
+          example: 0
+        enabled:
+          type: boolean
+          default: true
+          example: true
+
+    CreateTriggerRequest:
+      type: object
+      required:
+        - rule_id
+        - type
+        - condition_script
+      properties:
+        rule_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        type:
+          type: string
+          enum: [CONDITIONAL, CRON]
+          example: "CONDITIONAL"
+        condition_script:
+          type: string
+          maxLength: 10000
+          example: "if event.device_id == 'sensor_1' then return true end"
+        enabled:
+          type: boolean
+          default: true
+          example: true
+
+    CreateActionRequest:
+      type: object
+      required:
+        - lua_script
+      properties:
+        lua_script:
+          type: string
+          maxLength: 10000
+          example: "log_message('info', 'Temperature alert triggered')"
+        enabled:
+          type: boolean
+          default: true
+          example: true
+
+    EvaluateScriptRequest:
+      type: object
+      required:
+        - script
+      properties:
+        script:
+          type: string
+          maxLength: 10000
+          example: "return 2 + 2"
+        context:
+          type: object
+          additionalProperties: true
+          example:
+            temperature: 25
+            device_id: "sensor_1"
+
+    EvaluateScriptResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        result:
+          type: string
+          example: "4"
+        output:
+          type: array
+          items: {}
+          example: [4]
+        error:
+          type: string
+          example: "syntax error"
+        duration:
+          type: string
+          example: "1.5ms"
+
+    AddActionToRuleRequest:
+      type: object
+      required:
+        - action_id
+      properties:
+        action_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440002"
+
+    PatchRequest:
+      type: array
+      items:
+        $ref: "#/components/schemas/PatchOperation"
+      minItems: 1
+
+    PatchOperation:
+      type: object
+      required:
+        - op
+        - path
+      properties:
+        op:
+          type: string
+          enum: [add, remove, replace, test]
+          example: "replace"
+        path:
+          type: string
+          pattern: "^/"
+          example: "/name"
+        value:
+          description: Value for add/replace operations
+          example: "Updated Rule Name"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: "Error message"
+
