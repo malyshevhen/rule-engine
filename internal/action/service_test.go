@@ -18,17 +18,17 @@ type mockDBTX struct {
 	mock.Mock
 }
 
-func (m *mockDBTX) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
+func (m *mockDBTX) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
 	args := m.Called(ctx, sql, arguments)
 	return args.Get(0).(pgconn.CommandTag), args.Error(1)
 }
 
-func (m *mockDBTX) Query(ctx context.Context, sql string, arguments ...interface{}) (pgx.Rows, error) {
+func (m *mockDBTX) Query(ctx context.Context, sql string, arguments ...any) (pgx.Rows, error) {
 	args := m.Called(ctx, sql, arguments)
 	return args.Get(0).(pgx.Rows), args.Error(1)
 }
 
-func (m *mockDBTX) QueryRow(ctx context.Context, sql string, arguments ...interface{}) pgx.Row {
+func (m *mockDBTX) QueryRow(ctx context.Context, sql string, arguments ...any) pgx.Row {
 	args := m.Called(ctx, sql, arguments)
 	return args.Get(0).(pgx.Row)
 }

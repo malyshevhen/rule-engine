@@ -58,12 +58,12 @@ func validateRuleNameLength(fl validator.FieldLevel) bool {
 }
 
 // ValidateStruct validates a struct using the validator tags
-func ValidateStruct(s interface{}) error {
+func ValidateStruct(s any) error {
 	return validate.Struct(s)
 }
 
 // ValidateAndParseJSON parses JSON and validates the struct
-func ValidateAndParseJSON(r *http.Request, v interface{}) error {
+func ValidateAndParseJSON(r *http.Request, v any) error {
 	if err := ParseJSONBody(r, v); err != nil {
 		return err
 	}

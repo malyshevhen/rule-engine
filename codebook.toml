@@ -1,6 +1,7 @@
 words = [
     "ansic",
     "cron",
+    "dbtx",
     "funcs",
     "getenv",
     "healthcheck",

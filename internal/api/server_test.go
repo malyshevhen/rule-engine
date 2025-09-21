@@ -217,19 +217,19 @@ func TestServer_ListRules(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockRuleSvc.AssertExpectations(t)
 
-	var response map[string]interface{}
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
 
-	rules := response["rules"].([]interface{})
+	rules := response["rules"].([]any)
 	assert.Len(t, rules, 2)
 
 	// Check the first rule
-	rule1 := rules[0].(map[string]interface{})
+	rule1 := rules[0].(map[string]any)
 	assert.Equal(t, "Rule 1", rule1["name"])
 
 	// Check the second rule
-	rule2 := rules[1].(map[string]interface{})
+	rule2 := rules[1].(map[string]any)
 	assert.Equal(t, "Rule 2", rule2["name"])
 
 	// Check pagination metadata

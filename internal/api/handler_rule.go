@@ -87,7 +87,7 @@ func listRules(ruleSvc RuleService) http.HandlerFunc {
 		}
 
 		// Create response with pagination metadata
-		response := map[string]interface{}{
+		response := map[string]any{
 			"rules":  RulesToRuleInfos(rules),
 			"limit":  limit,
 			"offset": offset,
