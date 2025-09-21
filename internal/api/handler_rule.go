@@ -154,20 +154,6 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 			}
 		}
 
-		// Get existing rule
-		existingRule, err := ruleSvc.GetByID(r.Context(), id)
-		if err != nil {
-			ErrorResponse(w, http.StatusNotFound, "Rule not found")
-			return
-		}
-
-		// Convert rule to JSON for patching
-		ruleJSON, err := json.Marshal(RuleToRuleInfo(existingRule))
-		if err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to prepare rule for patching")
-			return
-		}
-
 		// Convert patch operations to JSON Patch format
 		patchJSON, err := json.Marshal(patchOps)
 		if err != nil {
@@ -179,6 +165,20 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		patch, err := jsonpatch.DecodePatch(patchJSON)
 		if err != nil {
 			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON Patch format: %s", err.Error()))
+			return
+		}
+
+		// Get existing rule
+		existingRule, err := ruleSvc.GetByID(r.Context(), id)
+		if err != nil {
+			ErrorResponse(w, http.StatusNotFound, "Rule not found")
+			return
+		}
+
+		// Convert rule to JSON for patching
+		ruleJSON, err := json.Marshal(RuleToRuleInfo(existingRule))
+		if err != nil {
+			ErrorResponse(w, http.StatusInternalServerError, "Failed to prepare rule for patching")
 			return
 		}
 

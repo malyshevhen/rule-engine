@@ -181,7 +181,7 @@ func (r *Repository) ListAll(ctx context.Context) ([]*Rule, error) {
 // Update updates an existing rule
 func (r *Repository) Update(ctx context.Context, rule *Rule) error {
 	query := `UPDATE rules SET name = $1, lua_script = $2, priority = $3, enabled = $4, updated_at = NOW() WHERE id = $5`
-	_, err := r.db.Query(ctx, query, rule.Name, rule.LuaScript, rule.Priority, rule.Enabled, rule.ID)
+	_, err := r.db.Exec(ctx, query, rule.Name, rule.LuaScript, rule.Priority, rule.Enabled, rule.ID)
 	return err
 }
 
