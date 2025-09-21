@@ -243,7 +243,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/json-patch+json:
             schema:
               $ref: "#/components/schemas/PatchRequest"
       responses:
@@ -418,21 +418,51 @@ paths:
 
     get:
       summary: List triggers
-      description: Retrieve all triggers
+      description: Retrieve a paginated list of triggers
       tags:
         - Triggers
       security:
         - BearerAuth: []
         - ApiKeyAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of triggers to return (1-1000)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 50
+        - name: offset
+          in: query
+          description: Number of triggers to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         "200":
           description: List of triggers
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TriggerInfo"
+                type: object
+                properties:
+                  triggers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TriggerInfo"
+                  limit:
+                    type: integer
+                    example: 50
+                  offset:
+                    type: integer
+                    example: 0
+                  count:
+                    type: integer
+                    example: 25
         "401":
           description: Authentication required
           content:
@@ -495,6 +525,50 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+    delete:
+      summary: Delete a trigger
+      description: Delete a trigger by its UUID
+      tags:
+        - Triggers
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Trigger UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Trigger deleted successfully
+        '400':
+          description: Invalid trigger ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Trigger not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/actions:
     post:
       summary: Create a new action
@@ -538,21 +612,51 @@ paths:
 
     get:
       summary: List actions
-      description: Retrieve all actions
+      description: Retrieve a paginated list of actions
       tags:
         - Actions
       security:
         - BearerAuth: []
         - ApiKeyAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of actions to return (1-1000)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 50
+        - name: offset
+          in: query
+          description: Number of actions to skip
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         "200":
           description: List of actions
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ActionInfo"
+                type: object
+                properties:
+                  actions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ActionInfo"
+                  limit:
+                    type: integer
+                    example: 50
+                  offset:
+                    type: integer
+                    example: 0
+                  count:
+                    type: integer
+                    example: 25
         "401":
           description: Authentication required
           content:
@@ -615,6 +719,50 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+    delete:
+      summary: Delete an action
+      description: Delete an action by its UUID
+      tags:
+        - Actions
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Action UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Action deleted successfully
+        '400':
+          description: Invalid action ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Action not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/v1/evaluate:
     post:
       summary: Evaluate Lua script
@@ -665,8 +813,8 @@ components:
     ApiKeyAuth:
       type: apiKey
       in: header
-      name: Authorization
-      description: "API Key authentication. Format: 'ApiKey <your-api-key>'"
+      name: X-API-Key
+      description: "API Key authentication. Provide your API key in the X-API-Key header."
 
   schemas:
     RuleInfo:
@@ -742,6 +890,9 @@ components:
           type: string
           format: uuid
           example: "550e8400-e29b-41d4-a716-446655440002"
+        name:
+          type: string
+          example: "Send Temperature Alert"
         lua_script:
           type: string
           example: "log_message('info', 'Temperature alert triggered')"
@@ -809,6 +960,10 @@ components:
       required:
         - lua_script
       properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "Send Temperature Alert"
         lua_script:
           type: string
           maxLength: 10000
@@ -841,12 +996,25 @@ components:
           type: boolean
           example: true
         result:
-          type: string
-          example: "4"
+          oneOf:
+            - type: string
+              example: "hello"
+            - type: number
+              example: 4
+            - type: boolean
+              example: true
+            - type: "null"
+          description: The result of script execution (string, number, boolean, or null)
         output:
           type: array
-          items: {}
-          example: [4]
+          items:
+            description: Log output from script execution
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+              - type: "null"
+          example: ["info", "Temperature alert triggered", 25]
         error:
           type: string
           example: "syntax error"
@@ -894,6 +1062,15 @@ components:
         - error
       properties:
         error:
-          type: string
-          example: "Error message"
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              example: "invalid_parameter"
+            message:
+              type: string
+              example: "The 'limit' parameter must be between 1 and 1000."
 
