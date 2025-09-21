@@ -19,7 +19,7 @@ func createRule(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateRuleRequest
 		if err := ValidateAndParseJSON(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
 
@@ -45,7 +45,7 @@ func createRule(ruleSvc RuleService) http.HandlerFunc {
 		}
 
 		if err := ruleSvc.Create(r.Context(), rule); err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to create rule")
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create rule")
 			return
 		}
 
@@ -66,7 +66,7 @@ func listRules(ruleSvc RuleService) http.HandlerFunc {
 			if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= apiConfig.MaxRulesLimit {
 				limit = parsedLimit
 			} else {
-				ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid limit parameter (must be between 1 and %d)", apiConfig.MaxRulesLimit))
+				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Invalid limit parameter (must be between 1 and %d)", apiConfig.MaxRulesLimit))
 				return
 			}
 		}
@@ -75,14 +75,14 @@ func listRules(ruleSvc RuleService) http.HandlerFunc {
 			if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
 				offset = parsedOffset
 			} else {
-				ErrorResponse(w, http.StatusBadRequest, "Invalid offset parameter (must be non-negative)")
+				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid offset parameter (must be non-negative)")
 				return
 			}
 		}
 
-		rules, err := ruleSvc.List(r.Context(), limit, offset)
+		rules, total, err := ruleSvc.List(r.Context(), limit, offset)
 		if err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to list rules")
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to list rules")
 			return
 		}
 
@@ -92,6 +92,7 @@ func listRules(ruleSvc RuleService) http.HandlerFunc {
 			"limit":  limit,
 			"offset": offset,
 			"count":  len(rules),
+			"total":  total,
 		}
 
 		SuccessResponse(w, response)
@@ -104,13 +105,13 @@ func getRule(ruleSvc RuleService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid rule ID")
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID")
 			return
 		}
 
 		rule, err := ruleSvc.GetByID(r.Context(), id)
 		if err != nil {
-			ErrorResponse(w, http.StatusNotFound, "Rule not found")
+			ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Rule not found")
 			return
 		}
 
@@ -124,32 +125,32 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid rule ID")
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID")
 			return
 		}
 
 		// Parse JSON Patch operations
 		var patchOps PatchRequest
 		if err := ParseJSONBody(r, &patchOps); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON patch request body: %s", err.Error()))
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Invalid JSON patch request body: %s", err.Error()))
 			return
 		}
 
 		// Validate patch operations
 		if len(patchOps) == 0 {
-			ErrorResponse(w, http.StatusBadRequest, "At least one patch operation is required")
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "At least one patch operation is required")
 			return
 		}
 
 		// Basic validation of patch operations
 		for i, op := range patchOps {
 			if strings.TrimSpace(op.Path) == "" {
-				ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Patch operation %d: path cannot be empty", i+1))
+				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Patch operation %d: path cannot be empty", i+1))
 				return
 			}
 			// Validate path format (should start with /)
 			if !strings.HasPrefix(op.Path, "/") {
-				ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Patch operation %d: path must start with '/'", i+1))
+				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Patch operation %d: path must start with '/'", i+1))
 				return
 			}
 		}
@@ -157,28 +158,28 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		// Convert patch operations to JSON Patch format
 		patchJSON, err := json.Marshal(patchOps)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid patch operations")
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid patch operations")
 			return
 		}
 
 		// Apply the patch
 		patch, err := jsonpatch.DecodePatch(patchJSON)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Invalid JSON Patch format: %s", err.Error()))
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Invalid JSON Patch format: %s", err.Error()))
 			return
 		}
 
 		// Get existing rule
 		existingRule, err := ruleSvc.GetByID(r.Context(), id)
 		if err != nil {
-			ErrorResponse(w, http.StatusNotFound, "Rule not found")
+			ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Rule not found")
 			return
 		}
 
 		// Convert rule to JSON for patching
 		ruleJSON, err := json.Marshal(RuleToRuleInfo(existingRule))
 		if err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to prepare rule for patching")
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to prepare rule for patching")
 			return
 		}
 
@@ -193,14 +194,14 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 			} else {
 				errorMsg = fmt.Sprintf("Patch application failed: %s", err.Error())
 			}
-			ErrorResponse(w, http.StatusBadRequest, errorMsg)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", errorMsg)
 			return
 		}
 
 		// Convert back to RuleInfo
 		var updatedRuleInfo RuleInfo
 		if err := json.Unmarshal(modifiedJSON, &updatedRuleInfo); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Patch resulted in invalid JSON structure: %s", err.Error()))
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Patch resulted in invalid JSON structure: %s", err.Error()))
 			return
 		}
 
@@ -222,7 +223,7 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		}
 
 		if len(validationErrors) > 0 {
-			ErrorResponse(w, http.StatusBadRequest, fmt.Sprintf("Validation failed: %s", strings.Join(validationErrors, "; ")))
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Validation failed: %s", strings.Join(validationErrors, "; ")))
 			return
 		}
 
@@ -238,7 +239,7 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		}
 
 		if err := ruleSvc.Update(r.Context(), updatedRule); err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("Failed to update rule in database: %s", err.Error()))
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", fmt.Sprintf("Failed to update rule in database: %s", err.Error()))
 			return
 		}
 
@@ -252,16 +253,16 @@ func deleteRule(ruleSvc RuleService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid rule ID")
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID")
 			return
 		}
 
 		if err := ruleSvc.Delete(r.Context(), id); err != nil {
 			if errors.Is(err, ruleStorage.ErrNotFound) {
-				ErrorResponse(w, http.StatusNotFound, "Rule not found")
+				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Rule not found")
 				return
 			}
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to delete rule")
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to delete rule")
 			return
 		}
 

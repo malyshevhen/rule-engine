@@ -11,7 +11,7 @@ func evaluateScript(executorSvc ExecutorService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req EvaluateScriptRequest
 		if err := ValidateAndParseJSON(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
 

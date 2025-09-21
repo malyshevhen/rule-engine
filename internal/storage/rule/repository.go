@@ -153,11 +153,20 @@ func (r *Repository) GetActionsByRuleID(ctx context.Context, ruleID uuid.UUID) (
 }
 
 // List retrieves all rules with pagination
-func (r *Repository) List(ctx context.Context, limit int, offset int) ([]*Rule, error) {
+func (r *Repository) List(ctx context.Context, limit int, offset int) ([]*Rule, int, error) {
+	// First get the total count
+	countQuery := `SELECT COUNT(*) FROM rules`
+	var total int
+	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Then get the paginated results
 	query := `SELECT id, name, lua_script, priority, enabled, created_at, updated_at FROM rules ORDER BY priority DESC, created_at DESC LIMIT $1 OFFSET $2`
 	rows, err := r.db.Query(ctx, query, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -166,16 +175,17 @@ func (r *Repository) List(ctx context.Context, limit int, offset int) ([]*Rule, 
 		var rule Rule
 		err := rows.Scan(&rule.ID, &rule.Name, &rule.LuaScript, &rule.Priority, &rule.Enabled, &rule.CreatedAt, &rule.UpdatedAt)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		rules = append(rules, &rule)
 	}
-	return rules, nil
+	return rules, total, nil
 }
 
 // ListAll retrieves all rules (for backward compatibility)
 func (r *Repository) ListAll(ctx context.Context) ([]*Rule, error) {
-	return r.List(ctx, 1000, 0) // Default limit of 1000
+	rules, _, err := r.List(ctx, 1000, 0) // Default limit of 1000
+	return rules, err
 }
 
 // Update updates an existing rule

@@ -51,12 +51,17 @@ func (m *mockActionRepository) GetByID(ctx context.Context, id uuid.UUID) (*acti
 	return args.Get(0).(*actionStorage.Action), args.Error(1)
 }
 
-func (m *mockActionRepository) List(ctx context.Context) ([]*actionStorage.Action, error) {
-	args := m.Called(ctx)
+func (m *mockActionRepository) List(ctx context.Context, limit, offset int) ([]*actionStorage.Action, int, error) {
+	args := m.Called(ctx, limit, offset)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, 0, args.Error(1)
 	}
-	return args.Get(0).([]*actionStorage.Action), args.Error(1)
+	return args.Get(0).([]*actionStorage.Action), args.Int(1), args.Error(2)
+}
+
+func (m *mockActionRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }
 
 // mockSQLStore is a mock implementation of Store interface for testing

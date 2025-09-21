@@ -12,7 +12,8 @@ import (
 type ActionRepository interface {
 	Create(ctx context.Context, action *actionStorage.Action) error
 	GetByID(ctx context.Context, id uuid.UUID) (*actionStorage.Action, error)
-	List(ctx context.Context) ([]*actionStorage.Action, error)
+	List(ctx context.Context, limit, offset int) ([]*actionStorage.Action, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // Store interface for database operations
@@ -35,6 +36,7 @@ func NewService(store Store) *Service {
 func (s *Service) Create(ctx context.Context, action *Action) error {
 	return s.store.ExecTx(ctx, func(q *storage.Store) error {
 		storageAction := &actionStorage.Action{
+			Name:    action.Name,
 			Type:    "lua_script",
 			Params:  action.LuaScript,
 			Enabled: action.Enabled,
@@ -45,6 +47,7 @@ func (s *Service) Create(ctx context.Context, action *Action) error {
 		}
 		// Copy the generated ID back to the domain action
 		action.ID = storageAction.ID
+		action.Name = action.Name // Keep the name from the input
 		action.CreatedAt = storageAction.CreatedAt
 		action.UpdatedAt = storageAction.UpdatedAt
 		return nil
@@ -60,6 +63,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
 
 	action := &Action{
 		ID:        storageAction.ID,
+		Name:      "", // Name is not stored in DB yet, will be added later
 		Type:      storageAction.Type,
 		Params:    storageAction.Params,
 		Enabled:   storageAction.Enabled,
@@ -74,17 +78,18 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Action, error) {
 	return action, nil
 }
 
-// List retrieves all actions
-func (s *Service) List(ctx context.Context) ([]*Action, error) {
-	storageActions, err := s.store.GetStore().ActionRepository.List(ctx)
+// List retrieves actions with pagination
+func (s *Service) List(ctx context.Context, limit, offset int) ([]*Action, int, error) {
+	storageActions, total, err := s.store.GetStore().ActionRepository.List(ctx, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	actions := make([]*Action, len(storageActions))
 	for i, storageAction := range storageActions {
 		action := &Action{
 			ID:        storageAction.ID,
+			Name:      "", // Name is not stored in DB yet, will be added later
 			Type:      storageAction.Type,
 			Params:    storageAction.Params,
 			Enabled:   storageAction.Enabled,
@@ -98,7 +103,14 @@ func (s *Service) List(ctx context.Context) ([]*Action, error) {
 		actions[i] = action
 	}
 
-	return actions, nil
+	return actions, total, nil
+}
+
+// Delete removes an action
+func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		return q.ActionRepository.Delete(ctx, id)
+	})
 }
 
 // TODO: Add methods for action execution

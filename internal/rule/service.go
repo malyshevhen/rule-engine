@@ -23,7 +23,7 @@ type RuleRepository interface {
 	Create(ctx context.Context, rule *ruleStorage.Rule) error
 	GetByID(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, error)
 	GetByIDWithAssociations(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, []*triggerStorage.Trigger, []*actionStorage.Action, error)
-	List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, error)
+	List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, int, error)
 	ListAll(ctx context.Context) ([]*ruleStorage.Rule, error)
 	Update(ctx context.Context, rule *ruleStorage.Rule) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -151,7 +151,7 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Rule, error) {
 }
 
 // List retrieves rules with pagination
-func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, error) {
+func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, int, error) {
 	// Get current cache version for proper invalidation
 	version := int64(0)
 	if s.redis != nil {
@@ -166,16 +166,19 @@ func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, err
 	// Try to get from cache first
 	if s.redis != nil {
 		if cached, err := s.redis.Get(ctx, cacheKey); err == nil {
-			var rules []*Rule
-			if err := json.Unmarshal([]byte(cached), &rules); err == nil {
-				return rules, nil
+			var cachedData struct {
+				Rules []*Rule `json:"rules"`
+				Total int     `json:"total"`
+			}
+			if err := json.Unmarshal([]byte(cached), &cachedData); err == nil {
+				return cachedData.Rules, cachedData.Total, nil
 			}
 		}
 	}
 
-	rules, err := s.store.GetStore().RuleRepository.List(ctx, limit, offset)
+	rules, total, err := s.store.GetStore().RuleRepository.List(ctx, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	// Convert storage models to domain models
@@ -194,19 +197,27 @@ func (s *Service) List(ctx context.Context, limit int, offset int) ([]*Rule, err
 
 	// Cache the result
 	if s.redis != nil {
-		if data, err := json.Marshal(domainRules); err == nil {
+		cachedData := struct {
+			Rules []*Rule `json:"rules"`
+			Total int     `json:"total"`
+		}{
+			Rules: domainRules,
+			Total: total,
+		}
+		if data, err := json.Marshal(cachedData); err == nil {
 			if err := s.redis.Set(ctx, cacheKey, string(data), 2*time.Minute); err != nil {
 				slog.Warn("Failed to cache rules list", "error", err)
 			}
 		}
 	}
 
-	return domainRules, nil
+	return domainRules, total, nil
 }
 
 // ListAll retrieves all rules (for backward compatibility)
 func (s *Service) ListAll(ctx context.Context) ([]*Rule, error) {
-	return s.List(ctx, 1000, 0) // Default limit of 1000
+	rules, _, err := s.List(ctx, 1000, 0) // Default limit of 1000
+	return rules, err
 }
 
 // Update updates an existing rule

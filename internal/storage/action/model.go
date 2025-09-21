@@ -9,6 +9,7 @@ import (
 // Action represents an action in the storage layer
 type Action struct {
 	ID        uuid.UUID `json:"id" db:"id"`
+	Name      string    `json:"name" db:"name"`
 	Type      string    `json:"type" db:"type"`
 	Params    string    `json:"params" db:"params"` // JSON string for parameters
 	Enabled   bool      `json:"enabled" db:"enabled"`

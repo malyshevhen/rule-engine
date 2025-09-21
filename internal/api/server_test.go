@@ -35,9 +35,9 @@ func (m *mockRuleService) GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule
 	return args.Get(0).(*rule.Rule), args.Error(1)
 }
 
-func (m *mockRuleService) List(ctx context.Context, limit int, offset int) ([]*rule.Rule, error) {
+func (m *mockRuleService) List(ctx context.Context, limit int, offset int) ([]*rule.Rule, int, error) {
 	args := m.Called(ctx, limit, offset)
-	return args.Get(0).([]*rule.Rule), args.Error(1)
+	return args.Get(0).([]*rule.Rule), args.Int(1), args.Error(2)
 }
 
 func (m *mockRuleService) ListAll(ctx context.Context) ([]*rule.Rule, error) {
@@ -75,9 +75,14 @@ func (m *mockTriggerService) GetByID(ctx context.Context, id uuid.UUID) (*trigge
 	return args.Get(0).(*trigger.Trigger), args.Error(1)
 }
 
-func (m *mockTriggerService) List(ctx context.Context) ([]*trigger.Trigger, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]*trigger.Trigger), args.Error(1)
+func (m *mockTriggerService) List(ctx context.Context, limit, offset int) ([]*trigger.Trigger, int, error) {
+	args := m.Called(ctx, limit, offset)
+	return args.Get(0).([]*trigger.Trigger), args.Int(1), args.Error(2)
+}
+
+func (m *mockTriggerService) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }
 
 // mockActionService is a mock implementation of ActionService
@@ -95,9 +100,14 @@ func (m *mockActionService) GetByID(ctx context.Context, id uuid.UUID) (*action.
 	return args.Get(0).(*action.Action), args.Error(1)
 }
 
-func (m *mockActionService) List(ctx context.Context) ([]*action.Action, error) {
-	args := m.Called(ctx)
-	return args.Get(0).([]*action.Action), args.Error(1)
+func (m *mockActionService) List(ctx context.Context, limit, offset int) ([]*action.Action, int, error) {
+	args := m.Called(ctx, limit, offset)
+	return args.Get(0).([]*action.Action), args.Int(1), args.Error(2)
+}
+
+func (m *mockActionService) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }
 
 // mockExecutorService is a mock implementation of ExecutorService
@@ -207,7 +217,7 @@ func TestServer_ListRules(t *testing.T) {
 		},
 	}
 
-	mockRuleSvc.On("List", mock.Anything, 50, 0).Return(expectedRules, nil)
+	mockRuleSvc.On("List", mock.Anything, 50, 0).Return(expectedRules, 2, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/rules", nil)
 	w := httptest.NewRecorder()
@@ -617,7 +627,7 @@ func TestServer_ListTriggers(t *testing.T) {
 		},
 	}
 
-	mockTriggerSvc.On("List", mock.Anything).Return(expectedTriggers, nil)
+	mockTriggerSvc.On("List", mock.Anything, 50, 0).Return(expectedTriggers, 1, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/triggers", nil)
 	w := httptest.NewRecorder()
@@ -627,11 +637,15 @@ func TestServer_ListTriggers(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockTriggerSvc.AssertExpectations(t)
 
-	var response []*trigger.Trigger
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Len(t, response, 1)
-	assert.Equal(t, trigger.Conditional, response[0].Type)
+
+	triggers := response["triggers"].([]any)
+	assert.Len(t, triggers, 1)
+
+	triggerData := triggers[0].(map[string]any)
+	assert.Equal(t, "CONDITIONAL", triggerData["type"])
 }
 
 func TestServer_GetTrigger(t *testing.T) {
@@ -707,7 +721,7 @@ func TestServer_ListActions(t *testing.T) {
 		},
 	}
 
-	mockActionSvc.On("List", mock.Anything).Return(expectedActions, nil)
+	mockActionSvc.On("List", mock.Anything, 50, 0).Return(expectedActions, 2, nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/actions", nil)
 	w := httptest.NewRecorder()
@@ -717,12 +731,17 @@ func TestServer_ListActions(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	mockActionSvc.AssertExpectations(t)
 
-	var response []*action.Action
+	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	assert.NoError(t, err)
-	assert.Len(t, response, 2)
-	assert.Equal(t, "print('action 1')", response[0].LuaScript)
-	assert.Equal(t, "print('action 2')", response[1].LuaScript)
+
+	actions := response["actions"].([]any)
+	assert.Len(t, actions, 2)
+
+	actionData1 := actions[0].(map[string]any)
+	actionData2 := actions[1].(map[string]any)
+	assert.Equal(t, "print('action 1')", actionData1["lua_script"])
+	assert.Equal(t, "print('action 2')", actionData2["lua_script"])
 }
 
 func TestServer_GetAction(t *testing.T) {

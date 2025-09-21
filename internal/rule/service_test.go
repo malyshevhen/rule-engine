@@ -48,12 +48,12 @@ func (m *mockRuleRepository) AddAction(ctx context.Context, ruleID, actionID uui
 	return args.Error(0)
 }
 
-func (m *mockRuleRepository) List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, error) {
+func (m *mockRuleRepository) List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, int, error) {
 	args := m.Called(ctx, limit, offset)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, 0, args.Error(1)
 	}
-	return args.Get(0).([]*ruleStorage.Rule), args.Error(1)
+	return args.Get(0).([]*ruleStorage.Rule), args.Int(1), args.Error(2)
 }
 
 func (m *mockRuleRepository) ListAll(ctx context.Context) ([]*ruleStorage.Rule, error) {
@@ -181,7 +181,7 @@ func TestService_List(t *testing.T) {
 		},
 	}
 
-	mockStore.ruleRepo.(*mockRuleRepository).On("List", mock.Anything, 1000, 0).Return(expectedRules, nil)
+	mockStore.ruleRepo.(*mockRuleRepository).On("List", mock.Anything, 1000, 0).Return(expectedRules, 1, nil)
 
 	rules, err := svc.ListAll(context.Background())
 

@@ -2,10 +2,14 @@ package trigger
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/internal/storage/db"
 )
+
+// ErrNotFound is returned when a trigger is not found
+var ErrNotFound = errors.New("trigger not found")
 
 // Repository handles database operations for triggers
 type Repository struct {
@@ -34,12 +38,21 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error
 	return &trigger, nil
 }
 
-// List retrieves all triggers
-func (r *Repository) List(ctx context.Context) ([]*Trigger, error) {
-	query := `SELECT id, rule_id, type, condition_script, enabled, created_at, updated_at FROM triggers ORDER BY created_at DESC`
-	rows, err := r.db.Query(ctx, query)
+// List retrieves triggers with pagination
+func (r *Repository) List(ctx context.Context, limit, offset int) ([]*Trigger, int, error) {
+	// First get the total count
+	countQuery := `SELECT COUNT(*) FROM triggers`
+	var total int
+	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+
+	// Then get the paginated results
+	query := `SELECT id, rule_id, type, condition_script, enabled, created_at, updated_at FROM triggers ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -48,16 +61,29 @@ func (r *Repository) List(ctx context.Context) ([]*Trigger, error) {
 		var trigger Trigger
 		err := rows.Scan(&trigger.ID, &trigger.RuleID, &trigger.Type, &trigger.ConditionScript, &trigger.Enabled, &trigger.CreatedAt, &trigger.UpdatedAt)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		triggers = append(triggers, &trigger)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return triggers, nil
+	return triggers, total, nil
 }
 
-// TODO: add trigger repository
+// Delete removes a trigger from the database
+func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
+	query := `DELETE FROM triggers WHERE id = $1`
+	result, err := r.db.Exec(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}

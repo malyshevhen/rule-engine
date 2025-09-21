@@ -16,7 +16,8 @@ import (
 type TriggerRepository interface {
 	Create(ctx context.Context, trigger *triggerStorage.Trigger) error
 	GetByID(ctx context.Context, id uuid.UUID) (*triggerStorage.Trigger, error)
-	List(ctx context.Context) ([]*triggerStorage.Trigger, error)
+	List(ctx context.Context, limit, offset int) ([]*triggerStorage.Trigger, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // Store interface for database operations
@@ -81,11 +82,11 @@ func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Trigger, error) {
 	return trigger, nil
 }
 
-// List retrieves all triggers
-func (s *Service) List(ctx context.Context) ([]*Trigger, error) {
-	storageTriggers, err := s.store.GetStore().TriggerRepository.List(ctx)
+// List retrieves triggers with pagination
+func (s *Service) List(ctx context.Context, limit, offset int) ([]*Trigger, int, error) {
+	storageTriggers, total, err := s.store.GetStore().TriggerRepository.List(ctx, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	triggers := make([]*Trigger, len(storageTriggers))
@@ -101,7 +102,22 @@ func (s *Service) List(ctx context.Context) ([]*Trigger, error) {
 		}
 	}
 
-	return triggers, nil
+	return triggers, total, nil
+}
+
+// Delete removes a trigger
+func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		err := q.TriggerRepository.Delete(ctx, id)
+		if err != nil {
+			return err
+		}
+
+		// Invalidate caches
+		s.invalidateTriggerCaches(ctx)
+
+		return nil
+	})
 }
 
 // GetEnabledConditionalTriggers retrieves all enabled conditional triggers
@@ -118,7 +134,7 @@ func (s *Service) GetEnabledConditionalTriggers(ctx context.Context) ([]*Trigger
 		}
 	}
 
-	allTriggers, err := s.List(ctx)
+	allTriggers, _, err := s.List(ctx, 1000, 0) // Get all triggers for filtering
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +172,7 @@ func (s *Service) GetEnabledScheduledTriggers(ctx context.Context) ([]*Trigger, 
 		}
 	}
 
-	allTriggers, err := s.List(ctx)
+	allTriggers, _, err := s.List(ctx, 1000, 0) // Get all triggers for filtering
 	if err != nil {
 		return nil, err
 	}

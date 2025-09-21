@@ -59,6 +59,7 @@ type TriggerInfo struct {
 // ActionInfo represents an action for API responses
 type ActionInfo struct {
 	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
 	LuaScript string    `json:"lua_script"`
 	Enabled   bool      `json:"enabled"`
 	CreatedAt time.Time `json:"created_at"`
@@ -91,6 +92,7 @@ type CreateTriggerRequest struct {
 
 // CreateActionRequest represents a request to create an action
 type CreateActionRequest struct {
+	Name      string `json:"name" example:"Send Temperature Alert"`
 	LuaScript string `json:"lua_script" validate:"required,lua_script_length" example:"log_message('info', 'Temperature alert triggered')"`
 	Enabled   *bool  `json:"enabled,omitempty" example:"true"`
 }
@@ -104,7 +106,7 @@ type EvaluateScriptRequest struct {
 // EvaluateScriptResponse represents the result of script evaluation
 type EvaluateScriptResponse struct {
 	Success  bool   `json:"success" example:"true"`
-	Result   string `json:"result,omitempty" example:"4"`
+	Result   any    `json:"result,omitempty" example:"4"`
 	Output   []any  `json:"output,omitempty"`
 	Error    string `json:"error,omitempty" example:"syntax error"`
 	Duration string `json:"duration" example:"1.5ms"`
@@ -175,6 +177,7 @@ func TriggerToTriggerInfo(t *trigger.Trigger) *TriggerInfo {
 func ActionToActionInfo(a *action.Action) *ActionInfo {
 	return &ActionInfo{
 		ID:        a.ID,
+		Name:      a.Name,
 		LuaScript: a.LuaScript,
 		Enabled:   a.Enabled,
 		CreatedAt: a.CreatedAt,

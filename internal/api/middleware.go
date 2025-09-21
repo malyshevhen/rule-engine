@@ -61,14 +61,14 @@ func jwtMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			ErrorResponse(w, http.StatusUnauthorized, "Missing authorization header")
+			ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", "Missing authorization header")
 			return
 		}
 
 		// Extract token from "Bearer <token>" format
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
-			ErrorResponse(w, http.StatusUnauthorized, "Invalid authorization header format")
+			ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", "Invalid authorization header format")
 			return
 		}
 
@@ -86,12 +86,12 @@ func jwtMiddleware(next http.Handler) http.Handler {
 
 		if err != nil {
 			slog.Error("JWT parsing error", "error", err)
-			ErrorResponse(w, http.StatusUnauthorized, "Invalid token")
+			ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", "Invalid token")
 			return
 		}
 
 		if !token.Valid {
-			ErrorResponse(w, http.StatusUnauthorized, "Invalid token")
+			ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", "Invalid token")
 			return
 		}
 
@@ -105,7 +105,7 @@ func apiKeyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			ErrorResponse(w, http.StatusUnauthorized, "Missing authorization header")
+			ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", "Missing authorization header")
 			return
 		}
 
@@ -115,11 +115,11 @@ func apiKeyMiddleware(next http.Handler) http.Handler {
 			expectedKey := os.Getenv("API_KEY")
 			if expectedKey == "" {
 				slog.Error("API_KEY environment variable not set")
-				ErrorResponse(w, http.StatusInternalServerError, "Authentication configuration error")
+				ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Authentication configuration error")
 				return
 			}
 			if apiKey != expectedKey {
-				ErrorResponse(w, http.StatusUnauthorized, "Invalid API key")
+				ErrorResponse(w, http.StatusUnauthorized, "AUTHENTICATION_ERROR", "Invalid API key")
 				return
 			}
 			// Valid API key, proceed
@@ -154,7 +154,7 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 
 		// Check if request is allowed
 		if result.Allowed == 0 {
-			ErrorResponse(w, http.StatusTooManyRequests, "Rate limit exceeded")
+			ErrorResponse(w, http.StatusTooManyRequests, "RATE_LIMIT_EXCEEDED", "Rate limit exceeded")
 			return
 		}
 

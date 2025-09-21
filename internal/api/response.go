@@ -12,13 +12,20 @@ func JSONResponse(w http.ResponseWriter, status int, data any) {
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		slog.Error("Failed to encode response", "error", err)
-		ErrorResponse(w, http.StatusInternalServerError, "Failed to encode response")
+		// Avoid recursive call, send simple error
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 	}
 }
 
 // ErrorResponse sends an error response
-func ErrorResponse(w http.ResponseWriter, status int, message string) {
-	JSONResponse(w, status, map[string]string{"error": message})
+func ErrorResponse(w http.ResponseWriter, status int, code, message string) {
+	errorObj := map[string]any{
+		"error": map[string]string{
+			"code":    code,
+			"message": message,
+		},
+	}
+	JSONResponse(w, status, errorObj)
 }
 
 // SuccessResponse sends a success response with data

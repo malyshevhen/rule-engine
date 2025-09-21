@@ -20,7 +20,7 @@ import (
 type RuleService interface {
 	Create(ctx context.Context, rule *rule.Rule) error
 	GetByID(ctx context.Context, id uuid.UUID) (*rule.Rule, error)
-	List(ctx context.Context, limit int, offset int) ([]*rule.Rule, error)
+	List(ctx context.Context, limit int, offset int) ([]*rule.Rule, int, error)
 	ListAll(ctx context.Context) ([]*rule.Rule, error)
 	Update(ctx context.Context, rule *rule.Rule) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -31,14 +31,16 @@ type RuleService interface {
 type TriggerService interface {
 	Create(ctx context.Context, trigger *trigger.Trigger) error
 	GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error)
-	List(ctx context.Context) ([]*trigger.Trigger, error)
+	List(ctx context.Context, limit, offset int) ([]*trigger.Trigger, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // ActionService interface
 type ActionService interface {
 	Create(ctx context.Context, action *action.Action) error
 	GetByID(ctx context.Context, id uuid.UUID) (*action.Action, error)
-	List(ctx context.Context) ([]*action.Action, error)
+	List(ctx context.Context, limit, offset int) ([]*action.Action, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // AnalyticsService interface

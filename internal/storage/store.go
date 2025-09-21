@@ -14,14 +14,16 @@ import (
 type ActionRepository interface {
 	Create(ctx context.Context, action *actionStorage.Action) error
 	GetByID(ctx context.Context, id uuid.UUID) (*actionStorage.Action, error)
-	List(ctx context.Context) ([]*actionStorage.Action, error)
+	List(ctx context.Context, limit, offset int) ([]*actionStorage.Action, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // TriggerRepository interface for trigger storage operations
 type TriggerRepository interface {
 	Create(ctx context.Context, trigger *triggerStorage.Trigger) error
 	GetByID(ctx context.Context, id uuid.UUID) (*triggerStorage.Trigger, error)
-	List(ctx context.Context) ([]*triggerStorage.Trigger, error)
+	List(ctx context.Context, limit, offset int) ([]*triggerStorage.Trigger, int, error)
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 // RuleRepository interface for rule storage operations
@@ -29,7 +31,7 @@ type RuleRepository interface {
 	Create(ctx context.Context, rule *ruleStorage.Rule) error
 	GetByID(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, error)
 	GetByIDWithAssociations(ctx context.Context, id uuid.UUID) (*ruleStorage.Rule, []*triggerStorage.Trigger, []*actionStorage.Action, error)
-	List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, error)
+	List(ctx context.Context, limit int, offset int) ([]*ruleStorage.Rule, int, error)
 	ListAll(ctx context.Context) ([]*ruleStorage.Rule, error)
 	Update(ctx context.Context, rule *ruleStorage.Rule) error
 	Delete(ctx context.Context, id uuid.UUID) error

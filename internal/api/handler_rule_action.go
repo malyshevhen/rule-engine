@@ -13,18 +13,18 @@ func addActionToRule(ruleSvc RuleService) http.HandlerFunc {
 		ruleIDStr := vars["id"]
 		ruleID, err := uuid.Parse(ruleIDStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid rule ID")
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID")
 			return
 		}
 
 		var req AddActionToRuleRequest
 		if err := ParseJSONBody(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid request body")
 			return
 		}
 
 		if err := ruleSvc.AddAction(r.Context(), ruleID, req.ActionID); err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to add action to rule")
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to add action to rule")
 			return
 		}
 

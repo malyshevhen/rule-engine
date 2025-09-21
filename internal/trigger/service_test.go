@@ -29,12 +29,17 @@ func (m *mockTriggerRepository) GetByID(ctx context.Context, id uuid.UUID) (*tri
 	return args.Get(0).(*triggerStorage.Trigger), args.Error(1)
 }
 
-func (m *mockTriggerRepository) List(ctx context.Context) ([]*triggerStorage.Trigger, error) {
-	args := m.Called(ctx)
+func (m *mockTriggerRepository) List(ctx context.Context, limit, offset int) ([]*triggerStorage.Trigger, int, error) {
+	args := m.Called(ctx, limit, offset)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, 0, args.Error(1)
 	}
-	return args.Get(0).([]*triggerStorage.Trigger), args.Error(1)
+	return args.Get(0).([]*triggerStorage.Trigger), args.Int(1), args.Error(2)
+}
+
+func (m *mockTriggerRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
 }
 
 // mockSQLStore is a mock implementation of Store interface for testing

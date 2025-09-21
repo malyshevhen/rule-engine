@@ -9,6 +9,7 @@ import (
 // Action represents an action in the business domain
 type Action struct {
 	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
 	Type      string    `json:"type"`
 	Params    string    `json:"params"`
 	Enabled   bool      `json:"enabled"`

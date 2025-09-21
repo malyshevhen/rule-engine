@@ -1,11 +1,15 @@
 package api
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 	"github.com/malyshevhen/rule-engine/internal/trigger"
 )
 
@@ -13,7 +17,7 @@ func createTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateTriggerRequest
 		if err := ValidateAndParseJSON(r, &req); err != nil {
-			ErrorResponse(w, http.StatusBadRequest, err.Error())
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
 
@@ -34,7 +38,7 @@ func createTrigger(triggerSvc TriggerService) http.HandlerFunc {
 		}
 
 		if err := triggerSvc.Create(r.Context(), trigger); err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to create trigger")
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create trigger")
 			return
 		}
 
@@ -44,9 +48,34 @@ func createTrigger(triggerSvc TriggerService) http.HandlerFunc {
 
 func listTriggers(triggerSvc TriggerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		triggers, err := triggerSvc.List(r.Context())
+		// Parse pagination parameters
+		limitStr := GetQueryParam(r, "limit")
+		offsetStr := GetQueryParam(r, "offset")
+
+		limit := apiConfig.DefaultRulesLimit
+		offset := apiConfig.DefaultRulesOffset
+
+		if limitStr != "" {
+			if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= apiConfig.MaxRulesLimit {
+				limit = parsedLimit
+			} else {
+				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Invalid limit parameter (must be between 1 and %d)", apiConfig.MaxRulesLimit))
+				return
+			}
+		}
+
+		if offsetStr != "" {
+			if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+				offset = parsedOffset
+			} else {
+				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid offset parameter (must be non-negative)")
+				return
+			}
+		}
+
+		triggers, total, err := triggerSvc.List(r.Context(), limit, offset)
 		if err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "Failed to list triggers")
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to list triggers")
 			return
 		}
 
@@ -56,7 +85,16 @@ func listTriggers(triggerSvc TriggerService) http.HandlerFunc {
 			triggerInfos[i] = *TriggerToTriggerInfo(t)
 		}
 
-		SuccessResponse(w, triggerInfos)
+		// Create response with pagination metadata
+		response := map[string]any{
+			"triggers": triggerInfos,
+			"limit":    limit,
+			"offset":   offset,
+			"count":    len(triggerInfos),
+			"total":    total,
+		}
+
+		SuccessResponse(w, response)
 	}
 }
 
@@ -66,16 +104,39 @@ func getTrigger(triggerSvc TriggerService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "Invalid trigger ID")
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid trigger ID")
 			return
 		}
 
 		trigger, err := triggerSvc.GetByID(r.Context(), id)
 		if err != nil {
-			ErrorResponse(w, http.StatusNotFound, "Trigger not found")
+			ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Trigger not found")
 			return
 		}
 
 		SuccessResponse(w, TriggerToTriggerInfo(trigger))
+	}
+}
+
+func deleteTrigger(triggerSvc TriggerService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		idStr := vars["id"]
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid trigger ID")
+			return
+		}
+
+		if err := triggerSvc.Delete(r.Context(), id); err != nil {
+			if errors.Is(err, triggerStorage.ErrNotFound) {
+				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Trigger not found")
+				return
+			}
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to delete trigger")
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
