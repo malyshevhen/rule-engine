@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/malyshevhen/rule-engine/client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,10 +22,13 @@ func TestHealthCheck(t *testing.T) {
 
 	// Create client
 	baseURL := env.GetRuleEngineURL(ctx, t)
-	client := NewTestClient(baseURL)
+	c := client.NewClient(baseURL, client.AuthConfig{
+		APIKey: "test-api-key",
+	})
 
 	// Check health
-	health := client.Health(ctx, t)
+	health, err := c.Health(ctx)
+	require.NoError(t, err)
 
 	// Verify database and redis status
 	require.Equal(t, "ok", health.Database)
