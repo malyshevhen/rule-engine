@@ -4,11 +4,8 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
-	"encoding/json"
-	"io"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -26,195 +23,61 @@ func TestEvaluateEndpoint(t *testing.T) {
 	// Verify environment is set up correctly
 	require.NotNil(t, env)
 
+	// Create client
+	baseURL := env.GetRuleEngineURL(ctx, t)
+	client := NewTestClient(baseURL)
+
 	t.Run("SimpleScript", func(t *testing.T) {
-		// Create HTTP client
-		client := &http.Client{Timeout: 10 * time.Second}
-		baseURL := env.GetRuleEngineURL(ctx, t)
+		result := client.EvaluateScript(ctx, t, "return 2 + 3", nil)
 
-		// Test simple arithmetic script
-		evaluateReq := map[string]string{
-			"script": "return 2 + 3",
-		}
-		reqBody, err := json.Marshal(evaluateReq)
-		require.NoError(t, err)
-
-		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader(reqBody))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "ApiKey test-api-key")
-
-		resp, err := client.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		require.Equal(t, http.StatusOK, resp.StatusCode)
-
-		var response map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&response)
-		require.NoError(t, err)
-
-		require.True(t, response["success"].(bool))
-		require.Equal(t, []any{5.0}, response["output"])
-		require.Empty(t, response["error"])
-		require.NotEmpty(t, response["duration"].(string))
+		require.True(t, result.Success)
+		require.Equal(t, []interface{}{5.0}, result.Output)
+		require.Empty(t, result.Error)
+		require.NotEmpty(t, result.Duration)
 	})
 
 	t.Run("ScriptWithPlatformAPI", func(t *testing.T) {
-		// Create HTTP client
-		client := &http.Client{Timeout: 10 * time.Second}
-		baseURL := env.GetRuleEngineURL(ctx, t)
+		result := client.EvaluateScript(ctx, t, complexScript, nil)
 
-		// Test script using platform API (time module)
-		evaluateReq := map[string]string{
-			"script": complexScript,
-		}
-		reqBody, err := json.Marshal(evaluateReq)
-		require.NoError(t, err)
-
-		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader(reqBody))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "ApiKey test-api-key")
-
-		resp, err := client.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		require.Equal(t, http.StatusOK, resp.StatusCode)
-
-		var response map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&response)
-		require.NoError(t, err)
-
-		require.True(t, response["success"].(bool))
-		require.Equal(t, []any{true}, response["output"])
-		require.Empty(t, response["error"])
-		require.NotEmpty(t, response["duration"].(string))
+		require.True(t, result.Success)
+		require.Equal(t, []interface{}{true}, result.Output)
+		require.Empty(t, result.Error)
+		require.NotEmpty(t, result.Duration)
 	})
 
 	t.Run("ScriptError", func(t *testing.T) {
-		// Create HTTP client
-		client := &http.Client{Timeout: 10 * time.Second}
-		baseURL := env.GetRuleEngineURL(ctx, t)
+		result := client.EvaluateScript(ctx, t, "invalid lua syntax {{{", nil)
 
-		// Test script with syntax error
-		evaluateReq := map[string]string{
-			"script": "invalid lua syntax {{{",
-		}
-		reqBody, err := json.Marshal(evaluateReq)
-		require.NoError(t, err)
-
-		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader(reqBody))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "ApiKey test-api-key")
-
-		resp, err := client.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		require.Equal(t, http.StatusOK, resp.StatusCode)
-
-		var response map[string]any
-		err = json.NewDecoder(resp.Body).Decode(&response)
-		require.NoError(t, err)
-
-		require.False(t, response["success"].(bool))
-		require.Empty(t, response["output"])
-		require.Contains(t, response["error"].(string), "parse error")
-		require.NotEmpty(t, response["duration"].(string))
+		require.False(t, result.Success)
+		require.Empty(t, result.Output)
+		require.Contains(t, result.Error, "parse error")
+		require.NotEmpty(t, result.Duration)
 	})
 
 	t.Run("EmptyScript", func(t *testing.T) {
-		// Create HTTP client
-		client := &http.Client{Timeout: 10 * time.Second}
-		baseURL := env.GetRuleEngineURL(ctx, t)
-
-		// Test empty script
-		evaluateReq := map[string]string{
-			"script": "",
-		}
-		reqBody, err := json.Marshal(evaluateReq)
-		require.NoError(t, err)
-
-		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader(reqBody))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "ApiKey test-api-key")
-
-		resp, err := client.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
-
-		body, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-
-		var errorResp map[string]string
-		err = json.Unmarshal(body, &errorResp)
-		require.NoError(t, err)
-		require.Contains(t, errorResp["error"], "validation failed: Script is required")
+		errorResp := client.EvaluateScriptWithError(ctx, t, "", 400)
+		require.Contains(t, errorResp.Error.Message, "validation failed: Script is required")
 	})
 
 	t.Run("ScriptTooLong", func(t *testing.T) {
-		// Create HTTP client
-		client := &http.Client{Timeout: 10 * time.Second}
-		baseURL := env.GetRuleEngineURL(ctx, t)
-
-		// Test script that's too long (over 10,000 characters)
 		longScript := make([]byte, 10001)
 		for i := range longScript {
 			longScript[i] = 'a'
 		}
 
-		evaluateReq := map[string]string{
-			"script": string(longScript),
-		}
-		reqBody, err := json.Marshal(evaluateReq)
-		require.NoError(t, err)
-
-		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader(reqBody))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "ApiKey test-api-key")
-
-		resp, err := client.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
-		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
-
-		body, err := io.ReadAll(resp.Body)
-		require.NoError(t, err)
-
-		var errorResp map[string]string
-		err = json.Unmarshal(body, &errorResp)
-		require.NoError(t, err)
-		require.Contains(t, errorResp["error"], "validation failed: Lua script must be between 1 and 10000 characters")
+		errorResp := client.EvaluateScriptWithError(ctx, t, string(longScript), 400)
+		require.Contains(t, errorResp.Error.Message, "validation failed: Lua script must be between 1 and 10000 characters")
 	})
 
 	t.Run("Unauthorized", func(t *testing.T) {
-		// Create HTTP client
-		client := &http.Client{Timeout: 10 * time.Second}
-		baseURL := env.GetRuleEngineURL(ctx, t)
-
-		// Test without authorization header
-		evaluateReq := map[string]string{
-			"script": "return 42",
-		}
-		reqBody, err := json.Marshal(evaluateReq)
-		require.NoError(t, err)
-
-		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader(reqBody))
+		// Test without authorization - need to make direct HTTP call for this
+		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader([]byte(`{"script":"return 42"}`)))
 		require.NoError(t, err)
 		req.Header.Set("Content-Type", "application/json")
 		// Missing Authorization header
 
-		resp, err := client.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-
+		resp, body := DoRequest(t, req)
 		require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		require.Contains(t, string(body), "unauthorized")
 	})
 }
