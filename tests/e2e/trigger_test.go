@@ -125,6 +125,9 @@ func TestTrigger(t *testing.T) {
 	})
 
 	t.Run("UpdateTrigger", func(t *testing.T) {
+		// TODO: Implement test for update trigger (if added in future)
+		// Since update is not currently supported, this test should verify that PATCH returns 404 or 405
+		// Create a trigger, attempt to update it, expect error
 		t.Skip("Update not supported for triggers")
 	})
 

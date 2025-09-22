@@ -240,8 +240,11 @@ func TestAddActionToRule(t *testing.T) {
 	})
 
 	t.Run("AddActionWithInvalidRuleID", func(t *testing.T) {
-		// This would require modifying the client to accept invalid UUIDs, or test at HTTP level
-		// For now, skip as it's hard to test invalid UUID parsing
+		// TODO: Implement test for invalid UUID format in rule ID
+		// This should test that providing an invalid UUID returns 400 Bad Request
+		// Requires either modifying client to bypass UUID validation or using direct HTTP calls
+		// Example: make HTTP POST to /api/v1/rules/invalid-uuid/actions with valid body
+		// Expect 400 status
 		t.Skip("Invalid UUID format testing requires direct HTTP calls")
 	})
 

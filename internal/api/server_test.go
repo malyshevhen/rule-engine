@@ -826,6 +826,11 @@ func TestServer_GetAction(t *testing.T) {
 }
 
 func TestServer_HealthCheck(t *testing.T) {
+	// TODO: Implement health check test with proper mocking of database and redis clients
+	// This test should verify the /health endpoint returns correct status based on service health
+	// Mock database and redis health checks
+	// Make GET request to /health
+	// Assert response status and body
 	t.Skip("Health check test requires complex mocking of database and redis clients. Integration tests cover this functionality.")
 }
 

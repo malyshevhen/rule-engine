@@ -82,6 +82,9 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("UpdateAction", func(t *testing.T) {
+		// TODO: Implement test for update action (if added in future)
+		// Since update is not currently supported, this test should verify that PATCH returns 404 or 405
+		// Create an action, attempt to update it, expect error
 		t.Skip("Update not supported for actions")
 	})
 
