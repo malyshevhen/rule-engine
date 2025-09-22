@@ -129,6 +129,35 @@ func TestTrigger(t *testing.T) {
 	})
 
 	t.Run("DeleteTrigger", func(t *testing.T) {
-		t.Skip("Delete not supported for triggers")
+		// Create rule and trigger for this test
+		priority := 0
+		enabled := true
+		ruleReq := client.CreateRuleRequest{
+			Name:      "Test Rule for Delete Trigger",
+			LuaScript: "if event.temperature > 25 then return true end",
+			Priority:  &priority,
+			Enabled:   &enabled,
+		}
+		rule, err := c.CreateRule(ctx, ruleReq)
+		require.NoError(t, err)
+		ruleUUID := rule.ID
+
+		req := client.CreateTriggerRequest{
+			RuleID:          ruleUUID,
+			Type:            "CONDITIONAL",
+			ConditionScript: "if event.device_id == 'sensor_1' then return true end",
+			Enabled:         &enabled,
+		}
+		trigger, err := c.CreateTrigger(ctx, req)
+		require.NoError(t, err)
+		triggerID := trigger.ID
+
+		// Delete the trigger
+		err = c.DeleteTrigger(ctx, triggerID)
+		require.NoError(t, err)
+
+		// Verify it's deleted by trying to get it - this should return an error
+		_, err = c.GetTrigger(ctx, triggerID)
+		require.Error(t, err, "Expected GetTrigger to fail for deleted trigger")
 	})
 }

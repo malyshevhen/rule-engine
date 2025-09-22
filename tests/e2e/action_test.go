@@ -86,6 +86,22 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("DeleteAction", func(t *testing.T) {
-		t.Skip("Delete not supported for actions")
+		// Create an action for this test
+		enabled := true
+		req := client.CreateActionRequest{
+			LuaScript: "log_message('info', 'delete action test')",
+			Enabled:   &enabled,
+		}
+		action, err := c.CreateAction(ctx, req)
+		require.NoError(t, err)
+		actionID := action.ID
+
+		// Delete the action
+		err = c.DeleteAction(ctx, actionID)
+		require.NoError(t, err)
+
+		// Verify it's deleted by trying to get it - this should return an error
+		_, err = c.GetAction(ctx, actionID)
+		require.Error(t, err, "Expected GetAction to fail for deleted action")
 	})
 }

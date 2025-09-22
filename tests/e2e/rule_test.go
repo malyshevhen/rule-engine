@@ -107,11 +107,19 @@ func TestRule(t *testing.T) {
 		}
 		rule, err := c.CreateRule(ctx, req)
 		require.NoError(t, err)
-		ruleID := rule.ID.String()
-		require.NotEmpty(t, ruleID)
+		ruleID := rule.ID
 
-		// For now, skip the update test since we don't have JSON Patch support in the client
-		t.Skip("Update test requires JSON Patch support in client")
+		// Update the rule using JSON Patch
+		patches := client.PatchRequest{
+			{Op: "replace", Path: "/name", Value: "Updated Test Rule"},
+			{Op: "replace", Path: "/lua_script", Value: "if event.temperature > 30 then return true end"},
+		}
+		updatedRule, err := c.UpdateRule(ctx, ruleID, patches)
+		require.NoError(t, err)
+		require.Equal(t, "Updated Test Rule", updatedRule.Name)
+		require.Equal(t, "if event.temperature > 30 then return true end", updatedRule.LuaScript)
+		require.Equal(t, true, updatedRule.Enabled)
+		require.Equal(t, 0, updatedRule.Priority)
 	})
 
 	t.Run("DeleteRule", func(t *testing.T) {
@@ -184,18 +192,79 @@ func TestAddActionToRule(t *testing.T) {
 	})
 
 	t.Run("AddActionToNonExistentRule", func(t *testing.T) {
-		t.Skip("Skipping error handling tests - need to implement error handling in client")
+		// Create a valid action
+		actionReq := client.CreateActionRequest{
+			LuaScript: "log_message('info', 'test action')",
+			Enabled:   &enabled,
+		}
+		action, err := c.CreateAction(ctx, actionReq)
+		require.NoError(t, err)
+		actionID := action.ID
+
+		// Try to add action to a non-existent rule
+		nonExistentRuleID := uuid.New()
+		req := client.AddActionToRuleRequest{
+			ActionID: actionID,
+		}
+		err = c.AddActionToRule(ctx, nonExistentRuleID, req)
+		require.Error(t, err)
+		// Check that it's a 404 error
+		if apiErr, ok := err.(*client.APIError); ok {
+			require.Equal(t, 404, apiErr.StatusCode)
+		}
 	})
 
 	t.Run("AddNonExistentActionToRule", func(t *testing.T) {
-		t.Skip("Skipping error handling tests - need to implement error handling in client")
+		// Create a valid rule
+		ruleReq := client.CreateRuleRequest{
+			Name:      "Test Rule for Error",
+			LuaScript: "if event.temperature > 25 then return true end",
+			Priority:  &priority,
+			Enabled:   &enabled,
+		}
+		rule, err := c.CreateRule(ctx, ruleReq)
+		require.NoError(t, err)
+		ruleID := rule.ID
+
+		// Try to add a non-existent action to the rule
+		nonExistentActionID := uuid.New()
+		req := client.AddActionToRuleRequest{
+			ActionID: nonExistentActionID,
+		}
+		err = c.AddActionToRule(ctx, ruleID, req)
+		require.Error(t, err)
+		// This might return 400 or 404 depending on implementation
+		if apiErr, ok := err.(*client.APIError); ok {
+			require.True(t, apiErr.StatusCode >= 400)
+		}
 	})
 
 	t.Run("AddActionWithInvalidRuleID", func(t *testing.T) {
-		t.Skip("Skipping error handling tests - need to implement error handling in client")
+		// This would require modifying the client to accept invalid UUIDs, or test at HTTP level
+		// For now, skip as it's hard to test invalid UUID parsing
+		t.Skip("Invalid UUID format testing requires direct HTTP calls")
 	})
 
 	t.Run("AddActionWithInvalidRequestBody", func(t *testing.T) {
-		t.Skip("Skipping error handling tests - need to implement error handling in client")
+		// Create a valid rule
+		ruleReq := client.CreateRuleRequest{
+			Name:      "Test Rule for Error",
+			LuaScript: "if event.temperature > 25 then return true end",
+			Priority:  &priority,
+			Enabled:   &enabled,
+		}
+		rule, err := c.CreateRule(ctx, ruleReq)
+		require.NoError(t, err)
+		ruleID := rule.ID
+
+		// Try to add action with invalid request body (empty action ID)
+		req := client.AddActionToRuleRequest{
+			// ActionID is zero UUID, which should be invalid
+		}
+		err = c.AddActionToRule(ctx, ruleID, req)
+		require.Error(t, err)
+		if apiErr, ok := err.(*client.APIError); ok {
+			require.Equal(t, 400, apiErr.StatusCode)
+		}
 	})
 }
