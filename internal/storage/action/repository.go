@@ -73,6 +73,21 @@ func (r *Repository) List(ctx context.Context, limit, offset int) ([]*Action, in
 	return actions, total, nil
 }
 
+// Update modifies an existing action in the database
+func (r *Repository) Update(ctx context.Context, action *Action) error {
+	query := `UPDATE actions SET name = $1, type = $2, params = $3, enabled = $4, updated_at = NOW() WHERE id = $5`
+	result, err := r.db.Exec(ctx, query, action.Name, action.Type, action.Params, action.Enabled, action.ID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 // Delete removes an action from the database
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM actions WHERE id = $1`

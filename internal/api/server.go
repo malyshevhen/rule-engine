@@ -32,6 +32,7 @@ type TriggerService interface {
 	Create(ctx context.Context, trigger *trigger.Trigger) error
 	GetByID(ctx context.Context, id uuid.UUID) (*trigger.Trigger, error)
 	List(ctx context.Context, limit, offset int) ([]*trigger.Trigger, int, error)
+	Update(ctx context.Context, trigger *trigger.Trigger) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -40,6 +41,7 @@ type ActionService interface {
 	Create(ctx context.Context, action *action.Action) error
 	GetByID(ctx context.Context, id uuid.UUID) (*action.Action, error)
 	List(ctx context.Context, limit, offset int) ([]*action.Action, int, error)
+	Update(ctx context.Context, action *action.Action) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 

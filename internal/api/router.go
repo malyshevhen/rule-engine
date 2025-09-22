@@ -34,12 +34,14 @@ func setupRoutes(
 	api.HandleFunc("/triggers", createTrigger(triggerSvc)).Methods("POST")
 	api.HandleFunc("/triggers", listTriggers(triggerSvc)).Methods("GET")
 	api.HandleFunc("/triggers/{id}", getTrigger(triggerSvc)).Methods("GET")
+	api.HandleFunc("/triggers/{id}", updateTrigger(triggerSvc)).Methods("PATCH")
 	api.HandleFunc("/triggers/{id}", deleteTrigger(triggerSvc)).Methods("DELETE")
 
 	// Actions routes
 	api.HandleFunc("/actions", createAction(actionSvc)).Methods("POST")
 	api.HandleFunc("/actions", listActions(actionSvc)).Methods("GET")
 	api.HandleFunc("/actions/{id}", getAction(actionSvc)).Methods("GET")
+	api.HandleFunc("/actions/{id}", updateAction(actionSvc)).Methods("PATCH")
 	api.HandleFunc("/actions/{id}", deleteAction(actionSvc)).Methods("DELETE")
 
 	// Script evaluation route

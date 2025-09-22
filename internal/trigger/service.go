@@ -17,6 +17,7 @@ type TriggerRepository interface {
 	Create(ctx context.Context, trigger *triggerStorage.Trigger) error
 	GetByID(ctx context.Context, id uuid.UUID) (*triggerStorage.Trigger, error)
 	List(ctx context.Context, limit, offset int) ([]*triggerStorage.Trigger, int, error)
+	Update(ctx context.Context, trigger *triggerStorage.Trigger) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -103,6 +104,28 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]*Trigger, int,
 	}
 
 	return triggers, total, nil
+}
+
+// Update modifies an existing trigger
+func (s *Service) Update(ctx context.Context, trigger *Trigger) error {
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		storageTrigger := &triggerStorage.Trigger{
+			ID:              trigger.ID,
+			RuleID:          trigger.RuleID,
+			Type:            triggerStorage.TriggerType(trigger.Type),
+			ConditionScript: trigger.ConditionScript,
+			Enabled:         trigger.Enabled,
+		}
+		err := q.TriggerRepository.Update(ctx, storageTrigger)
+		if err != nil {
+			return err
+		}
+
+		// Invalidate caches
+		s.invalidateTriggerCaches(ctx)
+
+		return nil
+	})
 }
 
 // Delete removes a trigger

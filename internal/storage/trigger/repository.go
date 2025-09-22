@@ -73,6 +73,21 @@ func (r *Repository) List(ctx context.Context, limit, offset int) ([]*Trigger, i
 	return triggers, total, nil
 }
 
+// Update modifies an existing trigger in the database
+func (r *Repository) Update(ctx context.Context, trigger *Trigger) error {
+	query := `UPDATE triggers SET type = $1, condition_script = $2, enabled = $3, updated_at = NOW() WHERE id = $4`
+	result, err := r.db.Exec(ctx, query, trigger.Type, trigger.ConditionScript, trigger.Enabled, trigger.ID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 // Delete removes a trigger from the database
 func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM triggers WHERE id = $1`

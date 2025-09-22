@@ -93,6 +93,16 @@ type PatchOperation struct {
 // PatchRequest represents a JSON Patch request
 type PatchRequest []PatchOperation
 
+// UpdateActionRequest represents a request to update an action
+type UpdateActionRequest struct {
+	Patches PatchRequest `json:"-"` // Not serialized, used for JSON Patch
+}
+
+// UpdateTriggerRequest represents a request to update a trigger
+type UpdateTriggerRequest struct {
+	Patches PatchRequest `json:"-"` // Not serialized, used for JSON Patch
+}
+
 // HealthResponse represents the health check response
 type HealthResponse struct {
 	Database string `json:"database"` // "ok", "error"

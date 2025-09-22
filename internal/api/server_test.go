@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,6 +84,11 @@ func (m *mockTriggerService) List(ctx context.Context, limit, offset int) ([]*tr
 	return args.Get(0).([]*trigger.Trigger), args.Int(1), args.Error(2)
 }
 
+func (m *mockTriggerService) Update(ctx context.Context, trigger *trigger.Trigger) error {
+	args := m.Called(ctx, trigger)
+	return args.Error(0)
+}
+
 func (m *mockTriggerService) Delete(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
@@ -106,6 +112,11 @@ func (m *mockActionService) GetByID(ctx context.Context, id uuid.UUID) (*action.
 func (m *mockActionService) List(ctx context.Context, limit, offset int) ([]*action.Action, int, error) {
 	args := m.Called(ctx, limit, offset)
 	return args.Get(0).([]*action.Action), args.Int(1), args.Error(2)
+}
+
+func (m *mockActionService) Update(ctx context.Context, action *action.Action) error {
+	args := m.Called(ctx, action)
+	return args.Error(0)
 }
 
 func (m *mockActionService) Delete(ctx context.Context, id uuid.UUID) error {
@@ -730,6 +741,96 @@ func TestServer_GetTrigger(t *testing.T) {
 	}
 }
 
+func TestServer_UpdateTrigger(t *testing.T) {
+	mockTriggerSvc := &mockTriggerService{}
+
+	triggerID := uuid.New()
+	ruleID := uuid.New()
+	existingTrigger := &trigger.Trigger{
+		ID:              triggerID,
+		RuleID:          ruleID,
+		Type:            trigger.Conditional,
+		ConditionScript: "event.type == 'old_condition'",
+		Enabled:         true,
+	}
+
+	tests := []struct {
+		name           string
+		triggerID      string
+		requestBody    string
+		expectedStatus int
+		setupMocks     func()
+	}{
+		{
+			name:      "successful update",
+			triggerID: triggerID.String(),
+			requestBody: `[
+				{"op": "replace", "path": "/condition_script", "value": "event.type == 'new_condition'"},
+				{"op": "replace", "path": "/enabled", "value": false}
+			]`,
+			expectedStatus: http.StatusOK,
+			setupMocks: func() {
+				mockTriggerSvc.On("GetByID", mock.Anything, triggerID).Return(existingTrigger, nil)
+				mockTriggerSvc.On("Update", mock.Anything, mock.MatchedBy(func(tr *trigger.Trigger) bool {
+					return tr.ID == triggerID && tr.ConditionScript == "event.type == 'new_condition'" && tr.Enabled == false
+				})).Return(nil)
+			},
+		},
+		{
+			name:           "invalid uuid",
+			triggerID:      "invalid-uuid",
+			requestBody:    `[{"op": "replace", "path": "/condition_script", "value": "event.type == 'test'"}]`,
+			expectedStatus: http.StatusBadRequest,
+			setupMocks:     func() {},
+		},
+		{
+			name:           "trigger not found",
+			triggerID:      uuid.New().String(),
+			requestBody:    `[{"op": "replace", "path": "/condition_script", "value": "event.type == 'test'"}]`,
+			expectedStatus: http.StatusNotFound,
+			setupMocks: func() {
+				mockTriggerSvc.On("GetByID", mock.Anything, mock.Anything).Return((*trigger.Trigger)(nil), triggerStorage.ErrNotFound)
+			},
+		},
+		{
+			name:           "invalid patch",
+			triggerID:      triggerID.String(),
+			requestBody:    `invalid json`,
+			expectedStatus: http.StatusBadRequest,
+			setupMocks: func() {
+				mockTriggerSvc.On("GetByID", mock.Anything, triggerID).Return(existingTrigger, nil)
+			},
+		},
+		{
+			name:      "empty condition_script",
+			triggerID: triggerID.String(),
+			requestBody: `[
+				{"op": "replace", "path": "/condition_script", "value": ""}
+			]`,
+			expectedStatus: http.StatusBadRequest,
+			setupMocks: func() {
+				mockTriggerSvc.On("GetByID", mock.Anything, triggerID).Return(existingTrigger, nil)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMocks()
+
+			req := httptest.NewRequest(http.MethodPatch, "/api/v1/triggers/"+tt.triggerID, strings.NewReader(tt.requestBody))
+			req.Header.Set("Content-Type", "application/json-patch+json")
+			req = mux.SetURLVars(req, map[string]string{"id": tt.triggerID})
+			w := httptest.NewRecorder()
+
+			updateTrigger(mockTriggerSvc)(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			mockTriggerSvc.AssertExpectations(t)
+		})
+	}
+}
+
 func TestServer_ListActions(t *testing.T) {
 	mockActionSvc := &mockActionService{}
 
@@ -825,13 +926,91 @@ func TestServer_GetAction(t *testing.T) {
 	}
 }
 
-func TestServer_HealthCheck(t *testing.T) {
-	// TODO: Implement health check test with proper mocking of database and redis clients
-	// This test should verify the /health endpoint returns correct status based on service health
-	// Mock database and redis health checks
-	// Make GET request to /health
-	// Assert response status and body
-	t.Skip("Health check test requires complex mocking of database and redis clients. Integration tests cover this functionality.")
+func TestServer_UpdateAction(t *testing.T) {
+	mockActionSvc := &mockActionService{}
+
+	actionID := uuid.New()
+	existingAction := &action.Action{
+		ID:        actionID,
+		LuaScript: "print('old action')",
+		Enabled:   true,
+	}
+
+	tests := []struct {
+		name           string
+		actionID       string
+		requestBody    string
+		expectedStatus int
+		setupMocks     func()
+	}{
+		{
+			name:     "successful update",
+			actionID: actionID.String(),
+			requestBody: `[
+				{"op": "replace", "path": "/lua_script", "value": "print('updated action')"},
+				{"op": "replace", "path": "/enabled", "value": false}
+			]`,
+			expectedStatus: http.StatusOK,
+			setupMocks: func() {
+				mockActionSvc.On("GetByID", mock.Anything, actionID).Return(existingAction, nil)
+				mockActionSvc.On("Update", mock.Anything, mock.MatchedBy(func(a *action.Action) bool {
+					return a.ID == actionID && a.LuaScript == "print('updated action')" && a.Enabled == false
+				})).Return(nil)
+			},
+		},
+		{
+			name:           "invalid uuid",
+			actionID:       "invalid-uuid",
+			requestBody:    `[{"op": "replace", "path": "/lua_script", "value": "print('test')"}]`,
+			expectedStatus: http.StatusBadRequest,
+			setupMocks:     func() {},
+		},
+		{
+			name:           "action not found",
+			actionID:       uuid.New().String(),
+			requestBody:    `[{"op": "replace", "path": "/lua_script", "value": "print('test')"}]`,
+			expectedStatus: http.StatusNotFound,
+			setupMocks: func() {
+				mockActionSvc.On("GetByID", mock.Anything, mock.Anything).Return((*action.Action)(nil), actionStorage.ErrNotFound)
+			},
+		},
+		{
+			name:           "invalid patch",
+			actionID:       actionID.String(),
+			requestBody:    `invalid json`,
+			expectedStatus: http.StatusBadRequest,
+			setupMocks: func() {
+				mockActionSvc.On("GetByID", mock.Anything, actionID).Return(existingAction, nil)
+			},
+		},
+		{
+			name:     "empty lua_script",
+			actionID: actionID.String(),
+			requestBody: `[
+				{"op": "replace", "path": "/lua_script", "value": ""}
+			]`,
+			expectedStatus: http.StatusBadRequest,
+			setupMocks: func() {
+				mockActionSvc.On("GetByID", mock.Anything, actionID).Return(existingAction, nil)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMocks()
+
+			req := httptest.NewRequest(http.MethodPatch, "/api/v1/actions/"+tt.actionID, strings.NewReader(tt.requestBody))
+			req.Header.Set("Content-Type", "application/json-patch+json")
+			req = mux.SetURLVars(req, map[string]string{"id": tt.actionID})
+			w := httptest.NewRecorder()
+
+			updateAction(mockActionSvc)(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+			mockActionSvc.AssertExpectations(t)
+		})
+	}
 }
 
 func TestServer_CreateAction(t *testing.T) {

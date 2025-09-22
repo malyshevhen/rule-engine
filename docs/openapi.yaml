@@ -503,33 +503,87 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TriggerInfo"
-        "400":
-          description: Invalid trigger ID
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Trigger not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                 $ref: "#/components/schemas/TriggerInfo"
+         "400":
+           description: Invalid trigger ID
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "401":
+           description: Authentication required
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "404":
+           description: Trigger not found
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "500":
+           description: Internal server error
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
 
-    delete:
+     patch:
+       summary: Update a trigger
+       description: Update a trigger using JSON Patch operations
+       tags:
+         - Triggers
+       security:
+         - BearerAuth: []
+         - ApiKeyAuth: []
+       parameters:
+         - name: id
+           in: path
+           required: true
+           description: Trigger UUID
+           schema:
+             type: string
+             format: uuid
+       requestBody:
+         required: true
+         content:
+           application/json-patch+json:
+             schema:
+               $ref: "#/components/schemas/PatchRequest"
+       responses:
+         "200":
+           description: Trigger updated successfully
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/TriggerInfo"
+         "400":
+           description: Invalid request data, trigger ID format, or patch operations
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "401":
+           description: Authentication required
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "404":
+           description: Trigger not found
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "500":
+           description: Internal server error
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+
+     delete:
       summary: Delete a trigger
       description: Delete a trigger by its UUID
       tags:
@@ -700,33 +754,87 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionInfo"
-        "400":
-          description: Invalid action ID
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Action not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                 $ref: "#/components/schemas/ActionInfo"
+         "400":
+           description: Invalid action ID
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "401":
+           description: Authentication required
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "404":
+           description: Action not found
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "500":
+           description: Internal server error
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
 
-    delete:
+     patch:
+       summary: Update an action
+       description: Update an action using JSON Patch operations
+       tags:
+         - Actions
+       security:
+         - BearerAuth: []
+         - ApiKeyAuth: []
+       parameters:
+         - name: id
+           in: path
+           required: true
+           description: Action UUID
+           schema:
+             type: string
+             format: uuid
+       requestBody:
+         required: true
+         content:
+           application/json-patch+json:
+             schema:
+               $ref: "#/components/schemas/PatchRequest"
+       responses:
+         "200":
+           description: Action updated successfully
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ActionInfo"
+         "400":
+           description: Invalid request data, action ID format, or patch operations
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "401":
+           description: Authentication required
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "404":
+           description: Action not found
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "500":
+           description: Internal server error
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+
+     delete:
       summary: Delete an action
       description: Delete an action by its UUID
       tags:

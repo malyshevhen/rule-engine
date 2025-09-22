@@ -67,6 +67,21 @@ func (c *Client) ListActions(ctx context.Context, limit, offset int) (*Paginated
 	return &result, nil
 }
 
+// UpdateAction updates an action by ID using JSON Patch
+func (c *Client) UpdateAction(ctx context.Context, id uuid.UUID, req UpdateActionRequest) (*ActionInfo, error) {
+	resp, err := c.doRequest(ctx, "PATCH", fmt.Sprintf("/api/v1/actions/%s", id.String()), req.Patches)
+	if err != nil {
+		return nil, err
+	}
+
+	var action ActionInfo
+	if err := parseResponse(resp, &action); err != nil {
+		return nil, err
+	}
+
+	return &action, nil
+}
+
 // DeleteAction deletes an action by ID
 func (c *Client) DeleteAction(ctx context.Context, id uuid.UUID) error {
 	resp, err := c.doRequest(ctx, "DELETE", fmt.Sprintf("/api/v1/actions/%s", id.String()), nil)

@@ -82,10 +82,34 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("UpdateAction", func(t *testing.T) {
-		// TODO: Implement test for update action (if added in future)
-		// Since update is not currently supported, this test should verify that PATCH returns 404 or 405
-		// Create an action, attempt to update it, expect error
-		t.Skip("Update not supported for actions")
+		// Create an action for this test
+		enabled := true
+		actionReq := client.CreateActionRequest{
+			LuaScript: "print('original action')",
+			Enabled:   &enabled,
+		}
+		action, err := c.CreateAction(ctx, actionReq)
+		require.NoError(t, err)
+		require.NotNil(t, action)
+
+		// Update the action
+		updateReq := client.UpdateActionRequest{
+			Patches: []client.PatchOperation{
+				{Op: "replace", Path: "/lua_script", Value: "print('updated action')"},
+				{Op: "replace", Path: "/enabled", Value: false},
+			},
+		}
+		updatedAction, err := c.UpdateAction(ctx, action.ID, updateReq)
+		require.NoError(t, err)
+		require.NotNil(t, updatedAction)
+		require.Equal(t, "print('updated action')", updatedAction.LuaScript)
+		require.False(t, updatedAction.Enabled)
+
+		// Verify by getting the action
+		fetchedAction, err := c.GetAction(ctx, action.ID)
+		require.NoError(t, err)
+		require.Equal(t, "print('updated action')", fetchedAction.LuaScript)
+		require.False(t, fetchedAction.Enabled)
 	})
 
 	t.Run("DeleteAction", func(t *testing.T) {

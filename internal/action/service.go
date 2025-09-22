@@ -13,6 +13,7 @@ type ActionRepository interface {
 	Create(ctx context.Context, action *actionStorage.Action) error
 	GetByID(ctx context.Context, id uuid.UUID) (*actionStorage.Action, error)
 	List(ctx context.Context, limit, offset int) ([]*actionStorage.Action, int, error)
+	Update(ctx context.Context, action *actionStorage.Action) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -105,11 +106,23 @@ func (s *Service) List(ctx context.Context, limit, offset int) ([]*Action, int, 
 	return actions, total, nil
 }
 
+// Update modifies an existing action
+func (s *Service) Update(ctx context.Context, action *Action) error {
+	return s.store.ExecTx(ctx, func(q *storage.Store) error {
+		storageAction := &actionStorage.Action{
+			ID:      action.ID,
+			Name:    action.Name,
+			Type:    "lua_script",
+			Params:  action.LuaScript,
+			Enabled: action.Enabled,
+		}
+		return q.ActionRepository.Update(ctx, storageAction)
+	})
+}
+
 // Delete removes an action
 func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	return s.store.ExecTx(ctx, func(q *storage.Store) error {
 		return q.ActionRepository.Delete(ctx, id)
 	})
 }
-
-// TODO: Add methods for action execution

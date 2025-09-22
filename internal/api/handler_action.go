@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/evanphx/json-patch/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/malyshevhen/rule-engine/internal/action"
@@ -122,6 +124,109 @@ func getAction(actionSvc ActionService) http.HandlerFunc {
 		}
 
 		SuccessResponse(w, ActionToActionInfo(action))
+	}
+}
+
+func updateAction(actionSvc ActionService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		idStr := vars["id"]
+		id, err := uuid.Parse(idStr)
+		if err != nil {
+			slog.Error("Invalid action ID format for update", "id", idStr, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid action ID format")
+			return
+		}
+
+		// Parse JSON Patch operations
+		var patchOps PatchRequest
+		if err := ParseJSONBody(r, &patchOps); err != nil {
+			slog.Error("Failed to parse JSON patch body", "action_id", id, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Invalid JSON patch request body: %s", err.Error()))
+			return
+		}
+
+		// Validate patch operations
+		if len(patchOps) == 0 {
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "At least one patch operation is required")
+			return
+		}
+
+		// Basic validation of patch operations
+		for i, op := range patchOps {
+			if strings.TrimSpace(op.Path) == "" {
+				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Patch operation %d: path cannot be empty", i+1))
+				return
+			}
+			// Validate path format (should start with /)
+			if !strings.HasPrefix(op.Path, "/") {
+				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Patch operation %d: path must start with '/'", i+1))
+				return
+			}
+		}
+
+		// Convert patch operations to JSON Patch format
+		patchJSON, err := json.Marshal(patchOps)
+		if err != nil {
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid patch operations")
+			return
+		}
+
+		// Get the current action
+		currentAction, err := actionSvc.GetByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, actionStorage.ErrNotFound) {
+				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Action not found")
+				return
+			}
+			slog.Error("Failed to get action for update", "action_id", id, "error", err)
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve action")
+			return
+		}
+
+		// Apply JSON Patch
+		actionJSON, err := json.Marshal(currentAction)
+		if err != nil {
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to serialize action")
+			return
+		}
+
+		patch, err := jsonpatch.DecodePatch(patchJSON)
+		if err != nil {
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid patch operations")
+			return
+		}
+
+		modifiedJSON, err := patch.Apply(actionJSON)
+		if err != nil {
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Failed to apply patch: %s", err.Error()))
+			return
+		}
+
+		var updatedAction action.Action
+		if err := json.Unmarshal(modifiedJSON, &updatedAction); err != nil {
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid patch result")
+			return
+		}
+
+		// Validate the updated action
+		if updatedAction.LuaScript == "" {
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "lua_script cannot be empty")
+			return
+		}
+
+		// Ensure ID is preserved
+		updatedAction.ID = id
+
+		// Update the action
+		if err := actionSvc.Update(r.Context(), &updatedAction); err != nil {
+			slog.Error("Failed to update action", "action_id", id, "error", err)
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to update action")
+			return
+		}
+
+		// Return the updated action
+		SuccessResponse(w, ActionToActionInfo(&updatedAction))
 	}
 }
 

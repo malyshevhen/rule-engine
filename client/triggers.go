@@ -67,6 +67,21 @@ func (c *Client) ListTriggers(ctx context.Context, limit, offset int) (*Paginate
 	return &result, nil
 }
 
+// UpdateTrigger updates a trigger by ID using JSON Patch
+func (c *Client) UpdateTrigger(ctx context.Context, id uuid.UUID, req UpdateTriggerRequest) (*TriggerInfo, error) {
+	resp, err := c.doRequest(ctx, "PATCH", fmt.Sprintf("/api/v1/triggers/%s", id.String()), req.Patches)
+	if err != nil {
+		return nil, err
+	}
+
+	var trigger TriggerInfo
+	if err := parseResponse(resp, &trigger); err != nil {
+		return nil, err
+	}
+
+	return &trigger, nil
+}
+
 // DeleteTrigger deletes a trigger by ID
 func (c *Client) DeleteTrigger(ctx context.Context, id uuid.UUID) error {
 	resp, err := c.doRequest(ctx, "DELETE", fmt.Sprintf("/api/v1/triggers/%s", id.String()), nil)

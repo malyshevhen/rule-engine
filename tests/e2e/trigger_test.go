@@ -125,10 +125,44 @@ func TestTrigger(t *testing.T) {
 	})
 
 	t.Run("UpdateTrigger", func(t *testing.T) {
-		// TODO: Implement test for update trigger (if added in future)
-		// Since update is not currently supported, this test should verify that PATCH returns 404 or 405
-		// Create a trigger, attempt to update it, expect error
-		t.Skip("Update not supported for triggers")
+		// Create a rule and trigger for this test
+		ruleReq := client.CreateRuleRequest{
+			Name:      "Test Rule for Trigger Update",
+			LuaScript: "return true",
+		}
+		rule, err := c.CreateRule(ctx, ruleReq)
+		require.NoError(t, err)
+		require.NotNil(t, rule)
+
+		enabled := true
+		triggerReq := client.CreateTriggerRequest{
+			RuleID:          rule.ID,
+			Type:            "CONDITIONAL",
+			ConditionScript: "event.type == 'old_condition'",
+			Enabled:         &enabled,
+		}
+		trigger, err := c.CreateTrigger(ctx, triggerReq)
+		require.NoError(t, err)
+		require.NotNil(t, trigger)
+
+		// Update the trigger
+		updateReq := client.UpdateTriggerRequest{
+			Patches: []client.PatchOperation{
+				{Op: "replace", Path: "/condition_script", Value: "event.type == 'new_condition'"},
+				{Op: "replace", Path: "/enabled", Value: false},
+			},
+		}
+		updatedTrigger, err := c.UpdateTrigger(ctx, trigger.ID, updateReq)
+		require.NoError(t, err)
+		require.NotNil(t, updatedTrigger)
+		require.Equal(t, "event.type == 'new_condition'", updatedTrigger.ConditionScript)
+		require.False(t, updatedTrigger.Enabled)
+
+		// Verify by getting the trigger
+		fetchedTrigger, err := c.GetTrigger(ctx, trigger.ID)
+		require.NoError(t, err)
+		require.Equal(t, "event.type == 'new_condition'", fetchedTrigger.ConditionScript)
+		require.False(t, fetchedTrigger.Enabled)
 	})
 
 	t.Run("DeleteTrigger", func(t *testing.T) {

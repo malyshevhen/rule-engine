@@ -15,6 +15,7 @@ type ActionRepository interface {
 	Create(ctx context.Context, action *actionStorage.Action) error
 	GetByID(ctx context.Context, id uuid.UUID) (*actionStorage.Action, error)
 	List(ctx context.Context, limit, offset int) ([]*actionStorage.Action, int, error)
+	Update(ctx context.Context, action *actionStorage.Action) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -23,6 +24,7 @@ type TriggerRepository interface {
 	Create(ctx context.Context, trigger *triggerStorage.Trigger) error
 	GetByID(ctx context.Context, id uuid.UUID) (*triggerStorage.Trigger, error)
 	List(ctx context.Context, limit, offset int) ([]*triggerStorage.Trigger, int, error)
+	Update(ctx context.Context, trigger *triggerStorage.Trigger) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
