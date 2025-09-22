@@ -1,0 +1,803 @@
+openapi: 3.0.0
+info:
+  contact: {}
+  description: This is a rule engine server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: Rule Engine API
+  version: "1.0"
+paths:
+  /api/v1/actions:
+    get:
+      description: Get a list of all actions with optional pagination.
+      parameters:
+        - description: Limit number of actions returned
+          in: query
+          name: limit
+          schema:
+            type: integer
+        - description: Offset for pagination
+          in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: List all actions
+      tags:
+        - actions
+    post:
+      description: Create a new action with the given name and Lua script.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.CreateActionRequest"
+        description: Action to create
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ActionInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Create a new action
+      tags:
+        - actions
+  "/api/v1/actions/{id}":
+    get:
+      description: Get a single action by its unique ID.
+      parameters:
+        - description: Action ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ActionInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Get an action by ID
+      tags:
+        - actions
+    patch:
+      description: Update an existing action using a JSON Patch.
+      parameters:
+        - description: Action ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: "#/components/requestBodies/api.PatchOperationArray"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.ActionInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Update an action
+      tags:
+        - actions
+  /api/v1/evaluate:
+    post:
+      description: Evaluate a Lua script in a sandboxed environment.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.EvaluateScriptRequest"
+        description: Script to evaluate
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.EvaluateScriptResponse"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Evaluate a Lua script
+      tags:
+        - evaluation
+  /api/v1/rules:
+    get:
+      description: Get a list of all rules with optional pagination.
+      parameters:
+        - description: Limit number of rules returned
+          in: query
+          name: limit
+          schema:
+            type: integer
+        - description: Offset for pagination
+          in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: List all rules
+      tags:
+        - rules
+    post:
+      description: Create a new rule with the given name and Lua script.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.CreateRuleRequest"
+        description: Rule to create
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.RuleInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Create a new rule
+      tags:
+        - rules
+  "/api/v1/rules/{id}":
+    delete:
+      description: Delete a rule by its unique ID.
+      parameters:
+        - description: Rule ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+          content:
+            application/json:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Delete a rule
+      tags:
+        - rules
+    get:
+      description: Get a single rule by its unique ID.
+      parameters:
+        - description: Rule ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.RuleInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Get a rule by ID
+      tags:
+        - rules
+    patch:
+      description: Update an existing rule using a JSON Patch.
+      parameters:
+        - description: Rule ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: "#/components/requestBodies/api.PatchOperationArray"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.RuleInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Update a rule
+      tags:
+        - rules
+  "/api/v1/rules/{id}/actions":
+    post:
+      description: Add an existing action to an existing rule.
+      parameters:
+        - description: Rule ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.AddActionToRuleRequest"
+        description: Action to add
+        required: true
+      responses:
+        "204":
+          description: No Content
+          content:
+            application/json:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Add an action to a rule
+      tags:
+        - rules
+  /api/v1/triggers:
+    get:
+      description: Get a list of all triggers with optional pagination.
+      parameters:
+        - description: Limit number of triggers returned
+          in: query
+          name: limit
+          schema:
+            type: integer
+        - description: Offset for pagination
+          in: query
+          name: offset
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: List all triggers
+      tags:
+        - triggers
+    post:
+      description: Create a new trigger for a rule.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/api.CreateTriggerRequest"
+        description: Trigger to create
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.TriggerInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Create a new trigger
+      tags:
+        - triggers
+  "/api/v1/triggers/{id}":
+    delete:
+      description: Delete a trigger by its unique ID.
+      parameters:
+        - description: Trigger ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: No Content
+          content:
+            application/json:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Delete a trigger
+      tags:
+        - triggers
+    get:
+      description: Get a single trigger by its unique ID.
+      parameters:
+        - description: Trigger ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.TriggerInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Get a trigger by ID
+      tags:
+        - triggers
+    patch:
+      description: Update an existing trigger using a JSON Patch.
+      parameters:
+        - description: Trigger ID
+          in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        $ref: "#/components/requestBodies/api.PatchOperationArray"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.TriggerInfo"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/api.APIErrorResponse"
+      summary: Update a trigger
+      tags:
+        - triggers
+  /health:
+    get:
+      description: Check the health status of the service and its dependencies.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+        "503":
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+      summary: Health check
+      tags:
+        - health
+servers:
+  - url: //localhost:8080/api/v1
+components:
+  requestBodies:
+    api.PatchOperationArray:
+      content:
+        application/json:
+          schema:
+            items:
+              $ref: "#/components/schemas/api.PatchOperation"
+            type: array
+      description: JSON Patch operations
+      required: true
+  schemas:
+    api.APIErrorResponse:
+      properties:
+        error:
+          example: Error message
+          type: string
+      type: object
+    api.ActionInfo:
+      properties:
+        created_at:
+          type: string
+        enabled:
+          type: boolean
+        id:
+          type: string
+        lua_script:
+          type: string
+        name:
+          type: string
+        updated_at:
+          type: string
+      type: object
+    api.AddActionToRuleRequest:
+      properties:
+        action_id:
+          example: 550e8400-e29b-41d4-a716-446655440000
+          type: string
+      required:
+        - action_id
+      type: object
+    api.CreateActionRequest:
+      properties:
+        enabled:
+          example: true
+          type: boolean
+        lua_script:
+          example: log_message('info', 'Temperature alert triggered')
+          type: string
+        name:
+          example: Send Temperature Alert
+          type: string
+      required:
+        - lua_script
+      type: object
+    api.CreateRuleRequest:
+      properties:
+        enabled:
+          example: true
+          type: boolean
+        lua_script:
+          example: if event.temperature > 25 then return true end
+          type: string
+        name:
+          example: Temperature Alert Rule
+          type: string
+        priority:
+          example: 0
+          type: integer
+      required:
+        - lua_script
+        - name
+      type: object
+    api.CreateTriggerRequest:
+      properties:
+        condition_script:
+          example: if event.device_id == 'sensor_1' then return true end
+          type: string
+        enabled:
+          example: true
+          type: boolean
+        rule_id:
+          example: 550e8400-e29b-41d4-a716-446655440000
+          type: string
+        type:
+          enum:
+            - CONDITIONAL
+            - CRON
+          example: CONDITIONAL
+          type: string
+      required:
+        - condition_script
+        - rule_id
+        - type
+      type: object
+    api.EvaluateScriptRequest:
+      properties:
+        context:
+          additionalProperties: {}
+          type: object
+        script:
+          example: return 2 + 2
+          type: string
+      required:
+        - script
+      type: object
+    api.EvaluateScriptResponse:
+      properties:
+        duration:
+          example: 1.5ms
+          type: string
+        error:
+          example: syntax error
+          type: string
+        output:
+          items: {}
+          type: array
+        result: {}
+        success:
+          example: true
+          type: boolean
+      type: object
+    api.PatchOperation:
+      properties:
+        op:
+          enum:
+            - add
+            - remove
+            - replace
+            - test
+          example: replace
+          type: string
+        path:
+          example: /name
+          type: string
+        value: {}
+      required:
+        - op
+        - path
+      type: object
+    api.RuleInfo:
+      properties:
+        actions:
+          items:
+            $ref: "#/components/schemas/api.ActionInfo"
+          type: array
+        created_at:
+          type: string
+        enabled:
+          type: boolean
+        id:
+          type: string
+        lua_script:
+          type: string
+        name:
+          type: string
+        priority:
+          type: integer
+        triggers:
+          items:
+            $ref: "#/components/schemas/api.TriggerInfo"
+          type: array
+        updated_at:
+          type: string
+      type: object
+    api.TriggerInfo:
+      properties:
+        condition_script:
+          type: string
+        created_at:
+          type: string
+        enabled:
+          type: boolean
+        id:
+          type: string
+        rule_id:
+          type: string
+        type:
+          type: string
+        updated_at:
+          type: string
+      type: object

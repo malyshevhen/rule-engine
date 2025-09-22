@@ -21,13 +21,16 @@ func NewHealth(db *pgxpool.Pool, redis *redisClient.Client) *Health {
 	return &Health{db: db, redis: redis}
 }
 
-// @Summary Health check
-// @Description Check the health status of the service and its dependencies.
-// @Tags health
-// @Produce  json
-// @Success 200  {object}  map[string]string
-// @Failure 503  {object}  map[string]string
-// @Router /health [get]
+// healthCheckHandler validates the health status of the service
+//
+//	@Summary		Health check
+//	@Description	Check the health status of the service and its dependencies.
+//	@Tags			health
+//	@Produce		json
+//	@Success		200	{object}	map[string]string
+//	@Failure		503	{object}	map[string]string
+//	@Router			/health [get]
+//
 // healthCheckHandler returns a handler for the health check endpoint
 func (h *Health) healthCheckHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
