@@ -103,15 +103,14 @@ tidy: ## Clean and update Go module dependencies
 sql-lint: ## Lint SQL migration files
 	sqruff lint internal/storage/db/migrations/
 
-docs: ## Generate OpenAPI/Swagger documentation and HTTP client
-	go-swagger3 --module-path . --main-file-path ./cmd/main.go --output openapi.json --schema-without-pkg --generate-yaml true
-	make clients-go
+docs: ## Generate OpenAPI/Swagger documentation
+	swag init -g cmd/main.go -o docs/
 
 docs-clean: ## Clean generated documentation files
 	rm -f docs/docs.go docs/swagger.json docs/swagger.yaml
 
 clients-go: ## Generate Go HTTP client from OpenAPI spec using openapi-generator-cli
-	oapi-codegen -package client -generate types,client -o pkg/client/rule_engine.go docs/openapi.yaml
+	oapi-codegen -package client -generate types,client -o pkg/client/rule_engine.go docs/swagger.yaml
 
 quality: format vet tidy sql-lint ## Run all code quality checks
 

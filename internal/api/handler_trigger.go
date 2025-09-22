@@ -16,6 +16,16 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/trigger"
 )
 
+// @Summary Create a new trigger
+// @Description Create a new trigger for a rule.
+// @Tags triggers
+// @Accept  json
+// @Produce  json
+// @Param   trigger body      CreateTriggerRequest  true  "Trigger to create"
+// @Success 201     {object}  TriggerInfo
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/triggers [post]
 func createTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateTriggerRequest
@@ -49,6 +59,16 @@ func createTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	}
 }
 
+// @Summary List all triggers
+// @Description Get a list of all triggers with optional pagination.
+// @Tags triggers
+// @Produce  json
+// @Param   limit   query     int     false  "Limit number of triggers returned"
+// @Param   offset  query     int     false  "Offset for pagination"
+// @Success 200     {object}  map[string]any
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/triggers [get]
 func listTriggers(triggerSvc TriggerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Parse pagination parameters
@@ -101,6 +121,16 @@ func listTriggers(triggerSvc TriggerService) http.HandlerFunc {
 	}
 }
 
+// @Summary Get a trigger by ID
+// @Description Get a single trigger by its unique ID.
+// @Tags triggers
+// @Produce  json
+// @Param   id      path      string  true  "Trigger ID"
+// @Success 200     {object}  TriggerInfo
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/triggers/{id} [get]
 func getTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -127,6 +157,18 @@ func getTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	}
 }
 
+// @Summary Update a trigger
+// @Description Update an existing trigger using a JSON Patch.
+// @Tags triggers
+// @Accept  json
+// @Produce  json
+// @Param   id      path      string        true  "Trigger ID"
+// @Param   patch   body      PatchRequest  true  "JSON Patch operations"
+// @Success 200     {object}  TriggerInfo
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/triggers/{id} [patch]
 func updateTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -231,6 +273,16 @@ func updateTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	}
 }
 
+// @Summary Delete a trigger
+// @Description Delete a trigger by its unique ID.
+// @Tags triggers
+// @Produce  json
+// @Param   id      path      string  true  "Trigger ID"
+// @Success 204     {string}  string  "No Content"
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/triggers/{id} [delete]
 func deleteTrigger(triggerSvc TriggerService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)

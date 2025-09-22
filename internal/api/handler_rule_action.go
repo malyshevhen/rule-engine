@@ -11,6 +11,18 @@ import (
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 )
 
+// @Summary Add an action to a rule
+// @Description Add an existing action to an existing rule.
+// @Tags rules
+// @Accept  json
+// @Produce  json
+// @Param   id      path      string                  true  "Rule ID"
+// @Param   action  body      AddActionToRuleRequest  true  "Action to add"
+// @Success 204     {string}  string  "No Content"
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/rules/{id}/actions [post]
 func addActionToRule(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)

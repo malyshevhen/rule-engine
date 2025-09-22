@@ -16,6 +16,16 @@ import (
 	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
 )
 
+// @Summary Create a new rule
+// @Description Create a new rule with the given name and Lua script.
+// @Tags rules
+// @Accept  json
+// @Produce  json
+// @Param   rule  body      CreateRuleRequest   true  "Rule to create"
+// @Success 201   {object}  RuleInfo
+// @Failure 400   {object}  APIErrorResponse
+// @Failure 500   {object}  APIErrorResponse
+// @Router /api/v1/rules [post]
 func createRule(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateRuleRequest
@@ -56,6 +66,16 @@ func createRule(ruleSvc RuleService) http.HandlerFunc {
 	}
 }
 
+// @Summary List all rules
+// @Description Get a list of all rules with optional pagination.
+// @Tags rules
+// @Produce  json
+// @Param   limit   query     int     false  "Limit number of rules returned"
+// @Param   offset  query     int     false  "Offset for pagination"
+// @Success 200     {object}  map[string]any
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/rules [get]
 func listRules(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Parse pagination parameters
@@ -103,6 +123,16 @@ func listRules(ruleSvc RuleService) http.HandlerFunc {
 	}
 }
 
+// @Summary Get a rule by ID
+// @Description Get a single rule by its unique ID.
+// @Tags rules
+// @Produce  json
+// @Param   id      path      string  true  "Rule ID"
+// @Success 200     {object}  RuleInfo
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/rules/{id} [get]
 func getRule(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -129,6 +159,18 @@ func getRule(ruleSvc RuleService) http.HandlerFunc {
 	}
 }
 
+// @Summary Update a rule
+// @Description Update an existing rule using a JSON Patch.
+// @Tags rules
+// @Accept  json
+// @Produce  json
+// @Param   id      path      string        true  "Rule ID"
+// @Param   patch   body      PatchRequest  true  "JSON Patch operations"
+// @Success 200     {object}  RuleInfo
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/rules/{id} [patch]
 func updateRule(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -260,6 +302,16 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 	}
 }
 
+// @Summary Delete a rule
+// @Description Delete a rule by its unique ID.
+// @Tags rules
+// @Produce  json
+// @Param   id      path      string  true  "Rule ID"
+// @Success 204     {string}  string  "No Content"
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/rules/{id} [delete]
 func deleteRule(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)

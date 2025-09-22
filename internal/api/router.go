@@ -1,6 +1,8 @@
 package api
 
 import (
+	"net/http"
+
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -14,6 +16,15 @@ func setupRoutes(
 	actionSvc ActionService,
 ) *mux.Router {
 	router := mux.NewRouter()
+
+	// Add swagger UI and JSON endpoints
+	router.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./docs/index.html")
+	})
+	router.HandleFunc("/swagger.json", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./docs/swagger.json")
+	})
+
 	// Public routes (no authentication required)
 	router.HandleFunc("/health", healthSvc.healthCheckHandler()).Methods("GET")
 	router.Handle("/metrics", promhttp.Handler())

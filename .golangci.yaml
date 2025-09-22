@@ -5,3 +5,5 @@ linters:
     paths:
       - "tests"
       - ".*_test.go$"
+      - "docs"
+      - ".*_gen.go$"

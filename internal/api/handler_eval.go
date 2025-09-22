@@ -8,6 +8,16 @@ import (
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 )
 
+// @Summary Evaluate a Lua script
+// @Description Evaluate a Lua script in a sandboxed environment.
+// @Tags evaluation
+// @Accept  json
+// @Produce  json
+// @Param   script  body      EvaluateScriptRequest   true  "Script to evaluate"
+// @Success 200     {object}  EvaluateScriptResponse
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/evaluate [post]
 func evaluateScript(executorSvc ExecutorService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req EvaluateScriptRequest

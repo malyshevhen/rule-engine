@@ -16,6 +16,16 @@ import (
 	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
 )
 
+// @Summary Create a new action
+// @Description Create a new action with the given name and Lua script.
+// @Tags actions
+// @Accept  json
+// @Produce  json
+// @Param   action  body      CreateActionRequest   true  "Action to create"
+// @Success 201     {object}  ActionInfo
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/actions [post]
 func createAction(actionSvc ActionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateActionRequest
@@ -49,6 +59,16 @@ func createAction(actionSvc ActionService) http.HandlerFunc {
 	}
 }
 
+// @Summary List all actions
+// @Description Get a list of all actions with optional pagination.
+// @Tags actions
+// @Produce  json
+// @Param   limit   query     int     false  "Limit number of actions returned"
+// @Param   offset  query     int     false  "Offset for pagination"
+// @Success 200     {object}  map[string]any
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/actions [get]
 func listActions(actionSvc ActionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Parse pagination parameters
@@ -101,6 +121,16 @@ func listActions(actionSvc ActionService) http.HandlerFunc {
 	}
 }
 
+// @Summary Get an action by ID
+// @Description Get a single action by its unique ID.
+// @Tags actions
+// @Produce  json
+// @Param   id      path      string  true  "Action ID"
+// @Success 200     {object}  ActionInfo
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/actions/{id} [get]
 func getAction(actionSvc ActionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -127,6 +157,18 @@ func getAction(actionSvc ActionService) http.HandlerFunc {
 	}
 }
 
+// @Summary Update an action
+// @Description Update an existing action using a JSON Patch.
+// @Tags actions
+// @Accept  json
+// @Produce  json
+// @Param   id      path      string        true  "Action ID"
+// @Param   patch   body      PatchRequest  true  "JSON Patch operations"
+// @Success 200     {object}  ActionInfo
+// @Failure 400     {object}  APIErrorResponse
+// @Failure 404     {object}  APIErrorResponse
+// @Failure 500     {object}  APIErrorResponse
+// @Router /api/v1/actions/{id} [patch]
 func updateAction(actionSvc ActionService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)

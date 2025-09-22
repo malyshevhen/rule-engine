@@ -106,7 +106,7 @@ type EvaluateScriptRequest struct {
 // EvaluateScriptResponse represents the result of script evaluation
 type EvaluateScriptResponse struct {
 	Success  bool   `json:"success" example:"true"`
-	Result   any    `json:"result,omitempty" example:"4"`
+	Result   any    `json:"result,omitempty"`
 	Output   []any  `json:"output,omitempty"`
 	Error    string `json:"error,omitempty" example:"syntax error"`
 	Duration string `json:"duration" example:"1.5ms"`
@@ -128,7 +128,7 @@ type APIErrorResponse struct {
 type PatchOperation struct {
 	Op    string `json:"op" validate:"required,oneof=add remove replace test" example:"replace"`
 	Path  string `json:"path" validate:"required" example:"/name"`
-	Value any    `json:"value,omitempty" example:"Updated Rule Name"`
+	Value any    `json:"value,omitempty"`
 }
 
 // PatchRequest represents a JSON Patch request containing multiple operations
