@@ -25,8 +25,6 @@ func TestRule(t *testing.T) {
 		APIKey: "test-api-key",
 	})
 
-	var createdRuleID string
-
 	t.Run("CreateRule", func(t *testing.T) {
 		priority := 0
 		enabled := true
@@ -46,25 +44,45 @@ func TestRule(t *testing.T) {
 		require.Equal(t, 0, rule.Priority)
 		require.NotEmpty(t, rule.CreatedAt)
 		require.NotEmpty(t, rule.UpdatedAt)
-
-		createdRuleID = rule.ID.String()
 	})
 
 	t.Run("GetRule", func(t *testing.T) {
-		require.NotEmpty(t, createdRuleID)
-		ruleID, err := uuid.Parse(createdRuleID)
+		// Create a rule for this test
+		priority := 0
+		enabled := true
+		req := client.CreateRuleRequest{
+			Name:      "Test Rule for Get",
+			LuaScript: "if event.temperature > 25 then return true end",
+			Priority:  &priority,
+			Enabled:   &enabled,
+		}
+		rule, err := c.CreateRule(ctx, req)
 		require.NoError(t, err)
+		ruleID := rule.ID
 
-		rule, err := c.GetRule(ctx, ruleID)
+		retrievedRule, err := c.GetRule(ctx, ruleID)
 		require.NoError(t, err)
-		require.Equal(t, ruleID, rule.ID)
-		require.Equal(t, "Test Rule", rule.Name)
-		require.Equal(t, "if event.temperature > 25 then return true end", rule.LuaScript)
-		require.Equal(t, true, rule.Enabled)
-		require.Equal(t, 0, rule.Priority)
+		require.Equal(t, ruleID, retrievedRule.ID)
+		require.Equal(t, "Test Rule for Get", retrievedRule.Name)
+		require.Equal(t, "if event.temperature > 25 then return true end", retrievedRule.LuaScript)
+		require.Equal(t, true, retrievedRule.Enabled)
+		require.Equal(t, 0, retrievedRule.Priority)
 	})
 
 	t.Run("GetRules", func(t *testing.T) {
+		// Create a rule for this test
+		priority := 0
+		enabled := true
+		req := client.CreateRuleRequest{
+			Name:      "Test Rule for List",
+			LuaScript: "if event.temperature > 25 then return true end",
+			Priority:  &priority,
+			Enabled:   &enabled,
+		}
+		rule, err := c.CreateRule(ctx, req)
+		require.NoError(t, err)
+		createdRuleID := rule.ID.String()
+
 		rules, err := c.ListRules(ctx, 100, 0) // limit=100, offset=0
 		require.NoError(t, err)
 		require.Greater(t, rules.Count, 0)
@@ -74,7 +92,7 @@ func TestRule(t *testing.T) {
 		for _, rule := range rules.Rules {
 			if rule.ID.String() == createdRuleID {
 				found = true
-				require.Equal(t, "Test Rule", rule.Name)
+				require.Equal(t, "Test Rule for List", rule.Name)
 				break
 			}
 		}
@@ -82,21 +100,18 @@ func TestRule(t *testing.T) {
 	})
 
 	t.Run("UpdateRule", func(t *testing.T) {
-		// If createdRuleID is empty (when running this test individually), create a rule first
-		ruleID := createdRuleID
-		if ruleID == "" {
-			priority := 0
-			enabled := true
-			req := client.CreateRuleRequest{
-				Name:      "Test Rule for Update",
-				LuaScript: "if event.temperature > 25 then return true end",
-				Priority:  &priority,
-				Enabled:   &enabled,
-			}
-			rule, err := c.CreateRule(ctx, req)
-			require.NoError(t, err)
-			ruleID = rule.ID.String()
+		// Create a rule for this test
+		priority := 0
+		enabled := true
+		req := client.CreateRuleRequest{
+			Name:      "Test Rule for Update",
+			LuaScript: "if event.temperature > 25 then return true end",
+			Priority:  &priority,
+			Enabled:   &enabled,
 		}
+		rule, err := c.CreateRule(ctx, req)
+		require.NoError(t, err)
+		ruleID := rule.ID.String()
 		require.NotEmpty(t, ruleID)
 
 		// For now, skip the update test since we don't have JSON Patch support in the client
@@ -104,21 +119,18 @@ func TestRule(t *testing.T) {
 	})
 
 	t.Run("DeleteRule", func(t *testing.T) {
-		// If createdRuleID is empty (when running this test individually), create a rule first
-		ruleID := createdRuleID
-		if ruleID == "" {
-			priority := 0
-			enabled := true
-			req := client.CreateRuleRequest{
-				Name:      "Test Rule for Delete",
-				LuaScript: "if event.temperature > 25 then return true end",
-				Priority:  &priority,
-				Enabled:   &enabled,
-			}
-			rule, err := c.CreateRule(ctx, req)
-			require.NoError(t, err)
-			ruleID = rule.ID.String()
+		// Create a rule for this test
+		priority := 0
+		enabled := true
+		req := client.CreateRuleRequest{
+			Name:      "Test Rule for Delete",
+			LuaScript: "if event.temperature > 25 then return true end",
+			Priority:  &priority,
+			Enabled:   &enabled,
 		}
+		rule, err := c.CreateRule(ctx, req)
+		require.NoError(t, err)
+		ruleID := rule.ID.String()
 		require.NotEmpty(t, ruleID)
 
 		ruleUUID, err := uuid.Parse(ruleID)

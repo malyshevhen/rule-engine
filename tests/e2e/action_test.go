@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/malyshevhen/rule-engine/client"
 	"github.com/stretchr/testify/require"
 )
@@ -25,8 +24,6 @@ func TestAction(t *testing.T) {
 		APIKey: "test-api-key",
 	})
 
-	var createdActionID uuid.UUID
-
 	t.Run("CreateAction", func(t *testing.T) {
 		enabled := true
 		req := client.CreateActionRequest{
@@ -41,20 +38,37 @@ func TestAction(t *testing.T) {
 		require.Equal(t, true, action.Enabled)
 		require.NotEmpty(t, action.CreatedAt)
 		require.NotEmpty(t, action.UpdatedAt)
-
-		createdActionID = action.ID
 	})
 
 	t.Run("GetAction", func(t *testing.T) {
-		require.NotEmpty(t, createdActionID)
-		action, err := c.GetAction(ctx, createdActionID)
+		// Create an action for this test
+		enabled := true
+		req := client.CreateActionRequest{
+			LuaScript: "log_message('info', 'get action test')",
+			Enabled:   &enabled,
+		}
+		action, err := c.CreateAction(ctx, req)
 		require.NoError(t, err)
-		require.Equal(t, createdActionID, action.ID)
-		require.Equal(t, "log_message('info', 'test action')", action.LuaScript)
-		require.Equal(t, true, action.Enabled)
+		createdActionID := action.ID
+
+		retrievedAction, err := c.GetAction(ctx, createdActionID)
+		require.NoError(t, err)
+		require.Equal(t, createdActionID, retrievedAction.ID)
+		require.Equal(t, "log_message('info', 'get action test')", retrievedAction.LuaScript)
+		require.Equal(t, true, retrievedAction.Enabled)
 	})
 
 	t.Run("GetActions", func(t *testing.T) {
+		// Create an action for this test
+		enabled := true
+		req := client.CreateActionRequest{
+			LuaScript: "log_message('info', 'list actions test')",
+			Enabled:   &enabled,
+		}
+		action, err := c.CreateAction(ctx, req)
+		require.NoError(t, err)
+		createdActionID := action.ID
+
 		actions, err := c.ListActions(ctx, 100, 0) // limit=100, offset=0
 		require.NoError(t, err)
 		require.Greater(t, len(actions.Actions), 0)
@@ -64,7 +78,7 @@ func TestAction(t *testing.T) {
 		for _, action := range actions.Actions {
 			if action.ID == createdActionID {
 				found = true
-				require.Equal(t, "log_message('info', 'test action')", action.LuaScript)
+				require.Equal(t, "log_message('info', 'list actions test')", action.LuaScript)
 				break
 			}
 		}
