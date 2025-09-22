@@ -101,10 +101,10 @@ sql-lint: ## Lint SQL migration files
 	sqruff lint internal/storage/db/migrations/
 
 docs: ## Generate OpenAPI/Swagger documentation
-	swag init -g cmd/main.go -o docs/
+	swag init -g cmd/main.go -o docs/ --ot json,yaml
 
 docs-clean: ## Clean generated documentation files
-	rm -f docs/docs.go docs/swagger.json docs/swagger.yaml
+	rm -f docs/swagger.json docs/swagger.yaml
 
 clients-go: ## Generate Go HTTP client from OpenAPI spec using openapi-generator-cli
 	oapi-codegen -package client -generate types,client -o pkg/client/rule_engine.go docs/swagger.yaml
