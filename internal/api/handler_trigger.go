@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -104,13 +105,19 @@ func getTrigger(triggerSvc TriggerService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid trigger ID")
+			slog.Error("Invalid trigger ID format", "id", idStr, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid trigger ID format")
 			return
 		}
 
 		trigger, err := triggerSvc.GetByID(r.Context(), id)
 		if err != nil {
-			ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Trigger not found")
+			if errors.Is(err, triggerStorage.ErrNotFound) {
+				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Trigger not found")
+				return
+			}
+			slog.Error("Failed to get trigger", "trigger_id", id, "error", err)
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve trigger")
 			return
 		}
 
@@ -124,7 +131,8 @@ func deleteTrigger(triggerSvc TriggerService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid trigger ID")
+			slog.Error("Invalid trigger ID format for delete", "id", idStr, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid trigger ID format")
 			return
 		}
 
@@ -133,6 +141,7 @@ func deleteTrigger(triggerSvc TriggerService) http.HandlerFunc {
 				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Trigger not found")
 				return
 			}
+			slog.Error("Failed to delete trigger", "trigger_id", id, "error", err)
 			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to delete trigger")
 			return
 		}

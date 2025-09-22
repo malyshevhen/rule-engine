@@ -36,20 +36,6 @@ type TestEnvironment struct {
 
 func InitTestEnv(ctx context.Context) *TestEnvironment {
 	// Set environment variables for compose
-	os.Setenv("DB_NAME", "rule_engine_test")
-	os.Setenv("DB_USER", "postgres")
-	os.Setenv("DB_PASSWORD", "password")
-	os.Setenv("DB_PORT", "5432")
-	os.Setenv("DB_SSL_MODE", "disable")
-	os.Setenv("NATS_PORT", "4222")
-	os.Setenv("PROMETHEUS_PORT", "9090")
-	os.Setenv("PROMETHEUS_CONFIG", "/tmp/prometheus.yml")
-	os.Setenv("RULE_ENGINE_IMAGE", "localhost/rule-engine:local")
-	os.Setenv("RULE_ENGINE_PORT", "8080")
-	os.Setenv("JWT_SECRET", "dev-jwt-secret-67890")
-	os.Setenv("API_KEY", "dev-api-key-12345")
-	os.Setenv("LOG_LEVEL", "info")
-
 	env := &TestEnvironment{}
 
 	env.once.Do(func() {

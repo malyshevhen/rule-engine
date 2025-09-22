@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ func createRule(ruleSvc RuleService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req CreateRuleRequest
 		if err := ValidateAndParseJSON(r, &req); err != nil {
+			slog.Error("Failed to validate create rule request", "error", err)
 			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
@@ -45,6 +47,7 @@ func createRule(ruleSvc RuleService) http.HandlerFunc {
 		}
 
 		if err := ruleSvc.Create(r.Context(), rule); err != nil {
+			slog.Error("Failed to create rule", "error", err)
 			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create rule")
 			return
 		}
@@ -82,6 +85,7 @@ func listRules(ruleSvc RuleService) http.HandlerFunc {
 
 		rules, total, err := ruleSvc.List(r.Context(), limit, offset)
 		if err != nil {
+			slog.Error("Failed to list rules", "limit", limit, "offset", offset, "error", err)
 			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to list rules")
 			return
 		}
@@ -105,13 +109,19 @@ func getRule(ruleSvc RuleService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID")
+			slog.Error("Invalid rule ID format", "id", idStr, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID format")
 			return
 		}
 
 		rule, err := ruleSvc.GetByID(r.Context(), id)
 		if err != nil {
-			ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Rule not found")
+			if errors.Is(err, ruleStorage.ErrNotFound) {
+				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Rule not found")
+				return
+			}
+			slog.Error("Failed to get rule", "rule_id", id, "error", err)
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve rule")
 			return
 		}
 
@@ -125,13 +135,15 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID")
+			slog.Error("Invalid rule ID format for update", "id", idStr, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID format")
 			return
 		}
 
 		// Parse JSON Patch operations
 		var patchOps PatchRequest
 		if err := ParseJSONBody(r, &patchOps); err != nil {
+			slog.Error("Failed to parse JSON patch body", "rule_id", id, "error", err)
 			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Invalid JSON patch request body: %s", err.Error()))
 			return
 		}
@@ -239,7 +251,8 @@ func updateRule(ruleSvc RuleService) http.HandlerFunc {
 		}
 
 		if err := ruleSvc.Update(r.Context(), updatedRule); err != nil {
-			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", fmt.Sprintf("Failed to update rule in database: %s", err.Error()))
+			slog.Error("Failed to update rule in database", "rule_id", id, "error", err)
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to update rule")
 			return
 		}
 
@@ -253,7 +266,8 @@ func deleteRule(ruleSvc RuleService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID")
+			slog.Error("Invalid rule ID format for delete", "id", idStr, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid rule ID format")
 			return
 		}
 
@@ -262,6 +276,7 @@ func deleteRule(ruleSvc RuleService) http.HandlerFunc {
 				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Rule not found")
 				return
 			}
+			slog.Error("Failed to delete rule", "rule_id", id, "error", err)
 			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to delete rule")
 			return
 		}

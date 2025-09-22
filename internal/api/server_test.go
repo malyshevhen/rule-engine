@@ -15,6 +15,9 @@ import (
 	"github.com/malyshevhen/rule-engine/internal/engine/executor"
 	execCtx "github.com/malyshevhen/rule-engine/internal/engine/executor/context"
 	"github.com/malyshevhen/rule-engine/internal/rule"
+	actionStorage "github.com/malyshevhen/rule-engine/internal/storage/action"
+	ruleStorage "github.com/malyshevhen/rule-engine/internal/storage/rule"
+	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
 	"github.com/malyshevhen/rule-engine/internal/trigger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -313,7 +316,7 @@ func TestServer_UpdateRule(t *testing.T) {
 			},
 			expectedStatus: http.StatusNotFound,
 			setupMocks: func() {
-				mockRuleSvc.On("GetByID", mock.Anything, mock.Anything).Return((*rule.Rule)(nil), assert.AnError)
+				mockRuleSvc.On("GetByID", mock.Anything, mock.Anything).Return((*rule.Rule)(nil), ruleStorage.ErrNotFound)
 			},
 		},
 		{
@@ -397,9 +400,9 @@ func TestServer_DeleteRule(t *testing.T) {
 		{
 			name:           "rule not found",
 			ruleID:         uuid.New().String(),
-			expectedStatus: http.StatusInternalServerError,
+			expectedStatus: http.StatusNotFound,
 			setupMocks: func() {
-				mockRuleSvc.On("Delete", mock.Anything, mock.Anything).Return(assert.AnError)
+				mockRuleSvc.On("Delete", mock.Anything, mock.Anything).Return(ruleStorage.ErrNotFound)
 			},
 		},
 	}
@@ -456,7 +459,7 @@ func TestServer_GetRule(t *testing.T) {
 			ruleID:         uuid.New().String(),
 			expectedStatus: http.StatusNotFound,
 			setupMocks: func() {
-				mockRuleSvc.On("GetByID", mock.Anything, mock.Anything).Return((*rule.Rule)(nil), assert.AnError)
+				mockRuleSvc.On("GetByID", mock.Anything, mock.Anything).Return((*rule.Rule)(nil), ruleStorage.ErrNotFound)
 			},
 		},
 	}
@@ -494,7 +497,7 @@ func TestServer_AddActionToRule(t *testing.T) {
 			requestBody: AddActionToRuleRequest{
 				ActionID: actionID,
 			},
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusNoContent,
 			setupMocks: func(m *mockRuleService) {
 				m.On("AddAction", mock.Anything, mock.Anything, mock.Anything).Return(nil)
 			},
@@ -507,6 +510,28 @@ func TestServer_AddActionToRule(t *testing.T) {
 			},
 			expectedStatus: http.StatusBadRequest,
 			setupMocks:     func(mock *mockRuleService) {},
+		},
+		{
+			name:   "rule not found",
+			ruleID: uuid.New().String(),
+			requestBody: AddActionToRuleRequest{
+				ActionID: actionID,
+			},
+			expectedStatus: http.StatusNotFound,
+			setupMocks: func(m *mockRuleService) {
+				m.On("AddAction", mock.Anything, mock.Anything, mock.Anything).Return(ruleStorage.ErrNotFound)
+			},
+		},
+		{
+			name:   "action not found",
+			ruleID: ruleID.String(),
+			requestBody: AddActionToRuleRequest{
+				ActionID: uuid.New(),
+			},
+			expectedStatus: http.StatusBadRequest,
+			setupMocks: func(m *mockRuleService) {
+				m.On("AddAction", mock.Anything, mock.Anything, mock.Anything).Return(actionStorage.ErrNotFound)
+			},
 		},
 		{
 			name:   "service error",
@@ -684,7 +709,7 @@ func TestServer_GetTrigger(t *testing.T) {
 			triggerID:      uuid.New().String(),
 			expectedStatus: http.StatusNotFound,
 			setupMocks: func() {
-				mockTriggerSvc.On("GetByID", mock.Anything, mock.Anything).Return((*trigger.Trigger)(nil), assert.AnError)
+				mockTriggerSvc.On("GetByID", mock.Anything, mock.Anything).Return((*trigger.Trigger)(nil), triggerStorage.ErrNotFound)
 			},
 		},
 	}
@@ -779,7 +804,7 @@ func TestServer_GetAction(t *testing.T) {
 			actionID:       uuid.New().String(),
 			expectedStatus: http.StatusNotFound,
 			setupMocks: func() {
-				mockActionSvc.On("GetByID", mock.Anything, mock.Anything).Return((*action.Action)(nil), assert.AnError)
+				mockActionSvc.On("GetByID", mock.Anything, mock.Anything).Return((*action.Action)(nil), actionStorage.ErrNotFound)
 			},
 		},
 	}

@@ -105,13 +105,19 @@ func getAction(actionSvc ActionService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid action ID")
+			slog.Error("Invalid action ID format", "id", idStr, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid action ID format")
 			return
 		}
 
 		action, err := actionSvc.GetByID(r.Context(), id)
 		if err != nil {
-			ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Action not found")
+			if errors.Is(err, actionStorage.ErrNotFound) {
+				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Action not found")
+				return
+			}
+			slog.Error("Failed to get action", "action_id", id, "error", err)
+			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to retrieve action")
 			return
 		}
 
@@ -125,7 +131,8 @@ func deleteAction(actionSvc ActionService) http.HandlerFunc {
 		idStr := vars["id"]
 		id, err := uuid.Parse(idStr)
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid action ID")
+			slog.Error("Invalid action ID format for delete", "id", idStr, "error", err)
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid action ID format")
 			return
 		}
 
@@ -134,6 +141,7 @@ func deleteAction(actionSvc ActionService) http.HandlerFunc {
 				ErrorResponse(w, http.StatusNotFound, "NOT_FOUND", "Action not found")
 				return
 			}
+			slog.Error("Failed to delete action", "action_id", id, "error", err)
 			ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to delete action")
 			return
 		}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,7 @@ func evaluateScript(executorSvc ExecutorService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req EvaluateScriptRequest
 		if err := ValidateAndParseJSON(r, &req); err != nil {
+			slog.Error("Failed to validate evaluate script request", "error", err)
 			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
