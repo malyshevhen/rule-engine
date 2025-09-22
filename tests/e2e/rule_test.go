@@ -1,7 +1,10 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"net/http"
 	"testing"
 
 	"github.com/google/uuid"
@@ -240,12 +243,41 @@ func TestAddActionToRule(t *testing.T) {
 	})
 
 	t.Run("AddActionWithInvalidRuleID", func(t *testing.T) {
-		// TODO: Implement test for invalid UUID format in rule ID
-		// This should test that providing an invalid UUID returns 400 Bad Request
-		// Requires either modifying client to bypass UUID validation or using direct HTTP calls
-		// Example: make HTTP POST to /api/v1/rules/invalid-uuid/actions with valid body
-		// Expect 400 status
-		t.Skip("Invalid UUID format testing requires direct HTTP calls")
+		// Test that providing an invalid UUID in the rule ID returns 400 Bad Request
+		// Use direct HTTP call to bypass client validation
+
+		// Create a valid action first
+		actionReq := client.CreateActionRequest{
+			LuaScript: "print('test action')",
+		}
+		action, err := c.CreateAction(ctx, actionReq)
+		require.NoError(t, err)
+		require.NotNil(t, action)
+
+		// Make direct HTTP request with invalid UUID
+		reqBody := client.AddActionToRuleRequest{
+			ActionID: action.ID,
+		}
+		body, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		url := baseURL + "/api/v1/rules/invalid-uuid/actions"
+		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-API-Key", "test-api-key")
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+		var errResp client.ErrorResponse
+		err = json.NewDecoder(resp.Body).Decode(&errResp)
+		require.NoError(t, err)
+		require.Equal(t, "VALIDATION_ERROR", errResp.Error.Code)
+		require.Contains(t, errResp.Error.Message, "Invalid rule ID format")
 	})
 
 	t.Run("AddActionWithInvalidRequestBody", func(t *testing.T) {

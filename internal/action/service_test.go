@@ -59,6 +59,11 @@ func (m *mockActionRepository) List(ctx context.Context, limit, offset int) ([]*
 	return args.Get(0).([]*actionStorage.Action), args.Int(1), args.Error(2)
 }
 
+func (m *mockActionRepository) Update(ctx context.Context, action *actionStorage.Action) error {
+	args := m.Called(ctx, action)
+	return args.Error(0)
+}
+
 func (m *mockActionRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)

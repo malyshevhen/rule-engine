@@ -212,7 +212,29 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 
 // AddAction associates an action with a rule
 func (r *Repository) AddAction(ctx context.Context, ruleID, actionID uuid.UUID) error {
+	// Check if rule exists
+	ruleQuery := `SELECT 1 FROM rules WHERE id = $1`
+	var ruleExists int
+	err := r.db.QueryRow(ctx, ruleQuery, ruleID).Scan(&ruleExists)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return err
+	}
+
+	// Check if action exists
+	actionQuery := `SELECT 1 FROM actions WHERE id = $1`
+	var actionExists int
+	err = r.db.QueryRow(ctx, actionQuery, actionID).Scan(&actionExists)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return actionStorage.ErrNotFound
+		}
+		return err
+	}
+
 	query := `INSERT INTO rule_actions (rule_id, action_id) VALUES ($1, $2)`
-	_, err := r.db.Exec(ctx, query, ruleID, actionID)
+	_, err = r.db.Exec(ctx, query, ruleID, actionID)
 	return err
 }

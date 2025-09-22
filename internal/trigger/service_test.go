@@ -37,6 +37,11 @@ func (m *mockTriggerRepository) List(ctx context.Context, limit, offset int) ([]
 	return args.Get(0).([]*triggerStorage.Trigger), args.Int(1), args.Error(2)
 }
 
+func (m *mockTriggerRepository) Update(ctx context.Context, trigger *triggerStorage.Trigger) error {
+	args := m.Called(ctx, trigger)
+	return args.Error(0)
+}
+
 func (m *mockTriggerRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	args := m.Called(ctx, id)
 	return args.Error(0)
