@@ -3,7 +3,7 @@ version: "2"
 linters:
   exclusions:
     paths:
-      - "tests"
+      - "./tests/.*"
       - ".*_test.go$"
-      - "docs"
+      - "docs/docs.go"
       - ".*_gen.go$"

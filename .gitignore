@@ -21,6 +21,3 @@ main
 # opencode temp dir
 opencodetmp
 
-# Generated documentation files
-docs/
-

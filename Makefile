@@ -91,9 +91,6 @@ test-e2e-only: ## Run e2e tests without rebuilding (assumes image is up to date)
 lint: ## Run linter (golangci-lint)
 	golangci-lint run
 
-format: ## Format code with gofmt
-	gofmt -w .
-
 vet: ## Vet code for potential issues
 	go vet ./...
 
@@ -174,7 +171,6 @@ dev: db-up db-wait migrate run-local ## Start development environment (legacy - 
 prepare-e2e: ## Prepare for e2e tests (rebuild everything)
 	@echo "Preparing for e2e tests..."
 	make docs
-	make clients-go
 	@echo "E2E test preparation complete!"
 
 # CI/CD simulation
@@ -198,11 +194,11 @@ metrics: ## Show application metrics
 
 dashboard: ## Open analytics dashboard in browser (requires app to be running)
 	@echo "Analytics dashboard available at: http://localhost:8080/dashboard"
-	@echo "API documentation available at: http://localhost:8080/swagger/index.html"
+	@echo "API documentation generated in docs/ directory (run 'make docs' to regenerate)"
 	@echo ""
 	@echo "Opening dashboard..."
 	@which xdg-open >/dev/null 2>&1 && xdg-open http://localhost:8080/dashboard || \
 	which open >/dev/null 2>&1 && open http://localhost:8080/dashboard || \
 	echo "Please open http://localhost:8080/dashboard in your browser"
 	@echo ""
-	@echo "To view API docs: http://localhost:8080/swagger/index.html"
+	@echo "To view API docs: check docs/swagger.json or docs/swagger.yaml"
