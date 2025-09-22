@@ -348,27 +348,33 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AddActionToRuleRequest"
-      responses:
-        "204":
-          description: Action added to rule successfully
-        "400":
-          description: Invalid request data or rule ID
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Authentication required
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+       responses:
+         "204":
+           description: Action added to rule successfully
+         "400":
+           description: Invalid request data, rule ID format, or action not found
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "401":
+           description: Authentication required
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "404":
+           description: Rule not found
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
+         "500":
+           description: Internal server error
+           content:
+             application/json:
+               schema:
+                 $ref: "#/components/schemas/ErrorResponse"
 
   /api/v1/triggers:
     post:
