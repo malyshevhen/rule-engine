@@ -111,10 +111,7 @@ func runLoadTest(ctx context.Context, t *testing.T, baseURL, endpoint string, nu
 
 func TestPerformance_RulesAPI_LoadTest(t *testing.T) {
 	ctx := context.Background()
-	env, cleanup := SetupTestEnvironment(ctx, t)
-	defer cleanup()
-
-	baseURL := env.GetRuleEngineURL(ctx, t) + "/api/v1"
+	baseURL := testEnv.GetRuleEngineURL(ctx, t) + "/api/v1"
 
 	// Run load test on /rules endpoint
 	result := runLoadTest(ctx, t, baseURL, "/rules", 100, 10)
@@ -139,10 +136,7 @@ func TestPerformance_RulesAPI_LoadTest(t *testing.T) {
 
 func TestPerformance_TriggersAPI_LoadTest(t *testing.T) {
 	ctx := context.Background()
-	env, cleanup := SetupTestEnvironment(ctx, t)
-	defer cleanup()
-
-	baseURL := env.GetRuleEngineURL(ctx, t) + "/api/v1"
+	baseURL := testEnv.GetRuleEngineURL(ctx, t) + "/api/v1"
 
 	// Run load test on /triggers endpoint
 	result := runLoadTest(ctx, t, baseURL, "/triggers", 100, 10)
@@ -167,10 +161,7 @@ func TestPerformance_TriggersAPI_LoadTest(t *testing.T) {
 
 func TestPerformance_ActionsAPI_LoadTest(t *testing.T) {
 	ctx := context.Background()
-	env, cleanup := SetupTestEnvironment(ctx, t)
-	defer cleanup()
-
-	baseURL := env.GetRuleEngineURL(ctx, t) + "/api/v1"
+	baseURL := testEnv.GetRuleEngineURL(ctx, t) + "/api/v1"
 
 	// Run load test on /actions endpoint
 	result := runLoadTest(ctx, t, baseURL, "/actions", 100, 10)

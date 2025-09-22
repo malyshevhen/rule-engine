@@ -20,20 +20,21 @@ import (
 	redisPkg "github.com/malyshevhen/rule-engine/internal/storage/redis"
 )
 
+var testEnv *TestEnvironment
+
 // TestEnvironment holds all test infrastructure components
 type TestEnvironment struct {
+	stack               *compose.DockerCompose
 	PostgresContainer   testcontainers.Container
 	RedisContainer      testcontainers.Container
 	NATSContainer       testcontainers.Container
 	HoverflyContainer   testcontainers.Container
 	RuleEngineContainer testcontainers.Container
 	hoverflyMutex       sync.Mutex
+	once                sync.Once
 }
 
-// SetupTestEnvironment creates and starts all required test infrastructure
-func SetupTestEnvironment(ctx context.Context, t *testing.T) (*TestEnvironment, func()) {
-	t.Helper()
-
+func InitTestEnv(ctx context.Context) *TestEnvironment {
 	// Set environment variables for compose
 	os.Setenv("DB_NAME", "rule_engine_test")
 	os.Setenv("DB_USER", "postgres")
@@ -49,40 +50,56 @@ func SetupTestEnvironment(ctx context.Context, t *testing.T) (*TestEnvironment, 
 	os.Setenv("API_KEY", "dev-api-key-12345")
 	os.Setenv("LOG_LEVEL", "info")
 
-	// Start environment containers
-	stack, err := compose.NewDockerCompose("containers/compose.yaml")
-	require.NoError(t, err)
+	env := &TestEnvironment{}
 
-	cleanup := func() {
-		if err = stack.Down(ctx, compose.RemoveOrphans(true), compose.RemoveImagesLocal); err != nil {
-			require.NoError(t, err, "Failed to cleanup test environment: %v")
+	env.once.Do(func() {
+		// Start environment containers
+		stack, err := compose.NewDockerCompose("containers/compose.yaml")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create compose stack: %v", err))
 		}
+
+		err = stack.WaitForService("rule-engine", wait.ForHealthCheck()).Up(ctx)
+		if err != nil {
+			panic(fmt.Sprintf("Failed to start test environment: %v", err))
+		}
+
+		pgContainer, err := stack.ServiceContainer(ctx, "postgres")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get postgres container: %v", err))
+		}
+		redisContainer, err := stack.ServiceContainer(ctx, "redis")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get redis container: %v", err))
+		}
+		natsContainer, err := stack.ServiceContainer(ctx, "nats")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get nats container: %v", err))
+		}
+		hoverflyContainer, err := stack.ServiceContainer(ctx, "hoverfly")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get hoverfly container: %v", err))
+		}
+		ruleEngineContainer, err := stack.ServiceContainer(ctx, "rule-engine")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to get rule-engine container: %v", err))
+		}
+
+		env.stack = stack
+		env.PostgresContainer = pgContainer
+		env.RedisContainer = redisContainer
+		env.NATSContainer = natsContainer
+		env.HoverflyContainer = hoverflyContainer
+		env.RuleEngineContainer = ruleEngineContainer
+	})
+
+	return env
+}
+
+func (env *TestEnvironment) Cleanup(ctx context.Context) {
+	if err := env.stack.Down(ctx, compose.RemoveOrphans(true), compose.RemoveImagesLocal); err != nil {
+		fmt.Printf("Failed to cleanup test environment: %v\n", err)
 	}
-
-	err = stack.WaitForService("rule-engine", wait.ForHealthCheck()).Up(ctx)
-	require.NoError(t, err)
-
-	pgContainer, err := stack.ServiceContainer(ctx, "postgres")
-	require.NoError(t, err)
-	redisContainer, err := stack.ServiceContainer(ctx, "redis")
-	require.NoError(t, err)
-	natsContainer, err := stack.ServiceContainer(ctx, "nats")
-	require.NoError(t, err)
-	hoverflyContainer, err := stack.ServiceContainer(ctx, "hoverfly")
-	require.NoError(t, err)
-	ruleEngineContainer, err := stack.ServiceContainer(ctx, "rule-engine")
-	require.NoError(t, err)
-
-	// Start Rule Engine as host process
-	env := &TestEnvironment{
-		PostgresContainer:   pgContainer,
-		RedisContainer:      redisContainer,
-		NATSContainer:       natsContainer,
-		HoverflyContainer:   hoverflyContainer,
-		RuleEngineContainer: ruleEngineContainer,
-	}
-
-	return env, cleanup
 }
 
 // GetRuleEngineURL returns the Rule Engine service URL
@@ -180,6 +197,22 @@ func (env *TestEnvironment) SetupHoverflySimulation(ctx context.Context, t *test
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("Expected status code %d, got %d; Response: %s", http.StatusOK, resp.StatusCode, string(body))
 	}
+}
+
+// TestMain sets up the test environment once for all tests
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+
+	// Initialize test environment
+	testEnv = InitTestEnv(ctx)
+
+	// Run tests
+	code := m.Run()
+
+	// Cleanup test environment
+	testEnv.Cleanup(ctx)
+
+	os.Exit(code)
 }
 
 // MakeAuthenticatedRequest creates an HTTP request with authentication header

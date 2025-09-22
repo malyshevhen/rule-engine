@@ -17,15 +17,11 @@ var complexScript string
 func TestEvaluateEndpoint(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup test environment
-	env, cleanup := SetupTestEnvironment(ctx, t)
-	defer cleanup()
-
 	// Verify environment is set up correctly
-	require.NotNil(t, env)
+	require.NotNil(t, testEnv)
 
 	// Create client
-	client := re_client.NewClient(env.GetRuleEngineURL(ctx, t), re_client.AuthConfig{
+	client := re_client.NewClient(testEnv.GetRuleEngineURL(ctx, t), re_client.AuthConfig{
 		APIKey: "test-api-key",
 	})
 
@@ -95,7 +91,7 @@ func TestEvaluateEndpoint(t *testing.T) {
 
 	t.Run("Unauthorized", func(t *testing.T) {
 		// Test without authorization - need to make direct HTTP call for this
-		baseURL := env.GetRuleEngineURL(ctx, t)
+		baseURL := testEnv.GetRuleEngineURL(ctx, t)
 		req, err := http.NewRequest("POST", baseURL+"/api/v1/evaluate", bytes.NewReader([]byte(`{"script":"return 42"}`)))
 		require.NoError(t, err)
 		req.Header.Set("Content-Type", "application/json")

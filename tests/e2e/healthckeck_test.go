@@ -13,15 +13,11 @@ import (
 func TestHealthCheck(t *testing.T) {
 	ctx := context.Background()
 
-	// Setup test environment
-	env, cleanup := SetupTestEnvironment(ctx, t)
-	defer cleanup()
-
 	// Verify environment is set up correctly
-	require.NotNil(t, env)
+	require.NotNil(t, testEnv)
 
 	// Create client
-	baseURL := env.GetRuleEngineURL(ctx, t)
+	baseURL := testEnv.GetRuleEngineURL(ctx, t)
 	c := client.NewClient(baseURL, client.AuthConfig{
 		APIKey: "test-api-key",
 	})
