@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -22,24 +21,6 @@ var (
 	// Allow disabling rate limiting for performance tests
 	rateLimitingEnabled = true
 )
-
-// recoveryMiddleware recovers from panics and returns a 500 error
-func recoveryMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				slog.Error("Panic recovered in HTTP handler",
-					"panic", err,
-					"method", r.Method,
-					"url", r.URL.Path,
-					"stack", string(debug.Stack()),
-				)
-				ErrorResponse(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
-			}
-		}()
-		next.ServeHTTP(w, r)
-	})
-}
 
 // loggingMiddleware logs HTTP requests
 func loggingMiddleware(next http.Handler) http.Handler {

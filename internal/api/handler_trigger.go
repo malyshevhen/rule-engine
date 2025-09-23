@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	triggerStorage "github.com/malyshevhen/rule-engine/internal/storage/trigger"
@@ -188,40 +187,6 @@ func updateTrigger(triggerSvc TriggerService) http.HandlerFunc {
 			return
 		}
 
-		// Parse JSON Patch operations
-		var patchOps PatchRequest
-		if err := ParseJSONBody(r, &patchOps); err != nil {
-			slog.Error("Failed to parse JSON patch body", "trigger_id", id, "error", err)
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Invalid JSON patch request body: %s", err.Error()))
-			return
-		}
-
-		// Validate patch operations
-		if len(patchOps) == 0 {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "At least one patch operation is required")
-			return
-		}
-
-		// Basic validation of patch operations
-		for i, op := range patchOps {
-			if strings.TrimSpace(op.Path) == "" {
-				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Patch operation %d: path cannot be empty", i+1))
-				return
-			}
-			// Validate path format (should start with /)
-			if !strings.HasPrefix(op.Path, "/") {
-				ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Patch operation %d: path must start with '/'", i+1))
-				return
-			}
-		}
-
-		// Convert patch operations to JSON Patch format
-		patchJSON, err := json.Marshal(patchOps)
-		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid patch operations")
-			return
-		}
-
 		// Get the current trigger
 		currentTrigger, err := triggerSvc.GetByID(r.Context(), id)
 		if err != nil {
@@ -241,15 +206,9 @@ func updateTrigger(triggerSvc TriggerService) http.HandlerFunc {
 			return
 		}
 
-		patch, err := jsonpatch.DecodePatch(patchJSON)
+		modifiedJSON, err := ApplyJSONPatch(r, triggerJSON, "trigger", id.String())
 		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid patch operations")
-			return
-		}
-
-		modifiedJSON, err := patch.Apply(triggerJSON)
-		if err != nil {
-			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", fmt.Sprintf("Failed to apply patch: %s", err.Error()))
+			ErrorResponse(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
 
