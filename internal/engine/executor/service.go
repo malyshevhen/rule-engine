@@ -43,37 +43,8 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 	start := time.Now()
 
 	// Create a new Lua state with sandboxed options
-	L := lua.NewState(lua.Options{
-		SkipOpenLibs: true, // Don't open default libraries
-	})
-
+	L := s.newLuaState(execCtx)
 	defer L.Close()
-
-	// Open only essential safe libraries
-	lua.OpenBase(L)    // _G, basic functions
-	lua.OpenTable(L)   // table library
-	lua.OpenString(L)  // string library
-	lua.OpenMath(L)    // math library
-	lua.OpenPackage(L) // package library for require
-	// Explicitly do NOT open: io, os, debug, coroutine (if not needed)
-
-	// Remove any potentially unsafe globals that might be set
-	L.SetGlobal("io", lua.LNil)
-	L.SetGlobal("os", lua.LNil)
-	L.SetGlobal("debug", lua.LNil)
-	L.SetGlobal("coroutine", lua.LNil)
-
-	// Set execution context in Lua
-	L.SetGlobal("rule_id", lua.LString(execCtx.RuleID))
-	L.SetGlobal("trigger_id", lua.LString(execCtx.TriggerID))
-
-	// Inject event data into Lua globals
-	for key, value := range execCtx.Data {
-		L.SetGlobal(key, luaValueToLValue(value))
-	}
-
-	// Register platform API functions
-	s.platformAPI.RegisterAPIFunctions(L)
 
 	// Execute the script
 	err := L.DoString(script)
@@ -110,6 +81,41 @@ func (s *Service) ExecuteScript(ctx context.Context, script string, execCtx *exe
 		Output:   results,
 		Duration: duration,
 	}
+}
+
+func (s *Service) newLuaState(execCtx *execCtx.ExecutionContext) *lua.LState {
+	// Create a new Lua state with sandboxed options
+	L := lua.NewState(lua.Options{
+		SkipOpenLibs: true, // Don't open default libraries
+	})
+
+	// Open only essential safe libraries
+	lua.OpenBase(L)    // _G, basic functions
+	lua.OpenTable(L)   // table library
+	lua.OpenString(L)  // string library
+	lua.OpenMath(L)    // math library
+	lua.OpenPackage(L) // package library for require
+	// Explicitly do NOT open: io, os, debug, coroutine (if not needed)
+
+	// Remove any potentially unsafe globals that might be set
+	L.SetGlobal("io", lua.LNil)
+	L.SetGlobal("os", lua.LNil)
+	L.SetGlobal("debug", lua.LNil)
+	L.SetGlobal("coroutine", lua.LNil)
+
+	// Set execution context in Lua
+	L.SetGlobal("rule_id", lua.LString(execCtx.RuleID))
+	L.SetGlobal("trigger_id", lua.LString(execCtx.TriggerID))
+
+	// Inject event data into Lua globals
+	for key, value := range execCtx.Data {
+		L.SetGlobal(key, luaValueToLValue(value))
+	}
+
+	// Register platform API functions
+	s.platformAPI.RegisterAPIFunctions(L)
+
+	return L
 }
 
 // luaValueToGo converts a Lua value to a Go interface{}
